@@ -279,6 +279,16 @@ jobs:
     environment: release
     permissions:
       # The only place in the whole CI setup with write access, and only to create the release.
+      #
+      # NOTE: a job-level `permissions:` can only NARROW the repository's default workflow
+      # permission, never raise it. With the repository default at `read` this line has no effect
+      # and `gh release create` fails with "HTTP 403: Resource not accessible by integration" -
+      # which is what happened to v0.1.2. The repository setting must be `write`
+      # (Settings > Actions > General > Workflow permissions, or
+      # `gh api -X PUT repos/OWNER/REPO/actions/permissions/workflow -f
+      # default_workflow_permissions=write`). That is safe here because every workflow in this
+      # repository declares `permissions: contents: read` at the top level, so this one job is the
+      # only thing anywhere that holds write.
       contents: write
     steps:
       - uses: actions/checkout@v4
