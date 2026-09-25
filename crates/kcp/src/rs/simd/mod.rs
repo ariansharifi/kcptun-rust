@@ -146,13 +146,19 @@ pub fn gal_mul_slice_xor(kernel: Kernel, c: u8, input: &[u8], out: &mut [u8]) {
 
 /// One-slice kernel body (`c != 1`); `out.len() == input.len()`.
 fn mul_slice<const XOR: bool>(kernel: Kernel, c: u8, input: &[u8], out: &mut [u8]) {
-    let rows: [&[u8]; 1] = [&[c]];
-    let inputs: [&[u8]; 1] = [input];
-    let mut outputs: [&mut [u8]; 1] = [out];
-    let end = input.len();
+    // The `code_group` arguments are built only where a SIMD arm exists to consume them. On a
+    // target with no SIMD kernel (armv7, armv6, i686) the match is `Scalar` alone, and building
+    // them unconditionally made every cross-build of those targets emit four `unused` warnings —
+    // invisible to CI, which only ever runs clippy for the host architecture.
+    #[cfg(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        target_arch = "x86_64"
+    ))]
+    let (rows, inputs, end): ([&[u8]; 1], [&[u8]; 1], usize) = ([&[c]], [input], input.len());
     match kernel.0 {
+        // `out` is used directly here and moved into a one-element `outputs` inside each SIMD
+        // arm instead; the arms are exclusive, so only one of them takes it.
         Imp::Scalar => {
-            let [out] = outputs;
             if XOR {
                 galois::gal_mul_slice_xor(c, input, out);
             } else {
@@ -163,19 +169,27 @@ fn mul_slice<const XOR: bool>(kernel: Kernel, c: u8, input: &[u8], out: &mut [u8
         // SAFETY: NEON is in the target baseline (the module only exists with
         // `target_feature = "neon"`); the single input and output are exactly `end` bytes long
         // and the row holds one coefficient per input, as `code_group` requires.
-        Imp::Neon => unsafe { neon::code_group::<1, XOR>(&rows, &inputs, &mut outputs, 0, end) },
+        Imp::Neon => {
+            let mut outputs: [&mut [u8]; 1] = [out];
+            // SAFETY: as above.
+            unsafe { neon::code_group::<1, XOR>(&rows, &inputs, &mut outputs, 0, end) }
+        }
         #[cfg(target_arch = "x86_64")]
         // SAFETY: a `Kernel(Imp::Avx2)` exists only if the CPU has AVX2 (`Kernel::available`);
         // the single input and output are exactly `end` bytes long and the row holds one
         // coefficient per input, as `code_group_avx2` requires.
-        Imp::Avx2 => unsafe {
-            x86::code_group_avx2::<1, XOR>(&rows, &inputs, &mut outputs, 0, end)
-        },
+        Imp::Avx2 => {
+            let mut outputs: [&mut [u8]; 1] = [out];
+            // SAFETY: as above.
+            unsafe { x86::code_group_avx2::<1, XOR>(&rows, &inputs, &mut outputs, 0, end) }
+        }
         #[cfg(target_arch = "x86_64")]
         // SAFETY: a `Kernel(Imp::Ssse3)` exists only if the CPU has SSSE3; lengths as above.
-        Imp::Ssse3 => unsafe {
-            x86::code_group_ssse3::<1, XOR>(&rows, &inputs, &mut outputs, 0, end)
-        },
+        Imp::Ssse3 => {
+            let mut outputs: [&mut [u8]; 1] = [out];
+            // SAFETY: as above.
+            unsafe { x86::code_group_ssse3::<1, XOR>(&rows, &inputs, &mut outputs, 0, end) }
+        }
     }
 }
 

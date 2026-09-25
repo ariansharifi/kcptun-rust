@@ -2,6 +2,12 @@
 /target
 **/*.rs.bk
 
+# zig's cache: cargo-zigbuild invokes `zig cc`, which writes this into the working
+# directory. Untracked and unignored, it made every CI release build report itself as
+# `-dirty`, i.e. unreproducible.
+.zig-cache/
+zig-cache/
+
 # Release artifacts (tools/release.sh, step 13.1). dist/ is tracked packaging, not output.
 /build
 

@@ -621,7 +621,14 @@ verify_binaries() {
 log "kcptun-rust $VERSION -> $OUT"
 note "host: $HOST_TRIPLE ($HOST_OS), $RUSTC_VERSION, zig $ZIG_VERSION, commit $GIT_COMMIT"
 case "$GIT_COMMIT" in
-  *-dirty) note "WARNING: the working tree is dirty; this is not a reproducible release build" ;;
+  *-dirty)
+    note "WARNING: the working tree is dirty; this is not a reproducible release build"
+    # Name the offending paths. Without this the warning is unactionable, which is how a
+    # published release came to be stamped -dirty with nobody able to say why.
+    git -C "$ROOT" status --porcelain | head -20 | while IFS= read -r line; do
+      note "  dirty: $line"
+    done
+    ;;
 esac
 
 for triple in $selected; do
