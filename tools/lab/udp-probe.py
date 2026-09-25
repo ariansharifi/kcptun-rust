@@ -68,7 +68,7 @@ def main():
     a = ap.parse_args()
     # No default address. `--host` used to default to lab-arm64's IP while `--ssh` defaults to
     # lab-arm64, so `--ssh lab-x86-1 --ports ...` started the listener on one host and probed
-    # another, printing "NO REPLY" for ports that are open — a false negative that looks exactly
+    # another, printing "NO REPLY" for ports that are open: a false negative that looks exactly
     # like a closed firewall. `ssh -G` resolves the alias the same way ssh itself will.
     if not a.host:
         a.host = ssh_hostname(a.ssh)
@@ -81,7 +81,7 @@ def main():
         sys.exit("refusing: ports below 4000 must not be used on a lab host "
                  "(tools/lab/README.md, safety rule 4)")
     # ssh joins its command words with spaces and hands the result to a *remote shell*, which
-    # splits them again — so the listener has to be quoted as one shell word. Without this the
+    # splits them again, so the listener has to be quoted as one shell word. Without this the
     # remote sh saw `python3 -c import` followed by the rest of the script as shell code, and
     # every probe failed with "remote listener failed to start" whatever the firewall said.
     remote = " ".join(shlex.quote(word) for word in

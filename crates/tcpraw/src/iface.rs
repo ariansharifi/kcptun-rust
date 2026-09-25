@@ -1,14 +1,14 @@
 //! The interface addresses a listening connection opens its raw sockets on.
 //!
 //! Go's `Listen` walks `net.Interfaces()` and, for every interface, the `*net.IPNet` entries of
-//! `iface.Addrs()`, opening one raw socket per address — loopback and IPv6 included, and with no
+//! `iface.Addrs()`, opening one raw socket per address: loopback and IPv6 included, and with no
 //! filter on the interface flags, so the addresses of a down interface are tried as well.
 //!
 //! On Linux both of Go's calls are one `RTM_GETADDR` netlink dump; `getifaddrs(3)` is glibc's
 //! (and musl's) wrapper around exactly that dump, so it yields the same set of addresses in the
 //! same per-interface order. The zone of an IPv6 link-local address is dropped here because Go
 //! drops it too: a `net.IPNet` has no `Zone` field, so `net.ListenIP("ip:tcp", &net.IPAddr{IP:
-//! ipaddr.IP})` binds `fe80::1` with `sin6_scope_id = 0` — which the kernel usually refuses, and
+//! ipaddr.IP})` binds `fe80::1` with `sin6_scope_id = 0`, which the kernel usually refuses, and
 //! `Listen` then simply records the error and carries on with the other addresses.
 //!
 //! Go reference: `tcpraw@v1.2.32 tcp_linux.go:Listen()`, `go1.27.1
@@ -20,7 +20,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 /// Every IPv4 and IPv6 address of every interface, in the order `getifaddrs(3)` reports them.
 ///
 /// Addresses of other families (`AF_PACKET` on Linux, `AF_LINK` on the BSDs) are skipped, which
-/// is what Go's `if ipaddr, ok := addr.(*net.IPNet); ok` does — its address table only ever holds
+/// is what Go's `if ipaddr, ok := addr.(*net.IPNet); ok` does: its address table only ever holds
 /// `*net.IPNet` for IP families and `*net.IPAddr` never appears from `interfaceAddrTable`.
 ///
 /// Duplicates are **not** removed: Go keeps whatever the kernel lists, so an address configured
@@ -95,7 +95,7 @@ mod tests {
     use super::*;
 
     /// Every host has at least a loopback address, and every address that comes back is one of
-    /// the two IP families — nothing else may leak out of the `sockaddr` decoding.
+    /// the two IP families: nothing else may leak out of the `sockaddr` decoding.
     #[test]
     fn interface_addrs_lists_the_loopback_address() {
         let addrs = interface_addrs().expect("getifaddrs");

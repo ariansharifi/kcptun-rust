@@ -130,7 +130,7 @@ fn test_go_snmp_csv_has_the_expected_shape() {
 }
 
 /// The header is `Unix` plus `kcp.DefaultSnmp.Header()`, whose `FECFullShards` and FEC ordering
-/// differ from the struct order of the `SIGUSR1` line — both orders are pinned here.
+/// differ from the struct order of the `SIGUSR1` line: both orders are pinned here.
 #[test]
 fn test_expected_header_is_gos_header_not_the_struct_order() {
     let header = expected_header();

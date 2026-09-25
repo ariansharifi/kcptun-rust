@@ -12,19 +12,19 @@
 //!
 //! # Layout
 //!
-//! - [`checksum`] — the TCP checksum and the IPv4/IPv6 pseudo-header (gopacket's
+//! - [`checksum`]: the TCP checksum and the IPv4/IPv6 pseudo-header (gopacket's
 //!   `layers/tcpip.go`).
-//! - [`tcp`] — the segment codec: header and options, serialise and parse (gopacket's
+//! - [`tcp`]: the segment codec: header and options, serialise and parse (gopacket's
 //!   `layers/tcp.go`), plus the IPv4 raw-read header stripping the Go runtime does.
-//! - [`fingerprint`] — the Linux fingerprint every crafted segment imitates (window, options,
+//! - [`fingerprint`]: the Linux fingerprint every crafted segment imitates (window, options,
 //!   timestamps), including **Deviation V10**.
-//! - [`addr`] — Go's `net.ResolveTCPAddr` and the address forms the flow table is keyed by.
-//! - [`iptables`] — the `filter/OUTPUT` DROP rules and the slice of go-iptables that drives them.
-//! - [`flow`] — the flow table: one entry per peer, holding the TCP state segments are built
+//! - [`addr`]: Go's `net.ResolveTCPAddr` and the address forms the flow table is keyed by.
+//! - [`iptables`]: the `filter/OUTPUT` DROP rules and the slice of go-iptables that drives them.
+//! - [`flow`]: the flow table: one entry per peer, holding the TCP state segments are built
 //!   from, with the capture-side update, the segment builder and the expiry sweep.
-//! - [`iface`] (Unix) — the interface addresses `listen` opens one raw socket per.
-//! - `raw`, `conn` (Linux only) — the raw sockets and the connection that ties it all together.
-//! - [`packet_conn`] — the connection as a KCP transport (`kcptun_kcp::PacketConn`), which is
+//! - [`iface`] (Unix): the interface addresses `listen` opens one raw socket per.
+//! - `raw`, `conn` (Linux only): the raw sockets and the connection that ties it all together.
+//! - [`packet_conn`]: the connection as a KCP transport (`kcptun_kcp::PacketConn`), which is
 //!   what `--tcp` hands to a KCP session or listener.
 //!
 //! Everything but `raw` and `conn` is platform-independent and is tested everywhere.

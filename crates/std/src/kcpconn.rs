@@ -3,7 +3,7 @@
 //! Go needs no adapter: `kcp.UDPSession` is a `net.Conn`, so `smux.Server(conn, cfg)` and
 //! `std.NewCompStream(conn)` take it directly (`kcptun/server/main.go:serveListener`,
 //! `kcptun/client/main.go:createConn`). In this port smux asks for
-//! [`SmuxConn`], so [`KcpConn`] is the one-line bridge — including the
+//! [`SmuxConn`], so [`KcpConn`] is the one-line bridge, including the
 //! scatter-gather write, which is the reason `SmuxConn::write_all_vectored` exists:
 //!
 //! ```text
@@ -27,7 +27,7 @@ use kcptun_smux::SmuxConn;
 ///
 /// Cheap to build and to hold: it is an [`Arc`] of the session the listener accepted or the
 /// client dialled.
-// Go: kcptun/server/main.go:serveListener — `go handleMux(_Q_, conn, config)` with a *kcp.UDPSession
+// Go: kcptun/server/main.go:serveListener, `go handleMux(_Q_, conn, config)` with a *kcp.UDPSession
 pub struct KcpConn {
     /// Go's `conn`, the accepted or dialled `*kcp.UDPSession`.
     session: Arc<UdpSession>,
@@ -51,7 +51,7 @@ impl SmuxConn for KcpConn {
         self.session.read(buf).await
     }
 
-    // Go: kcp-go/v5@v5.6.66 sess.go:(*UDPSession).Write() — one segment queue, all or nothing
+    // Go: kcp-go/v5@v5.6.66 sess.go:(*UDPSession).Write(), one segment queue, all or nothing
     async fn write_all(&self, buf: &[u8]) -> io::Result<()> {
         self.session.write_buffers(&[buf]).await.map(|_| ())
     }

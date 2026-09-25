@@ -259,7 +259,7 @@ fn new_stream_joins_at_the_back_of_the_cycle() {
 
 /// Inside one stream the class decides first: a `cmdSYN`/`cmdUPD` queued after data still goes
 /// out first, while a `cmdFIN` (DATA class) stays behind the stream's data. Across streams the
-/// class means nothing — a control frame does not overtake another stream's turn.
+/// class means nothing: a control frame does not overtake another stream's turn.
 #[test]
 fn class_orders_within_a_stream_only() {
     let mut sq: ShaperQueue<()> = ShaperQueue::new();
@@ -371,8 +371,8 @@ fn diff_transcript() -> String {
 }
 
 /// Replays a 400-operation trace (mixed classes, six stream ids, sequence numbers crossing the
-/// `u32` wrap) and compares the transcript — every pop, the queue length and the number of live
-/// stream heaps after each operation — with the pinned Go `shaperQueue`.
+/// `u32` wrap) and compares the transcript: every pop, the queue length and the number of live
+/// stream heaps after each operation, with the pinned Go `shaperQueue`.
 ///
 /// The expected digest comes from an ad-hoc `go test` run of the same trace against a copy of
 /// `reference/kcptun/vendor/github.com/xtaci/smux` (porting guide §1; the harness is throwaway,
@@ -537,7 +537,7 @@ fn test_shaper_queue_fairness() {
 // Go runs 10 s with a 15 ms consumer pause; this runs 1 s with 1.5 ms. Go's producers push
 // without any bound, which would queue millions of requests in a Rust build where
 // `thread::sleep(1µs)` really is that short, so each producer stops at 512 pending requests of
-// its own stream — the streams stay backlogged, which is what the test is about.
+// its own stream: the streams stay backlogged, which is what the test is about.
 #[test]
 fn test_shaper_queue_fast_write_slow_read() {
     let result = fairness_run(

@@ -213,8 +213,8 @@ fn vectors_prng() {
 }
 
 /// A 1 MiB stream encrypted whole, byte by byte, in 7-byte pieces and in random pieces. All
-/// four must give the same ciphertext as Go — the transform depends on the position in the
-/// stream, not on how it is chopped up — and the recorded ciphertext must decrypt back.
+/// four must give the same ciphertext as Go: the transform depends on the position in the
+/// stream, not on how it is chopped up, and the recorded ciphertext must decrypt back.
 #[test]
 fn vectors_stream() {
     let f = file();

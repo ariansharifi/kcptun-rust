@@ -281,7 +281,7 @@ async fn a_plain_kcp_packet_creates_a_session() {
     listener.close().expect("close");
 }
 
-/// A FEC data packet carries the conv after the FEC header, and the sn after that — but only
+/// A FEC data packet carries the conv after the FEC header, and the sn after that, but only
 /// once it is long enough to hold a whole KCP segment (`fecHeaderSizePlus2 + IKCP_OVERHEAD`).
 /// A shorter one has no conv at all, so it cannot create a session.
 // Go: kcp-go/v5@v5.6.66 sess.go:(*Listener).packetInput() (`case typeData`)
@@ -313,7 +313,7 @@ async fn a_fec_data_packet_carries_the_conv_after_the_fec_header() {
 }
 
 /// A parity packet has no conv anywhere, so it can only be routed to a session that already owns
-/// the address — it never creates one.
+/// the address: it never creates one.
 // Go: kcp-go/v5@v5.6.66 sess.go:(*Listener).packetInput() (`case typeParity`)
 #[tokio::test(flavor = "current_thread")]
 async fn a_parity_packet_never_creates_a_session() {
@@ -345,7 +345,7 @@ async fn a_parity_packet_never_creates_a_session() {
 }
 
 /// An OOB packet carries the conv right after the FEC header and has no sn at all, so Go's `sn`
-/// stays 0 — which makes a mismatching OOB packet a reset. Both halves are pinned here.
+/// stays 0, which makes a mismatching OOB packet a reset. Both halves are pinned here.
 // Go: kcp-go/v5@v5.6.66 sess.go:(*Listener).packetInput() (`case typeOOB`)
 #[tokio::test(flavor = "current_thread")]
 async fn an_oob_packet_carries_the_conv_after_the_fec_header() {
@@ -664,7 +664,7 @@ async fn closing_a_session_removes_it_from_the_listener() {
 
 /// `AcceptKCP` honours the deadline set by `SetReadDeadline`, with Go's exact error. Go reads the
 /// deadline **once**, when the call starts, so changing it afterwards does not retime a blocked
-/// `Accept` — unlike `UDPSession.Read`, which has a `RESET_TIMER` loop.
+/// `Accept`, unlike `UDPSession.Read`, which has a `RESET_TIMER` loop.
 // Go: kcp-go/v5@v5.6.66 sess.go:(*Listener).AcceptKCP(), (*Listener).SetReadDeadline()
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn accept_returns_timeout_after_the_read_deadline() {
@@ -930,7 +930,7 @@ async fn a_socket_read_error_reaches_every_session() {
 /// Go's `socketReadErrorOnce`: the first error recorded wins and every later one is ignored.
 ///
 /// A session created after the error is not notified, but the monitor has already returned by
-/// then, so no such session can appear — Go behaves the same way.
+/// then, so no such session can appear: Go behaves the same way.
 // Go: kcp-go/v5@v5.6.66 sess.go:(*Listener).notifyReadError()
 #[tokio::test(flavor = "current_thread")]
 async fn the_listener_records_the_read_error_once() {
@@ -1027,7 +1027,7 @@ async fn accepted_sessions_count_as_passive_opens() {
     listener.close().expect("close");
 }
 
-/// A packet that fails its integrity check never reaches the demux, so it creates no session —
+/// A packet that fails its integrity check never reaches the demux, so it creates no session,
 /// the listener decrypts with its own copy of the cipher, exactly as a session does.
 // Go: kcp-go/v5@v5.6.66 sess.go:(*Listener).packetInput() (the `switch block`)
 #[tokio::test(flavor = "current_thread")]

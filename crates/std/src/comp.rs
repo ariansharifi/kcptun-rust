@@ -5,8 +5,8 @@
 //! `Write`, so one smux frame becomes one snappy chunk (two for a frame longer than 64 KiB).
 //! The framing is implemented here on top of `snap::raw::{Encoder, Decoder}` (DECISIONS D09):
 //! `snap`'s own `write::FrameEncoder` buffers internally, is synchronous and would neither
-//! reproduce Go's per-write chunking nor fit the async I/O this port uses. The block codec —
-//! everything after the chunk header — is `snap`'s; it produces the same bytes as
+//! reproduce Go's per-write chunking nor fit the async I/O this port uses. The block codec,
+//! everything after the chunk header: is `snap`'s; it produces the same bytes as
 //! `golang/snappy`, which `vectors_snappy_*` and `interop_snappy_*` check.
 //!
 //! ```text
@@ -247,8 +247,8 @@ impl<C: SmuxConn> CompStream<C> {
     /// both paths produce the chunks this loop produces, for the same bytes.
     ///
     /// **Deviation from Go's call pattern (not from its bytes):** Go writes an uncompressed
-    /// chunk with two `Write` calls on the connection — the header from `obuf`, then the
-    /// caller's slice — while this copies the body into `obuf` and issues one write per chunk,
+    /// chunk with two `Write` calls on the connection: the header from `obuf`, then the
+    /// caller's slice, while this copies the body into `obuf` and issues one write per chunk,
     /// as the plan asks. The KCP session below is a byte stream in stream mode, so the bytes on
     /// the wire are the same; only the number of `Write` calls differs.
     // Go: golang/snappy@v1.0.0 encode.go:Writer.write() / Writer.Write() / Writer.Flush()
@@ -506,7 +506,7 @@ fn decode_error(_e: snap::Error) -> Error {
 /// stream's, the addresses are the inner connection's.
 ///
 /// `write_all_vectored` gathers the slices and writes them as one `Write`, which is what smux's
-/// `sendLoop` does for a connection without `WriteBuffers` — and `CompStream` has none, so a
+/// `sendLoop` does for a connection without `WriteBuffers`, and `CompStream` has none, so a
 /// header and its payload always end up in the same snappy chunk.
 // Go: kcptun/std/comp.go:CompStream (net.Conn)
 impl<C: SmuxConn> SmuxConn for CompStream<C> {

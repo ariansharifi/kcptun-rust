@@ -43,7 +43,7 @@ pub enum PseudoHeader {
 impl PseudoHeader {
     /// Builds the pseudo-header for a segment from `src` to `dst`, choosing the family the way
     /// Go does: `raddr.IP.To4() != nil` selects IPv4, so an IPv4-mapped IPv6 address
-    /// (`::ffff:a.b.c.d`) is treated as IPv4 — `net.IP.To4()` and [`Ipv6Addr::to_ipv4_mapped`]
+    /// (`::ffff:a.b.c.d`) is treated as IPv4: `net.IP.To4()` and [`Ipv6Addr::to_ipv4_mapped`]
     /// accept exactly the same forms.
     ///
     /// Returns `None` when the two addresses end up in different families, which Go cannot
@@ -131,7 +131,7 @@ pub fn tcpip_checksum(data: &[u8], csum: u32) -> u16 {
 /// `protocol` is the upper-layer protocol number ([`IP_PROTOCOL_TCP`] here).
 // Go: gopacket@v1.1.19 layers/tcpip.go:tcpipchecksum.computeChecksum()
 pub fn compute_checksum(header_and_payload: &[u8], pseudo: &PseudoHeader, protocol: u8) -> u16 {
-    // Go: `length := uint32(len(headerAndPayload))` — a truncating conversion, kept as one.
+    // Go: `length := uint32(len(headerAndPayload))`, a truncating conversion, kept as one.
     let length = header_and_payload.len() as u32;
     let mut csum = pseudo.partial_checksum();
     csum = csum.wrapping_add(u32::from(protocol));
@@ -143,8 +143,8 @@ pub fn compute_checksum(header_and_payload: &[u8], pseudo: &PseudoHeader, protoc
 /// Whether a received segment's checksum is correct.
 ///
 /// Summing a whole valid segment (checksum field included) gives `0xffff`, whose complement is
-/// `0`. Go never verifies incoming checksums — the kernel has already done it for the flows
-/// tcpraw cares about — so this exists for tests and for the pcap comparison of Step 10.5.
+/// `0`. Go never verifies incoming checksums: the kernel has already done it for the flows
+/// tcpraw cares about, so this exists for tests and for the pcap comparison of Step 10.5.
 pub fn verify_checksum(header_and_payload: &[u8], pseudo: &PseudoHeader) -> bool {
     compute_checksum(header_and_payload, pseudo, IP_PROTOCOL_TCP) == 0
 }

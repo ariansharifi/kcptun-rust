@@ -518,8 +518,8 @@ async fn fec_queues_data_packets_then_parity() {
 /// The parity shards get the same crypto treatment as data packets, which is the one place where
 /// this port deliberately diverges from Go: Go seals `ecc[k]` in place inside the encoder's shard
 /// cache and copies it into a pooled buffer afterwards, while [`TxPipeline::process`] copies
-/// first and seals the copy. The bytes on the wire must be indistinguishable — a fresh 16-byte
-/// nonce, CRC-32/IEEE over everything after the crypto header, and the whole buffer encrypted —
+/// first and seals the copy. The bytes on the wire must be indistinguishable: a fresh 16-byte
+/// nonce, CRC-32/IEEE over everything after the crypto header, and the whole buffer encrypted,
 /// or a Go peer counts every parity packet as `InCsumErrors` and FEC never recovers anything.
 #[tokio::test(flavor = "current_thread")]
 async fn parity_shards_are_sealed_like_data_packets() {
@@ -984,7 +984,7 @@ async fn capacity_reports_the_free_slots_and_ignores_a_closed_channel() {
 /// Everything already queued when the session dies is still sent, like Go's `postProcess`, which
 /// blocks its `die` case while `chPostProcessing` is non-empty. (What Go drops on close is the
 /// packet still being handed over, because its output callback races `die` against the channel
-/// send; [`TxHandle::send`] does not — Deviation V05.)
+/// send; [`TxHandle::send`] does not: Deviation V05.)
 #[tokio::test(flavor = "current_thread")]
 async fn queued_packets_are_drained_on_die() {
     let _snmp = snmp_read();

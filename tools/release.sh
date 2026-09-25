@@ -46,7 +46,7 @@
 #                   low-churn tunnel, or a host with no usable glibc.
 #
 # Options:
-#   -o, --out DIR      output directory (default: build/ — *not* dist/, which is tracked
+#   -o, --out DIR      output directory (default: build/, *not* dist/, which is tracked
 #                      packaging that must never be attached to a release). SHA256SUMS is
 #                      written for *every* archive found there afterwards, not only the ones
 #                      this run built, so a re-used directory cannot ship an unlisted archive;

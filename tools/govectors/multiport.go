@@ -10,7 +10,7 @@ package main
 //     pin every one of those quirks down.
 //   - net.SplitHostPort (Go standard library, net/ipsock.go) is used for its *failure*:
 //     client/main.go:319 and server/main.go:449 treat an address it rejects as the path of a
-//     unix socket, so which addresses it rejects — and with which message — decides whether
+//     unix socket, so which addresses it rejects (and with which message) decides whether
 //     kcptun listens on TCP or on AF_UNIX.
 //
 // Each case records the function, the address, whether it succeeded, the results and the

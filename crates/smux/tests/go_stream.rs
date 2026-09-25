@@ -17,7 +17,7 @@ use kcptun_smux::error::Error;
 use kcptun_smux::session::Session;
 use tokio::time::Instant;
 
-/// Go: `TestHalfCloseBasic` — `CloseWrite` sends the FIN, the peer sees EOF and can still write
+/// Go: `TestHalfCloseBasic`, `CloseWrite` sends the FIN, the peer sees EOF and can still write
 /// back, and further writes on the half-closed side fail.
 // Go: reference/latest/smux/stream_test.go:TestHalfCloseBasic
 #[tokio::test]
@@ -71,7 +71,7 @@ async fn test_half_close_basic() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestHalfCloseDoubleCloseWrite` — the second `CloseWrite` reports a closed pipe.
+/// Go: `TestHalfCloseDoubleCloseWrite`, the second `CloseWrite` reports a closed pipe.
 // Go: reference/latest/smux/stream_test.go:TestHalfCloseDoubleCloseWrite
 #[tokio::test]
 async fn test_half_close_double_close_write() {
@@ -95,7 +95,7 @@ async fn test_half_close_double_close_write() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestHalfCloseBidirectional` — both sides write, read the other's data, then half-close.
+/// Go: `TestHalfCloseBidirectional`, both sides write, read the other's data, then half-close.
 // Go: reference/latest/smux/stream_test.go:TestHalfCloseBidirectional
 #[tokio::test]
 async fn test_half_close_bidirectional() {
@@ -124,7 +124,7 @@ async fn test_half_close_bidirectional() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestHalfCloseWithFullClose` — `Close` still works and is reported once; the peer reads
+/// Go: `TestHalfCloseWithFullClose`, `Close` still works and is reported once; the peer reads
 /// to EOF.
 // Go: reference/latest/smux/stream_test.go:TestHalfCloseWithFullClose
 #[tokio::test]
@@ -155,7 +155,7 @@ async fn test_half_close_with_full_close() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestHalfCloseAutoCleanup` — once both sides have half-closed, the stream leaves both
+/// Go: `TestHalfCloseAutoCleanup`, once both sides have half-closed, the stream leaves both
 /// session maps.
 // Go: reference/latest/smux/stream_test.go:TestHalfCloseAutoCleanup
 #[tokio::test]
@@ -183,7 +183,7 @@ async fn test_half_close_auto_cleanup() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestHalfCloseV2` — the same handshake on a version-2 session, where the half-close also
+/// Go: `TestHalfCloseV2`, the same handshake on a version-2 session, where the half-close also
 /// has to keep the window updates flowing.
 // Go: reference/latest/smux/stream_test.go:TestHalfCloseV2
 #[tokio::test]

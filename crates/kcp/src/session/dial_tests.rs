@@ -77,7 +77,7 @@ fn loopback(port: u16) -> SocketAddr {
 }
 
 /// A [`PacketConn`] whose receive blocks until [`BlockedConn::fail`] arms it, at which point it
-/// reports a socket error — the two states a read loop can be in without a peer.
+/// reports a socket error: the two states a read loop can be in without a peer.
 #[derive(Debug, Default)]
 struct BlockedConn {
     /// Releases the pending receive with an error.
@@ -609,7 +609,7 @@ async fn an_accepted_session_gets_no_read_loop() {
 ///                      └──◀ down (B) ◀── upstream 1
 /// ```
 ///
-/// The client dials `A` and never hears from it again — every answer arrives from `B`. Uploads
+/// The client dials `A` and never hears from it again: every answer arrives from `B`. Uploads
 /// alternate between two upstream sockets, so the listener has to recognise the second one as
 /// the session it already holds rather than opening another. Under Go's rules nothing here can
 /// work: the client counts every answer as `InErrs`, and the listener splits the client in two.
@@ -675,7 +675,7 @@ async fn a_session_survives_a_send_path_and_a_return_path_that_differ() {
                     turn += 1;
                     socket.send_to(&from_client[..n], listen_addr).await.expect("uplink send");
                 }
-                // The listener answers the address its session was created for — upstream 1 —
+                // The listener answers the address its session was created for: upstream 1,
                 // and V23 never moves that, whichever socket the last upload came from.
                 got = first.recv_from(&mut from_server) => {
                     let (n, _) = got.expect("downlink recv");

@@ -277,7 +277,7 @@ pub(crate) fn closed() -> io::Error {
 ///
 /// `rx` is uncontended: a connection has exactly one read loop. `tx` is **not**: 05.7 gives every
 /// accepted session an `Arc<dyn PacketConn>` onto the listener's socket, so all of a listener's
-/// tx tasks serialize on this one mutex across the `sendmmsg` syscall. Go has no such queue —
+/// tx tasks serialize on this one mutex across the `sendmmsg` syscall. Go has no such queue,
 /// `x/net internal/socket/rawconn_mmsg.go:sendMsgs` takes its `mmsghdr`/`iovec` scratch from
 /// `mmsghdr_unix.go:defaultMmsgTmpsPool` (a per-P `sync.Pool`) per `WriteBatch`. Giving the send
 /// path per-call scratch (a small pool next to the 05.2 bufpool, or a thread-local) is a 05.7 /

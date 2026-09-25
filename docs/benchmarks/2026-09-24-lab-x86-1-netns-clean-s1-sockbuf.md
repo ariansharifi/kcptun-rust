@@ -1,22 +1,22 @@
-# Go vs Rust end to end — lab-x86-1-netns-clean, S1 at a raised socket-buffer ceiling, 2026-09-24
+# Go vs Rust end to end: lab-x86-1-netns-clean, S1 at a raised socket-buffer ceiling, 2026-09-24
 
-> **Note — `-sockbuf` is clamped here, at a raised ceiling.** `s1` server asks for 67,108,868 B, `lab-x86-1` `net.core.rmem_max` is 8,388,608 B, so the receive buffer is 8x smaller than asked for; `s1` server asks for 67,108,868 B, `lab-x86-1` `net.core.wmem_max` is 67,108,864 B, so the send buffer is 4 B short. That is the same clamp lab-arm64 runs under, where D32 measured zero `UdpRcvbufErrors` over a 65 s S1 run, so it is a stated condition of these numbers rather than a reason to discard them.
+> **Note: `-sockbuf` is clamped here, at a raised ceiling.** `s1` server asks for 67,108,868 B, `lab-x86-1` `net.core.rmem_max` is 8,388,608 B, so the receive buffer is 8x smaller than asked for; `s1` server asks for 67,108,868 B, `lab-x86-1` `net.core.wmem_max` is 67,108,864 B, so the send buffer is 4 B short. That is the same clamp lab-arm64 runs under, where D32 measured zero `UdpRcvbufErrors` over a 65 s S1 run, so it is a stated condition of these numbers rather than a reason to discard them.
 
-**Sub-step 12.1b — the S1 half of the 12.1 baseline, re-taken on a host that can honour `-sockbuf`.** It supersedes the `s1` sections of [2026-09-24-lab-x86-1-netns-clean.md](2026-09-24-lab-x86-1-netns-clean.md), which were taken on the same host, with the same binaries, while `net.core.rmem_max` was the stock 212,992 B. docs/DECISIONS.md D32 says an S1 measurement taken under that ceiling is invalid and must be discarded rather than interpreted, so those rows are withdrawn and these replace them. Only the ceiling changed: same host, same byte-identical binaries, same campaign, same five repetitions, same interleaving.
+**Sub-step 12.1b: the S1 half of the 12.1 baseline, re-taken on a host that can honour `-sockbuf`.** It supersedes the `s1` sections of [2026-09-24-lab-x86-1-netns-clean.md](2026-09-24-lab-x86-1-netns-clean.md), which were taken on the same host, with the same binaries, while `net.core.rmem_max` was the stock 212,992 B. docs/DECISIONS.md D32 says an S1 measurement taken under that ceiling is invalid and must be discarded rather than interpreted, so those rows are withdrawn and these replace them. Only the ceiling changed: same host, same byte-identical binaries, same campaign, same five repetitions, same interleaving.
 
 ## Method
 
 | | |
 |---|---|
 | campaign | `baseline-netns-s1-sockbuf.json` |
-| client host | `lab-x86-1` — Linux 5.15.0-177-generic x86_64, 1 vCPU, Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz, ldd (Ubuntu GLIBC 2.35-0ubuntu3.15) 2.35, 1.9 GiB |
+| client host | `lab-x86-1`: Linux 5.15.0-177-generic x86_64, 1 vCPU, Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz, ldd (Ubuntu GLIBC 2.35-0ubuntu3.15) 2.35, 1.9 GiB |
 | arrangement | both tunnel ends in the `kr-cli`/`kr-srv` namespaces of one host, netem profile `clean` |
 | configurations | `s1` (s1 = the user's production profile) |
 | metric families | `bulk-up`, `bulk-down`, `latency`, `latency-loaded` |
 | repetitions | 5 per pair per cell, A/B interleaved (GG, RR, GR, RG, then again) |
 | workload duration | 20 s |
-| socket-buffer ceilings | `lab-x86-1` `rmem_max` 8,388,608, `wmem_max` 67,108,864 — `setsockopt(SO_RCVBUF)`/`SO_SNDBUF` is silently clamped to these (docs/DECISIONS.md D32). Requested `-sockbuf` → what the kernel grants: `s1` client 8,388,608 → honoured; `s1` server 67,108,868 → **8,388,608**. |
-| iperf3 | iperf 3.9 (cJSON 1.7.13) at `/usr/bin/iperf3`, sha256 `2c54c89b4d9016b9…` — the host's own package, which carries no build stamp of ours |
+| socket-buffer ceilings | `lab-x86-1` `rmem_max` 8,388,608, `wmem_max` 67,108,864: `setsockopt(SO_RCVBUF)`/`SO_SNDBUF` is silently clamped to these (docs/DECISIONS.md D32). Requested `-sockbuf` → what the kernel grants: `s1` client 8,388,608 → honoured; `s1` server 67,108,868 → **8,388,608**. |
+| iperf3 | iperf 3.9 (cJSON 1.7.13) at `/usr/bin/iperf3`, sha256 `2c54c89b4d9016b9…`: the host's own package, which carries no build stamp of ours |
 | started | 2026-09-24T22:08:12Z |
 | finished | 2026-09-24T22:49:38Z |
 | runs harvested | 60 |
@@ -27,20 +27,20 @@ Artefacts: go `75fd8d8d61c0` (none, linux/amd64) on `lab-x86-1`; lab tools `75fd
 
 Read before quoting anything here:
 
-* Every cell is a **median over the repetitions of one session**, and the pairs inside a session were interleaved, so the columns share whatever the box was doing. Medians from two different sessions are not comparable — on a shared box, and on a real path, absolutely not.
+* Every cell is a **median over the repetitions of one session**, and the pairs inside a session were interleaved, so the columns share whatever the box was doing. Medians from two different sessions are not comparable, on a shared box, and on a real path, absolutely not.
 * `RR/GG` is annotated ✓ when Rust is on the better side of Go for **that** row's direction (high is better for goodput and stream counts, low for CPU, memory, latency and retransmissions).
 * A `·` cell is one that is deliberately not measured: step 12.1 gives the cross pairs (GR, RG) throughput only, because a CPU or RSS row for a mixed pair describes two different implementations at once.
-* A `—` cell is **not measured**, never measured-as-zero. An `n/a` ratio is one the two cells beside it cannot support: either Go's median is zero, so the ratio is undefined rather than infinite, or both medians are segment counts below 100 over the whole run, where a ratio would be a verdict on noise. A number in parentheses after a cell is the number of runs behind it when that is fewer than the 5 the plan requires.
+* A `-` cell is **not measured**, never measured-as-zero. An `n/a` ratio is one the two cells beside it cannot support: either Go's median is zero, so the ratio is undefined rather than infinite, or both medians are segment counts below 100 over the whole run, where a ratio would be a verdict on noise. A number in parentheses after a cell is the number of runs behind it when that is fewer than the 5 the plan requires.
 * CPU per GB divides the process's own `utime + stime` by the bytes the *workload* moved, not by the bytes that went over the wire: charging an implementation only for the goodput it delivered is what makes FEC and retransmission show up as cost rather than as credit.
 * `RetransSegs` **decomposes**: one `flush` adds `LostSegs + FastRetransSegs + EarlyRetransSegs` into it, so all three components are printed beneath it and a `RetransSegs` row with an unexplained remainder means a counter is missing from this page rather than that some retransmission is unattributable. The three are medians of their own five runs, so they sum to the `RetransSegs` median only to within the run-to-run spread, not exactly; the per-run rows in the CSV do sum exactly.
 * **What was wrong with the run this replaces, and how it is known.** `setsockopt(SO_RCVBUF)` and `SO_SNDBUF` are silently clamped to `net.core.rmem_max`/`wmem_max`, so an S1 client asking for `-sockbuf 8388608` on a stock Ubuntu box gets 212,992 B and is told nothing. 11.2 measured what that costs on the same class of host: over one 65 s S1 run Go lost 95,133 datagrams to `UdpRcvbufErrors` (24.4% of arrivals) and Rust lost 223,293 (48.3%); at a raised ceiling both lost zero and three cells that had failed the >= 0.95x criterion inverted to 1.09-1.45x (docs/DECISIONS.md D32). `lab-x86-1` carried the stock ceiling when the superseded campaign ran: its `/etc/sysctl.d/99-kcptun-lab.conf` is dated 2026-09-24T21:57:15Z and is the only file under `/etc/sysctl.conf` or `/etc/sysctl.d/` that sets either limit, while that campaign ran 09:50:34Z to 11:14:01Z. Neither 12.1 page records a ceiling at all, which is what let the rows out; `bench.py` now prints one in every method table and refuses to start a campaign that a stock ceiling would invalidate.
-* **The same binaries, deliberately not rebuilt.** `~/kcptun-lab/bin` on `lab-x86-1` still holds the 12.1 deployment (`BUILD.txt`: `revision=75fd8d8-dirty`, `deployed=2026-09-24T09:44:50Z`) and nothing was redeployed for this run, so the only variable between the superseded page and this one is the host's socket-buffer ceiling. As on that page, what differed from `75fd8d8` was only untracked files — the harness itself — and no tracked file under `crates/` was modified.
+* **The same binaries, deliberately not rebuilt.** `~/kcptun-lab/bin` on `lab-x86-1` still holds the 12.1 deployment (`BUILD.txt`: `revision=75fd8d8-dirty`, `deployed=2026-09-24T09:44:50Z`) and nothing was redeployed for this run, so the only variable between the superseded page and this one is the host's socket-buffer ceiling. As on that page, what differed from `75fd8d8` was only untracked files (the harness itself) and no tracked file under `crates/` was modified.
 * **The server's `-sockbuf` is still clamped, and that is the intended condition.** S1 asks the server for 67,108,868 B against a raised `rmem_max` of 8,388,608, so the kernel grants 8 MiB. That is exactly the ceiling lab-arm64 runs under, and the ceiling at which D32 measured zero `UdpRcvbufErrors`; the method table states it rather than leaving it implicit. What changed is the client, whose 8,388,608 B request is now honoured to the byte instead of being cut to 208 KiB.
-* **Why S2 is not re-taken here, and why the obvious reason is wrong.** S2 passes no `-sockbuf`, which reads as "asks for nothing" — but kcptun's flag defaults to 4,194,304 B (`reference/kcptun/client/main.go:185-188`, `server/main.go:176-179`) and the binary always calls `SetReadBuffer`/`SetWriteBuffer` with it, so S2 was clamped on the stock host too, by 20x. What exempts it is not its request but its window: `-sndwnd 128` at `-mtu 1350` is about 173 kB of data per flush, ~224 kB on the wire once FEC's 10/3 parity is counted — the same order as the 208 KiB ceiling rather than comfortably inside it, which is why this was checked rather than argued — and the superseded page measures the consequence directly — the retransmitted share of `OutSegs` at S2 is **0.0% for both implementations**, which a buffer that was overflowing could not produce. A separate one-cell control was run to check that rather than argue it; see [2026-09-24-lab-x86-1-netns-clean-s2-control.md](2026-09-24-lab-x86-1-netns-clean-s2-control.md).
+* **Why S2 is not re-taken here, and why the obvious reason is wrong.** S2 passes no `-sockbuf`, which reads as "asks for nothing", but kcptun's flag defaults to 4,194,304 B (`reference/kcptun/client/main.go:185-188`, `server/main.go:176-179`) and the binary always calls `SetReadBuffer`/`SetWriteBuffer` with it, so S2 was clamped on the stock host too, by 20x. What exempts it is not its request but its window: `-sndwnd 128` at `-mtu 1350` is about 173 kB of data per flush, ~224 kB on the wire once FEC's 10/3 parity is counted, the same order as the 208 KiB ceiling rather than comfortably inside it, which is why this was checked rather than argued, and the superseded page measures the consequence directly, the retransmitted share of `OutSegs` at S2 is **0.0% for both implementations**, which a buffer that was overflowing could not produce. A separate one-cell control was run to check that rather than argue it; see [2026-09-24-lab-x86-1-netns-clean-s2-control.md](2026-09-24-lab-x86-1-netns-clean-s2-control.md).
 * The host has **one** vCPU and carries both tunnel ends, the workload and the echo target. Absolute goodput here is a property of that core, not of a network; only the Go-versus-Rust columns of one cell are comparable.
 * This page carries S1 only. The superseded page's S2 sections, its observations about the cross pairs at S2 and its coverage caveat still stand for S2; what is withdrawn is its S1 rows. Neither page is the full grid: `bulk-par-up`/`bulk-par-down`, `churn` and configurations `s3`/`s4` were not run, and step 12's Idle-cost and Startup rows and S5 (QPP) have no harness family at all.
 
-## Configuration `s1` — the user's production profile
+## Configuration `s1`: the user's production profile
 
 ```
 both   -mode normal -crypt xor -mtu 1390 -sndwnd 8192 -rcvwnd 8192 -smuxver 2 -smuxbuf 16777216 -streambuf 16777216 -datashard 0 -parityshard 0 -nocomp -quiet
@@ -48,7 +48,7 @@ client -conn 4 -sockbuf 8388608
 server -sockbuf 67108868
 ```
 
-### `bulk-up` — one TCP stream through the tunnel, client to server (iperf3, forward)
+### `bulk-up`: one TCP stream through the tunnel, client to server (iperf3, forward)
 
 | measurement | unit | GG | RR | GR | RG | RR/GG |
 |---|---:|---:|---:|---:|---:|---:|
@@ -76,7 +76,7 @@ server -sockbuf 67108868
 | RepeatSegs received by the client | segments | 1 | 0 | · | · | n/a |
 | RepeatSegs received by the server | segments | 3,779 | 0 | · | · | 0.00x ✓ |
 
-The spread behind those medians — every run of *goodput* (Mbit/s), in the order it ran:
+The spread behind those medians: every run of *goodput* (Mbit/s), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -91,7 +91,7 @@ Produced by:
 tools/lab/lab.py --host lab-x86-1 --runs-dir lab-runs/20260924T220812Z-bench-s1-sockbuf run lab-runs/20260924T220812Z-bench-s1-sockbuf/scenarios/s1-sockbuf-s1-bulk-up.json --no-report --wait-load 600
 ```
 
-### `bulk-down` — one TCP stream through the tunnel, server to client (iperf3 -R)
+### `bulk-down`: one TCP stream through the tunnel, server to client (iperf3 -R)
 
 | measurement | unit | GG | RR | GR | RG | RR/GG |
 |---|---:|---:|---:|---:|---:|---:|
@@ -119,7 +119,7 @@ tools/lab/lab.py --host lab-x86-1 --runs-dir lab-runs/20260924T220812Z-bench-s1-
 | RepeatSegs received by the client | segments | 2,495 | 0 | · | · | 0.00x ✓ |
 | RepeatSegs received by the server | segments | 1 | 0 | · | · | n/a |
 
-The spread behind those medians — every run of *goodput* (Mbit/s), in the order it ran:
+The spread behind those medians: every run of *goodput* (Mbit/s), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -134,7 +134,7 @@ Produced by:
 tools/lab/lab.py --host lab-x86-1 --runs-dir lab-runs/20260924T220812Z-bench-s1-sockbuf run lab-runs/20260924T220812Z-bench-s1-sockbuf/scenarios/s1-sockbuf-s1-bulk-down.json --no-report --wait-load 600
 ```
 
-### `latency` — 64-byte ping/pong through an otherwise idle tunnel
+### `latency`: 64-byte ping/pong through an otherwise idle tunnel
 
 | measurement | unit | GG | RR | RR/GG |
 |---|---:|---:|---:|---:|
@@ -150,7 +150,7 @@ tools/lab/lab.py --host lab-x86-1 --runs-dir lab-runs/20260924T220812Z-bench-s1-
 | peak VmHWM, client | kB | 26,684 | 4,928 | 0.18x ✓ |
 | peak VmHWM, server | kB | 25,124 | 4,592 | 0.18x ✓ |
 
-The spread behind those medians — every run of *latency p50* (ms), in the order it ran:
+The spread behind those medians: every run of *latency p50* (ms), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -163,7 +163,7 @@ Produced by:
 tools/lab/lab.py --host lab-x86-1 --runs-dir lab-runs/20260924T220812Z-bench-s1-sockbuf run lab-runs/20260924T220812Z-bench-s1-sockbuf/scenarios/s1-sockbuf-s1-latency.json --no-report --wait-load 600
 ```
 
-### `latency-loaded` — the same ping/pong while a bulk flow saturates the same tunnel
+### `latency-loaded`: the same ping/pong while a bulk flow saturates the same tunnel
 
 | measurement | unit | GG | RR | RR/GG |
 |---|---:|---:|---:|---:|
@@ -195,7 +195,7 @@ tools/lab/lab.py --host lab-x86-1 --runs-dir lab-runs/20260924T220812Z-bench-s1-
 | RepeatSegs received by the client | segments | 3 | 0 | n/a |
 | RepeatSegs received by the server | segments | 13,882 | 0 | 0.00x ✓ |
 
-The spread behind those medians — every run of *latency p50* (ms), in the order it ran:
+The spread behind those medians: every run of *latency p50* (ms), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -228,9 +228,9 @@ tools/lab/lab.py --host lab-x86-1 --runs-dir lab-runs/20260924T220812Z-bench-s1-
 
 ## Raw data
 
-Every number above is a median of the rows in [`2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.csv`](2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.csv) — one row per configuration, metric, pair, repetition and measurement. The run directories the CSV names are under `lab-runs/` (gitignored) on the machine that ran the campaign, one `state.json`, `proc.csv`, `snmp-*.csv` and workload log per run.
+Every number above is a median of the rows in [`2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.csv`](2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.csv): one row per configuration, metric, pair, repetition and measurement. The run directories the CSV names are under `lab-runs/` (gitignored) on the machine that ran the campaign, one `state.json`, `proc.csv`, `snmp-*.csv` and workload log per run.
 
-The CSV is the **complete** record and is wider than the tables: it carries the cross pairs' CPU and memory rows, which the tables deliberately do not show (see the `·` note above). They are data, not a comparison — a GR row's CPU is a Go client's and a Rust server's added together — so anything read out of them is a lead to be confirmed, never a result.
+The CSV is the **complete** record and is wider than the tables: it carries the cross pairs' CPU and memory rows, which the tables deliberately do not show (see the `·` note above). They are data, not a comparison (a GR row's CPU is a Go client's and a Rust server's added together) so anything read out of them is a lead to be confirmed, never a result.
 
 Regenerate the page and the CSV from those directories without re-running anything:
 

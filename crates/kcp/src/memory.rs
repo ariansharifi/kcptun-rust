@@ -1,9 +1,9 @@
-//! Giving memory back after a burst — the Rust counterpart of Go's scavenger (plan 12.3).
+//! Giving memory back after a burst: the Rust counterpart of Go's scavenger (plan 12.3).
 //!
 //! A Go kcptun process that has moved a large transfer returns most of the memory within a few
 //! minutes: the collector frees the segment payloads and the runtime's *scavenger* then hands the
-//! pages back to the kernel. A Rust process frees the same bytes at the same moment — `Drop` runs
-//! as each segment is acknowledged — but nothing afterwards asks the allocator to unmap what it
+//! pages back to the kernel. A Rust process frees the same bytes at the same moment: `Drop` runs
+//! as each segment is acknowledged, but nothing afterwards asks the allocator to unmap what it
 //! is now sitting on, so RSS stays at the high-water mark. `docs/benchmarks/memory.md` §4
 //! measured exactly that: ~100 MB held flat for 600 s after 512 MB each way, with musl **and**
 //! with glibc, while Go fell to 73/57 MB.
@@ -17,13 +17,13 @@
 //!
 //! This module is the missing half, and it addresses both causes:
 //!
-//! - [`trim`] — one pass: give the parked packet buffers back down to [`IDLE_POOL_PARKED`] and
+//! - [`trim`]: one pass: give the parked packet buffers back down to [`IDLE_POOL_PARKED`] and
 //!   ask the allocator to return its free arenas to the operating system.
-//! - [`trim_when_idle`] — a task the binaries spawn once, which runs [`trim`] when the process has
+//! - [`trim_when_idle`]: a task the binaries spawn once, which runs [`trim`] when the process has
 //!   been **quiet** for a whole interval and something has happened since the last trim. Idle is
 //!   the only time this costs anything, and it is the only time there is anything to give back;
 //!   under load it does nothing at all, which is why it can be unconditional rather than a flag.
-//!   "Quiet" is a *small* delta rather than no delta at all — see [`QUIET_BYTES`], and the
+//!   "Quiet" is a *small* delta rather than no delta at all, see [`QUIET_BYTES`], and the
 //!   keepalive that makes the difference between a trim that fires and one that never does.
 //! - [`UdpSession::shrink_idle`](crate::session::UdpSession::shrink_idle), which every session's
 //!   own update task calls every [`SESSION_SHRINK_INTERVAL`]. The pool and the allocator are
@@ -37,13 +37,13 @@
 //!
 //! | build | call | measured release after a 512 MB burst |
 //! |---|---|---|
-//! | Linux glibc — the `linux-gnu` artifacts and the `--target glibc` image (D07) | `malloc_trim(0)` | **95.6 %**, within one 30 s tick |
-//! | **Linux musl** — the default release artifacts and the default image (D07) | — | 4.9 %: nothing to call, mallocng has no trim entry point |
-//! | macOS / Windows / other | — | nothing to call |
+//! | Linux glibc: the `linux-gnu` artifacts and the `--target glibc` image (D07) | `malloc_trim(0)` | **95.6 %**, within one 30 s tick |
+//! | **Linux musl**: the default release artifacts and the default image (D07) | - | 4.9 %: nothing to call, mallocng has no trim entry point |
+//! | macOS / Windows / other | - | nothing to call |
 //!
 //! musl is the row that made D07 a question: there the *system* allocator has no way to be asked
-//! at all — mallocng has no `malloc_trim` entry point, so there is nothing this module could
-//! call — and 4.9 % is all the program-level half recovers. glibc's `malloc_trim(0)` returns the
+//! at all: mallocng has no `malloc_trim` entry point, so there is nothing this module could
+//! call, and 4.9 % is all the program-level half recovers. glibc's `malloc_trim(0)` returns the
 //! burst outright, for +1.6 MB of idle RSS per process.
 //!
 //! That trade is **not** what the default was settled on, because a 512 MB burst is not the
@@ -53,7 +53,7 @@
 //! and 12.3a measured the live mesh at 18.5 MB per client, 1.77 MB above the idle floor. So
 //! **static musl is the default** (`tools/release.sh` group `linux-musl`, and the default
 //! container image), and glibc is a supported option for burst-heavy deployments
-//! (`tools/release.sh` group `linux-gnu`, `docker build --target glibc`) — the one case where
+//! (`tools/release.sh` group `linux-gnu`, `docker build --target glibc`): the one case where
 //! this row is worth its higher floor. A static build keeps its high-water mark until it
 //! restarts; `docs/benchmarks/memory.md` §8 puts both rounds side by side.
 //!
@@ -67,7 +67,7 @@
 //! void (the probe had no `#[global_allocator]` of its own, so it went on allocating through
 //! mallocng or glibc). They read "3 %" and should be ignored.
 //!
-//! Go reference: there is none — `runtime/mgcscavenge.go` has no analogue in a program without a
+//! Go reference: there is none, `runtime/mgcscavenge.go` has no analogue in a program without a
 //! garbage collector. The *behaviour* being matched is Go's, not any Go source file.
 
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -105,19 +105,19 @@ pub const TRIM_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Bytes that may move during one [`TRIM_INTERVAL`] and still count as **quiet**.
 ///
-/// The obvious rule — the counters have not moved at all — is wrong, and wrong in exactly the
+/// The obvious rule (the counters have not moved at all) is wrong, and wrong in exactly the
 /// case this module exists for. smux sends an unconditional 8-byte `cmdNOP` keepalive per session
 /// every `-keepalive` seconds (default 10; `kcptun_smux::session::keepalive`, Go
 /// `smux@v1.5.55 session.go:keepalive()`), and every one of those writes goes through
 /// [`UdpSession::write`](crate::session::UdpSession::write), which bumps
 /// [`DEFAULT_SNMP`]`.bytes_sent`; the peer's NOPs bump `bytes_received` the same way. So a client
-/// that has finished a burst and still holds its `-conn` KCP sessions — which is the normal case,
-/// since kcptun only reaps a session after `-scavengettl` (600 s) and never if it is reused —
+/// that has finished a burst and still holds its `-conn` KCP sessions, which is the normal case,
+/// since kcptun only reaps a session after `-scavengettl` (600 s) and never if it is reused,
 /// moves a few bytes every single tick, forever. A byte-for-byte stillness test would therefore
 /// **never** fire on a shipped binary, and the process-wide half of the trim would be dead code.
 ///
 /// 64 kB per 30 s tick is three orders of magnitude above that keepalive floor (8 B per session
-/// per 10 s in each direction, so ~24 B per session per tick — 64 kB covers over a thousand
+/// per 10 s in each direction, so ~24 B per session per tick: 64 kB covers over a thousand
 /// sessions) and three orders of magnitude below anything that could be called traffic: one
 /// 1390-byte packet every 7 seconds. Anything moving real data crosses it immediately and is left
 /// alone.
@@ -127,7 +127,7 @@ pub const QUIET_BYTES: u64 = 64 * 1024;
 ///
 /// [`QUIET_BYTES`] says when the process is idle *now*; this says whether being idle is news.
 /// Without it a process whose keepalives slowly accumulate would trim once per
-/// `REARM_BYTES / keepalive rate` — with it, an idle 4-session client re-arms after about a day,
+/// `REARM_BYTES / keepalive rate`, with it, an idle 4-session client re-arms after about a day,
 /// i.e. effectively never, while anything that has actually carried a transfer (the only thing
 /// with memory to give back) re-arms within the first megabyte of it.
 pub const REARM_BYTES: u64 = 1024 * 1024;
@@ -174,7 +174,7 @@ pub fn trim() -> TrimReport {
 /// at exit.
 ///
 /// "Quiet" is the KCP byte counters ([`DEFAULT_SNMP`]'s `bytes_sent` and `bytes_received`, which
-/// every session updates) moving no more than [`QUIET_BYTES`] across the whole interval — not
+/// every session updates) moving no more than [`QUIET_BYTES`] across the whole interval, not
 /// standing still, which smux's per-session keepalive would make impossible (see [`QUIET_BYTES`]).
 /// One trim per quiet period: after a trim the process must move [`REARM_BYTES`] again before
 /// another one is due, so an idle process does no work beyond two subtractions per tick.
@@ -186,8 +186,8 @@ pub fn trim() -> TrimReport {
 /// its 27 tunnels; this does not. A server aggregating several clients stays above
 /// [`QUIET_BYTES`] as long as *any one* of them is moving data, so the process-wide half never
 /// fires and the high-water mark stands, even though the sessions that produced it have long gone
-/// idle. [`UdpSession::shrink_idle`](crate::session::UdpSession::shrink_idle) is unaffected — it
-/// is per session and runs regardless — but the `malloc_trim`, which is 85 % of the retained RSS,
+/// idle. [`UdpSession::shrink_idle`](crate::session::UdpSession::shrink_idle) is unaffected: it
+/// is per session and runs regardless, but the `malloc_trim`, which is 85 % of the retained RSS,
 /// does not run. The case is **unmeasured**: everything in `docs/benchmarks/memory.md` §6 and
 /// §6.1 is a single-workload process that goes fully quiet. See caveat 14 and follow-up 6 there.
 pub async fn trim_when_idle(interval: Duration) -> ! {

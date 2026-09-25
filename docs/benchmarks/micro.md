@@ -2,10 +2,10 @@
 
 Steps 02, 03, 04, 05 and 06 each measured their own layer against the pinned Go reference and wrote
 its own page. This is the index plan 12.1 asks for: one headline per layer, what each page's
-acceptance criterion was, and — more usefully — **what each one is not evidence for**.
+acceptance criterion was, and (more usefully) **what each one is not evidence for**.
 
-**For the whole picture — end to end, under impairment, over a real path and over six hours,
-with what was never measured listed explicitly — read [`REPORT.md`](REPORT.md).** This page is
+**For the whole picture: end to end, under impairment, over a real path and over six hours,
+with what was never measured listed explicitly: read [`REPORT.md`](REPORT.md).** This page is
 the micro-benchmark index underneath it.
 
 Nothing here is a new measurement. Every number is the linked page's, taken at the linked page's
@@ -23,9 +23,9 @@ quoting a row.
 | smux (06.6) | [`smux.md`](smux.md) | per idle stream **2.93 vs 6.99 kB**; throughput indistinguishable, and the harness is not smux-bound | M5 |
 | Memory, end to end (12.3a) | [`memory.md`](memory.md) | client idle RSS **1.71 vs 16.73 MB**; per idle stream 4.6 vs 22.5 kB; **retention after a burst is where Go wins** | Neoverse-N1 |
 | Go vs Rust end to end (12.1) | [`2026-09-24-lab-arm64-netns-clean.md`](2026-09-24-lab-arm64-netns-clean.md) | goodput **1.74–2.34×**, CPU per GB **0.44–0.55×**, RSS 0.17–0.50×, p99 0.50–0.73× | aarch64, 2 vCPU |
-| The same grid, no headroom — **S1 (12.1b)** | [`2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md`](2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md) | goodput **1.52–1.66×** on the bulk cells (1.97× on the competing-flow one), CPU per GB **0.48–0.61× both ends** (0.47–0.67× per end), RSS 0.15–0.29×, idle p99 0.48×; **S1 retransmits 0.0 % of `OutSegs` for Rust in every cell against 1.5–9.0 % for Go**; the one loss is p50 latency through a saturated tunnel, 15.04 ms against 0.52 | x86_64, 1 vCPU |
-| The same grid, no headroom — **S2 (12.1)** | [`2026-09-24-lab-x86-1-netns-clean.md`](2026-09-24-lab-x86-1-netns-clean.md) | goodput 1.79–2.16×, CPU per GB 0.44–0.54×, zero retransmission on both sides. Its **`s1` half is withdrawn** — taken at a stock `net.core.rmem_max`, which docs/DECISIONS.md D32 rules invalid; the 1.22× goodput and 29–48 % retransmission figures this row used to carry were the host | x86_64, 1 vCPU |
-| The S2 socket-buffer control (12.1b) | [`2026-09-24-lab-x86-1-netns-clean-s2-control.md`](2026-09-24-lab-x86-1-netns-clean-s2-control.md) | S2 `bulk-up` re-run at the raised ceiling: 1.66× against the earlier session's 1.79×, spreads overlapping, zero retransmission both times — the ceiling does not reach S2 | x86_64, 1 vCPU |
+| The same grid, no headroom: **S1 (12.1b)** | [`2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md`](2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md) | goodput **1.52–1.66×** on the bulk cells (1.97× on the competing-flow one), CPU per GB **0.48–0.61× both ends** (0.47–0.67× per end), RSS 0.15–0.29×, idle p99 0.48×; **S1 retransmits 0.0 % of `OutSegs` for Rust in every cell against 1.5–9.0 % for Go**; the one loss is p50 latency through a saturated tunnel, 15.04 ms against 0.52 | x86_64, 1 vCPU |
+| The same grid, no headroom: **S2 (12.1)** | [`2026-09-24-lab-x86-1-netns-clean.md`](2026-09-24-lab-x86-1-netns-clean.md) | goodput 1.79–2.16×, CPU per GB 0.44–0.54×, zero retransmission on both sides. Its **`s1` half is withdrawn**, taken at a stock `net.core.rmem_max`, which docs/DECISIONS.md D32 rules invalid; the 1.22× goodput and 29–48 % retransmission figures this row used to carry were the host | x86_64, 1 vCPU |
+| The S2 socket-buffer control (12.1b) | [`2026-09-24-lab-x86-1-netns-clean-s2-control.md`](2026-09-24-lab-x86-1-netns-clean-s2-control.md) | S2 `bulk-up` re-run at the raised ceiling: 1.66× against the earlier session's 1.79×, spreads overlapping, zero retransmission both times, the ceiling does not reach S2 | x86_64, 1 vCPU |
 
 QPP has a benchmark (`crates/qpp/benches/qpp.rs`) and **no write-up**; plan 12.1 did not ask for
 one, and none exists.
@@ -40,26 +40,26 @@ least once in this project.
   path. The one number that matters operationally is the **aes-128-gcm shortfall**, because it is
   the default for `-crypt aes-128-gcm` users and 12.2b tried three backends and kept RustCrypto.
 * **`kcp.md`'s 03.6 table is the `[03.6b]` commit's and no other.** Two of its Rust columns moved
-  later through unrelated code changes — `flush` −7 % at `[12.2a]`, `in_order` +8 % somewhere before
-  it — so its figures must not be differenced against a later section's. The page's
+  later through unrelated code changes: `flush` −7 % at `[12.2a]`, `in_order` +8 % somewhere before
+  it, so its figures must not be differenced against a later section's. The page's
   [§ 12.1](kcp.md#121--attributing-the-8--gap-between-the-036-and-122c-baselines) attributes both
   steps. It also records two **code-layout traps**: adding a benchmark id moved a whole group by
   ~7 % in 12.2e and again in 12.2b, so absolute times may only be compared within one binary.
 * **`fec.md`'s `zeroed` rows are the shape the decoder actually uses**, and on musl they only just
   meet the bar (1.04×) because musl's `memset` moves ~2.9 GB/s. D07 has since made glibc the default
   for the released Linux artifacts, which changes that row's premise; it has not been re-measured.
-* **`session.md` is KCP only** — no smux, no snappy, no TCP proxy, no network — and its
+* **`session.md` is KCP only** (no smux, no snappy, no TCP proxy, no network) and its
   "production" profile is S1's crypto, FEC, MTU and windows on kcp-go's `-mode fast` timing, not
   S1's `-mode normal`. Its aarch64 column is much narrower than its M5 column: a 10-core laptop
   echoing over loopback is the friendliest case there is.
 * **`smux.md` is not a smux measurement.** The verifying peers spend most of the timed region in a
-  PRNG and SHA-256, so all four client/server combinations land within 8 %. That *is* the finding —
-  smux is not the bottleneck — but it is not a throughput comparison of the two multiplexers, and
+  PRNG and SHA-256, so all four client/server combinations land within 8 %. That *is* the finding,
+  smux is not the bottleneck, but it is not a throughput comparison of the two multiplexers, and
   there cannot be one until the Go peer gains a payload mode that skips the per-byte work.
 * **`memory.md` is the only page that contradicts the headline**, and it is the important one: the
   port wins idle RSS by 6–10× and loses retention after a burst.
 * **The dated end-to-end pages are per session.** Medians from two different sessions are not
-  comparable, on a shared box or on a real path — including the pages above, whose absolute goodput
+  comparable, on a shared box or on a real path, including the pages above, whose absolute goodput
   differs by 2–3× mostly because one box has two cores and the other one.
 * **One of those pages is half withdrawn, and the reason is worth the paragraph.** The 12.1 x86_64
   grid was taken on a host at the stock `net.core.rmem_max` of 212,992 B while S1 asks for
@@ -106,7 +106,7 @@ The lab-driven grid is separate: `tools/bench/bench.py`, see
 From step 12, "Rules for every optimisation":
 
 1. Medians of **≥ 5 runs**, Go and Rust **interleaved**, on both machines. Where a page falls short
-   of that it says so in its own text — `session.md`'s aarch64 column and `memory.md`'s lab-arm64
+   of that it says so in its own text: `session.md`'s aarch64 column and `memory.md`'s lab-arm64
    staircase are both at three.
 2. **One optimisation, one commit**, whose message carries the before/after table and the exact
    command.

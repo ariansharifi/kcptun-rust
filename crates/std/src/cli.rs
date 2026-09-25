@@ -1030,7 +1030,7 @@ impl<'a> App<'a> {
                 Err(e) => {
                     // Deviation V06 (extended): Go returns this error from App.Run and kcptun's
                     // main ignores it, so the process writes nothing to any writer and exits 0.
-                    // Both halves below are the deviation — the stderr line is text Go never
+                    // Both halves below are the deviation: the stderr line is text Go never
                     // emits, and the non-zero status comes from USAGE_ERROR_EXIT_CODE. Drop the
                     // writeln and set that constant to 0 for bit-exact Go behaviour.
                     // Unreachable for kcptun's own tables: only `key`, a StringFlag, has an
@@ -1114,7 +1114,7 @@ impl<'a> App<'a> {
             .parse(&reordered)
             .and_then(|()| set.normalize_flags(&[HELP_FLAG]));
         if let Err(err) = parse_result {
-            // Go: `fmt.Fprintln(w, "Incorrect Usage:", err)` — a colon here, where App.Run
+            // Go: `fmt.Fprintln(w, "Incorrect Usage:", err)`, a colon here, where App.Run
             // writes "Incorrect Usage." with a full stop.
             let _ = write!(stdout, "Incorrect Usage: {err}\n\n");
             stdout.push_str(&render_help_command_help());
@@ -1238,7 +1238,7 @@ impl<'a> App<'a> {
 /// parses a command's arguments (`SkipArgReorder` is false).
 ///
 /// So `help foo -h` is parsed as `help -h foo` and prints the help command's own help, while
-/// nothing after a `--` is moved — and the `--` itself is moved to the front of what is left.
+/// nothing after a `--` is moved, and the `--` itself is moved to the front of what is left.
 // Go: urfave/cli command.go:reorderArgs
 fn reorder_args(flags: &[FlagSpec<'_>], args: &[String]) -> Vec<String> {
     let mut reordered: Vec<String> = Vec::new();
@@ -1286,8 +1286,8 @@ fn arg_is_flag(flags: &[FlagSpec<'_>], arg: &str) -> bool {
 }
 
 /// `<prog> help help`: urfave renders the help command with `CommandHelpTemplate`, and its
-/// `HelpName` is empty because `Setup` appends the command **after** filling the help names in
-/// — hence the lone " - " and the four-space USAGE line. Verified against the Go binaries.
+/// `HelpName` is empty because `Setup` appends the command **after** filling the help names in,
+/// hence the lone " - " and the four-space USAGE line. Verified against the Go binaries.
 // Go: urfave/cli app.go:(*App).Setup, help.go:helpCommand, template.go:CommandHelpTemplate
 fn render_help_command_help() -> String {
     tabwriter::format(&format!(

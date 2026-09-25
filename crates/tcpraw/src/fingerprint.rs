@@ -44,7 +44,7 @@ impl FingerPrint {
     /// share it.
     ///
     /// **Deviation V10.** Pinned tcpraw v1.2.32 builds the timestamp option with **10** bytes of
-    /// option data, which gopacket serialises as a length-**12** option — malformed, and it pads
+    /// option data, which gopacket serialises as a length-**12** option: malformed, and it pads
     /// the header out to 36 bytes (data offset 9). Upstream `cbf9635` fixed this to the standard
     /// 8 bytes of data (length 10, 32-byte header, data offset 8), which is what a real Linux
     /// stack sends and therefore what a fake-TCP fingerprint should send. The port emits the

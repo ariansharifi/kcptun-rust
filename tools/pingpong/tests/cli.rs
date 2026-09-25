@@ -1,7 +1,7 @@
 //! CLI tests of the two dev-only lab binaries (`tool_*`, docs/porting-guide.md §8).
 //!
 //! The unit tests cover the pieces; these run the real executables the way `tools/lab/lab.py`
-//! runs them on the lab host — same flags, same `RESULT` line, same CSV — over loopback instead
+//! runs them on the lab host (same flags, same `RESULT` line, same CSV) over loopback instead
 //! of through a tunnel. They are what would have caught a mode that parses its flags and then
 //! never writes its CSV, which in a six-hour soak is only discovered six hours late.
 //!
@@ -9,8 +9,8 @@
 //! from `target/release` and are `#[ignore]`d. `CARGO_BIN_EXE_*` points at the binaries Cargo
 //! has just built, so nothing here depends on a deployment or on a release build, the whole file
 //! takes about four seconds, and the gate runs it. The flip side of `CARGO_BIN_EXE_*` is that it
-//! bakes in laptop paths, so this file cannot travel to lab-arm64 via `tools/lab/remote-test.sh`
-//! — acceptable for a tool that only ever drives the lab.
+//! bakes in laptop paths, so this file cannot travel to lab-arm64 via `tools/lab/remote-test.sh`,
+//! acceptable for a tool that only ever drives the lab.
 
 use std::path::Path;
 use std::time::Duration;
@@ -376,7 +376,7 @@ fn tool_labsample_writes_one_row_per_process_per_interval() {
 /// The `--log-cap-bytes` guard is what keeps a six-hour soak from filling the lab host's disk
 /// (S2-S4 log three lines per stream at 20 streams/s). It is driven entirely by `lab.py`, so a
 /// mis-quoted `--log cli=$HOME/...` made the sampler watch a path that does not exist and the
-/// cap silently never fired — no error, just a blank `log_bytes` column six hours later. This
+/// cap silently never fired, no error, just a blank `log_bytes` column six hours later. This
 /// test is the one that fails loudly instead.
 #[test]
 fn tool_labsample_caps_a_watched_log_and_records_the_truncation() {

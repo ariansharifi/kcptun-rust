@@ -151,7 +151,7 @@ func genErrno() ([]any, error) {
 		})
 	}
 	// The whole pipeline rests on parseErrnoTable reading Go's files correctly, and the only
-	// proof of that is checkErrnoAgainstRuntime — which can only run when the generating host
+	// proof of that is checkErrnoAgainstRuntime, which can only run when the generating host
 	// is itself one of errnoTargets. Regenerating anywhere else would write the file with no
 	// proof at all, so refuse rather than produce an unchecked vector file.
 	if !hostChecked {

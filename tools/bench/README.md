@@ -20,7 +20,7 @@ build-stamp provenance check (12.0): a cell whose binaries cannot be named refus
 ## What a campaign is
 
 A campaign is a grid. One **cell** is one scenario configuration × one metric family, and one cell
-is one `lab.py run` with every implementation pair in it — which is what gets the A/B interleaving
+is one `lab.py run` with every implementation pair in it, which is what gets the A/B interleaving
 for free, because `lab.plan_runs` alternates the pairs inside each repetition.
 
 ```jsonc
@@ -72,7 +72,7 @@ Two design decisions worth knowing:
   describes.
 * **The cross pairs (GR, RG) are throughput only**, as step 12.1 says. A CPU or RSS row for a
   mixed pair would put a Go client's number and a Rust server's number in one cell and invite
-  exactly the comparison it cannot support. Those cells print `·`, not `—`.
+  exactly the comparison it cannot support. Those cells print `·`, not `-`.
 
 CPU per GB divides the process's own `utime + stime` by the bytes the **workload** moved, never by
 the bytes that went over the wire: charging an implementation only for the goodput it delivered is
@@ -97,15 +97,15 @@ the page can be regenerated after a change to its wording or its arithmetic.
 1. **Medians of ≥ 5 interleaved runs** (step 12 rule 1). `run` refuses a campaign with fewer
    repetitions; `--allow-few-repetitions` is for a shakedown, and the page it writes carries an
    **UNDER-REPLICATED** banner in its first paragraph.
-2. **A `—` cell is not measured, never measured-as-zero**, and a cell with fewer than five runs
+2. **A `-` cell is not measured, never measured-as-zero**, and a cell with fewer than five runs
    behind it prints that count in parentheses.
 3. **Each cell waits for the host to go quiet** (`lab.py --wait-load`), rather than `--force`ing
-   past the preflight — on a 1-vCPU box, starting while the previous cell's load is still decaying
+   past the preflight, on a 1-vCPU box, starting while the previous cell's load is still decaying
    measures the decay. A `cooldown` between cells does the same for the processes being reaped.
 4. **Provenance is carried, not just checked.** A page built from runs whose binaries could not be
    named leads with `UNPROVENANCED`; one built from runs that could names the artefacts.
 5. **`iperf3` is named and hashed** in the method table. It is the host's own distribution package
-   and carries no build stamp of ours — a gap recorded against 12.0 — so a campaign at least says
+   and carries no build stamp of ours (a gap recorded against 12.0) so a campaign at least says
    which file it was.
 6. **The socket-buffer ceiling is on every page, and a stock one refuses to run** (12.1b,
    docs/DECISIONS.md D32). `setsockopt(SO_RCVBUF)`/`SO_SNDBUF` are silently clamped to
@@ -113,8 +113,8 @@ the page can be regenerated after a change to its wording or its arithmetic.
    Ubuntu box gets 212,992 B and hears nothing about it; 11.2 measured 223,293 dropped datagrams
    in one 65 s run under that clamp and zero at a raised ceiling, with three cells inverting.
    The method table therefore always carries the ceilings and what each configuration's
-   `-sockbuf` is actually granted — printing **not recorded** rather than nothing when no run
-   says — the page leads with an `INVALID UNDER … D32` banner when the ceiling is the stock one,
+   `-sockbuf` is actually granted: printing **not recorded** rather than nothing when no run
+   says: the page leads with an `INVALID UNDER … D32` banner when the ceiling is the stock one,
    with a plain note when it is a raised ceiling that still clamps (which is what lab-arm64 runs
    under), and with a warning when one campaign's runs were not all taken under the same ceiling.
    `run` refuses to start on a stock ceiling at all; `--allow-clamped-sockbuf` measures the clamp
@@ -131,4 +131,4 @@ python3 tools/bench/bench_test.py
 No lab host is needed: the planning half is pure and the reporting half reads run directories the
 tests write by hand. They also run inside the cargo gate, through
 [`tools/pingpong/tests/bench_py.rs`](../pingpong/tests/bench_py.rs), for the same reason
-`lab_test.py` does — a python file that only a two-hour campaign exercises is not exercised.
+`lab_test.py` does: a python file that only a two-hour campaign exercises is not exercised.

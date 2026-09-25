@@ -232,7 +232,7 @@ impl TcpOption {
 ///
 /// Padding follows gopacket: when the options do not end on a 4-byte boundary, `4 - (len % 4)`
 /// **zero** bytes are appended (gopacket's `lotsOfZeros`), not `NOP`/`EndList` bytes. That is
-/// what produces the two trailing `00 00` bytes of a pinned-Go tcpraw segment — which its own
+/// what produces the two trailing `00 00` bytes of a pinned-Go tcpraw segment, which its own
 /// decoder then reports as a fourth, `EndList` option.
 ///
 /// The padding is recomputed on every call. gopacket only *assigns* `t.Padding` when the
@@ -254,7 +254,7 @@ pub fn serialize(
         rem => 4 - rem,
     };
     // Go: `t.DataOffset = uint8((len(t.Padding) + optionLength + 20) / 4)`, a truncating
-    // conversion. gopacket does not check that the offset fits the 4-bit field either — with
+    // conversion. gopacket does not check that the offset fits the 4-bit field either, with
     // more than 40 bytes of options it serialises an offset of 16 as a nibble of 0 and reports
     // no error (verified against gopacket@v1.1.19; see the tests). With tcpraw's fingerprint
     // the offset is always 8 (V10) or 9 (pinned Go).
@@ -320,7 +320,7 @@ pub enum ParseError {
 /// [`Segment::decode`] reproduces that: only a buffer shorter than [`MIN_HEADER_LEN`] is
 /// rejected. A data offset below 5, or past the end of the buffer, yields the header with **no**
 /// options and an **empty** payload (gopacket returns before it assigns `Contents`/`Payload`),
-/// and a malformed option ends the option walk while the payload — already assigned — stays
+/// and a malformed option ends the option walk while the payload (already assigned) stays
 /// readable. Each case was checked against gopacket itself; see the tests.
 // Go: gopacket@v1.1.19 layers/tcp.go:TCP.DecodeFromBytes()
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -449,7 +449,7 @@ pub struct OptionRef<'a> {
 /// Go capture loop see the same list:
 ///
 /// - an `EndList` option ends the walk after it has been yielded (Go records the rest of the
-///   option area as `Padding`) — which is why a segment from pinned tcpraw, whose option area is
+///   option area as `Padding`), which is why a segment from pinned tcpraw, whose option area is
 ///   padded with zero bytes, reports a fourth, `EndList` option;
 /// - a malformed option is **still yielded**, with an empty data slice, and then ends the walk.
 ///   Go appends the option to `tcp.Options` before it returns the decode error, and tcpraw
@@ -487,7 +487,7 @@ impl<'a> Iterator for Options<'a> {
             }
             _ => {
                 if data.len() < 2 {
-                    // Go: "Invalid TCP option length. Length %d less than 2" — but the option,
+                    // Go: "Invalid TCP option length. Length %d less than 2", but the option,
                     // with its length byte never assigned, is already in `tcp.Options`.
                     self.data = &[];
                     return Some(OptionRef {

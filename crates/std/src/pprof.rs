@@ -1,9 +1,9 @@
 //! `--pprof`: the profiling endpoint, and what a build without it says instead (DECISIONS D23).
 //!
 //! Go sources:
-//! - `kcptun/client/main.go:32`, `kcptun/server/main.go:33` — `_ "net/http/pprof"`, whose `init()`
+//! - `kcptun/client/main.go:32`, `kcptun/server/main.go:33`: `_ "net/http/pprof"`, whose `init()`
 //!   registers `/debug/pprof/...` on `http.DefaultServeMux`;
-//! - `kcptun/client/main.go:247-250`, `kcptun/server/main.go:220-223` — the
+//! - `kcptun/client/main.go:247-250`, `kcptun/server/main.go:220-223`: the
 //!   `cli.BoolFlag{Name: "pprof", Usage: "start profiling server on :6060"}`;
 //! - `kcptun/client/main.go:394-401`, `kcptun/server/main.go:351-358`:
 //!
@@ -54,14 +54,14 @@
 //! so a Windows build logs [`NOT_AVAILABLE`] even with the feature on.
 
 /// The address Go's profiling server listens on: every interface, port 6060.
-// Go: kcptun/client/main.go:397, kcptun/server/main.go:354 — http.ListenAndServe(":6060", nil)
+// Go: kcptun/client/main.go:397, kcptun/server/main.go:354, http.ListenAndServe(":6060", nil)
 pub const ADDR: &str = ":6060";
 
 /// Port of [`ADDR`].
 pub const PORT: u16 = 6060;
 
 /// The path `go tool pprof` fetches, and the only one this server answers with a profile.
-// Go: net/http/pprof/pprof.go:init() — mux.HandleFunc("/debug/pprof/profile", Profile)
+// Go: net/http/pprof/pprof.go:init(), mux.HandleFunc("/debug/pprof/profile", Profile)
 pub const PROFILE_PATH: &str = "/debug/pprof/profile";
 
 /// What a build without the `pprof` feature logs when `--pprof` is given.
@@ -122,7 +122,7 @@ mod server {
     const FREQUENCY: i32 = 100;
 
     /// Default duration of `/debug/pprof/profile`.
-    // Go: net/http/pprof/pprof.go:146-149 — `if sec <= 0 || err != nil { sec = 30 }`, so this is
+    // Go: net/http/pprof/pprof.go:146-149, `if sec <= 0 || err != nil { sec = 30 }`, so this is
     // also what a missing, unparseable, zero or negative `?seconds=` gets.
     pub(super) const DEFAULT_SECONDS: i64 = 30;
 
@@ -165,7 +165,7 @@ mod server {
     /// A temporary accept failure (`EINTR`, `EMFILE`, `ENFILE`, `EAGAIN`, `ETIMEDOUT`, an aborted
     /// connection) is retried with Go's 5 ms-doubling-to-1 s backoff instead of taking the
     /// endpoint down for the rest of the process's life; only a permanent error returns.
-    // Go: net/http/server.go:3547-3578 — `tempDelay`, `ne.Temporary()`; syscall/syscall_unix.go:134
+    // Go: net/http/server.go:3547-3578, `tempDelay`, `ne.Temporary()`; syscall/syscall_unix.go:134
     pub(super) async fn serve(listener: TcpListener) -> io::Result<()> {
         let mut temp_delay = Duration::ZERO;
         loop {
@@ -200,11 +200,11 @@ mod server {
 
     /// The accept errors Go's `net.Error.Temporary()` reports as temporary, so the loop retries
     /// rather than dies.
-    // Go: syscall/syscall_unix.go:134-140 — EINTR, EMFILE, ENFILE, EAGAIN, EWOULDBLOCK, ETIMEDOUT;
+    // Go: syscall/syscall_unix.go:134-140, EINTR, EMFILE, ENFILE, EAGAIN, EWOULDBLOCK, ETIMEDOUT;
     // net/fd_unix.go retries ECONNABORTED inside `accept` itself.
     pub(super) fn is_temporary(err: &io::Error) -> bool {
         // `io::ErrorKind` has no variant for either, and both have the same value on Linux, macOS
-        // and the BSDs — the only platforms this module is compiled for.
+        // and the BSDs: the only platforms this module is compiled for.
         /// `EMFILE`: the process is out of descriptors.
         const EMFILE: i32 = 24;
         /// `ENFILE`: the system is out of descriptors.
@@ -266,7 +266,7 @@ mod server {
         // blocking thread rather than on a worker.
         let collected = tokio::task::spawn_blocking(move || collect(seconds)).await;
         match collected {
-            // Go: pprof.go:155-156 — Content-Type and Content-Disposition are set before the
+            // Go: pprof.go:155-156, Content-Type and Content-Disposition are set before the
             // profile is started, with no RFC 5987 `filename*` parameter.
             Ok(Ok(body)) => {
                 respond(
@@ -350,7 +350,7 @@ mod server {
             // Go: ErrSyntax.
             return None;
         }
-        // Go: ErrRange above the `int64` bound — one more in magnitude for a negative value.
+        // Go: ErrRange above the `int64` bound, one more in magnitude for a negative value.
         let limit = if neg {
             i64::MAX as u64 + 1
         } else {
@@ -411,7 +411,7 @@ mod server {
     }
 
     /// Go's `serveError`: a plain-text error page with the pprof marker header.
-    // Go: net/http/pprof/pprof.go:133-139 — Content-Type text/plain, X-Go-Pprof: 1, no
+    // Go: net/http/pprof/pprof.go:133-139, Content-Type text/plain, X-Go-Pprof: 1, no
     // Content-Disposition, and `fmt.Fprintln` adds the newline.
     async fn serve_error(stream: &mut TcpStream, status: &str, txt: &str) -> io::Result<()> {
         let body = format!("{txt}\n");
@@ -466,7 +466,7 @@ mod server {
     /// [`read_request_line`] stops at the first `\n`, so the rest of the request head is usually
     /// still in the receive queue. Closing a socket with unread data makes the kernel send an RST
     /// rather than a FIN (Linux and the BSDs both do), and the client then sees `connection reset
-    /// by peer` instead of the response it was given — which, for a 30 s profile, means losing
+    /// by peer` instead of the response it was given, which, for a 30 s profile, means losing
     /// it. Draining first turns that back into a clean close. Bounded in bytes and in time: this
     /// is part of closing the connection, not a read loop.
     async fn drain(stream: &mut TcpStream) {

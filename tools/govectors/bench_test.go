@@ -200,8 +200,8 @@ func BenchmarkRS(b *testing.B) {
 
 // QPP benchmarks (plan step 07.2, BenchmarkQPP), the Go side of crates/qpp/benches/qpp.rs.
 //
-// The shape is Go's own qpp_test.go:BenchmarkQPP — 64 pads, a message encrypted in place, one
-// call per iteration, b.SetBytes the message length — extended to the sizes kcptun sees and to
+// The shape is Go's own qpp_test.go:BenchmarkQPP: 64 pads, a message encrypted in place, one
+// call per iteration, b.SetBytes the message length: extended to the sizes kcptun sees and to
 // decryption, plus the 7-byte chunking that never lines up with the 8-byte pad switch, and the
 // two setup costs (one NewQPP per session, one CreatePRNG per stream).
 //

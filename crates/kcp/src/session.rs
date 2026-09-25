@@ -13,8 +13,8 @@
 //! and [`ReadLoop`] is the client's `readLoop` goroutine, which filters datagrams by source
 //! address before feeding them to `packet_input`. [`UdpSession::dial_with_options`] and
 //! [`UdpSession::new_conn`] put session and tasks together, as Go's `newUDPSession` does; the
-//! listener — which shares one socket and one monitor task between its sessions, so that an
-//! accepted session has no read loop of its own — follows in 05.7.
+//! listener, which shares one socket and one monitor task between its sessions, so that an
+//! accepted session has no read loop of its own: follows in 05.7.
 //!
 //! Layout, following DECISIONS D02, which is Go's layout with Rust names:
 //!
@@ -423,8 +423,8 @@ impl<C: Clock + Clone> UdpSession<C> {
     }
 
     /// Builds a session and starts every task it needs: the tx pipeline (Go's `postProcess`
-    /// goroutine), the per-session updater, and — for a dialled session, i.e. one without a
-    /// listener — the read loop.
+    /// goroutine), the per-session updater, and, for a dialled session, i.e. one without a
+    /// listener: the read loop.
     ///
     /// This is the rest of Go's `newUDPSession`, and thus what
     /// [`dial_with_options`](UdpSession::dial_with_options), [`new_conn`](UdpSession::new_conn)
@@ -435,7 +435,7 @@ impl<C: Clock + Clone> UdpSession<C> {
     /// `die` token is cancelled, and none of them keeps the session alive; without a
     /// [`close`](Self::close) the updater (it has a timer) and the tx pipeline (its channel
     /// closes) still retire on their own once the last session handle is gone, but the read loop
-    /// only leaves its pending receive on `die` or when a datagram arrives — so a dialled session
+    /// only leaves its pending receive on `die` or when a datagram arrives, so a dialled session
     /// must be closed to retire it. Note also that the socket fd is released when the last handle
     /// to the session (and thus to its [`PacketConn`]) drops, not inside `close`, which only marks
     /// an owned connection closed (05.1); Go's `Close` frees the port at once.
@@ -1122,7 +1122,7 @@ impl<C: Clock> UdpSession<C> {
         body[CONV_SIZE..].copy_from_slice(data);
 
         // Enqueue the packet for post-processing: OOB framing, encryption and transmission,
-        // bypassing FEC and KCP. Deviation V05 again — Go races the queueing against `die`.
+        // bypassing FEC and KCP. Deviation V05 again: Go races the queueing against `die`.
         match self.tx.send(SendRequest::oob(buf)) {
             SendOutcome::Queued | SendOutcome::Dropped => Ok(()),
             SendOutcome::Closed => Err(closed_pipe()),
@@ -1329,8 +1329,8 @@ impl<C: Clock> UdpSession<C> {
     /// [`SESSION_SHRINK_INTERVAL`](crate::memory::SESSION_SHRINK_INTERVAL); [`crate::memory`]
     /// explains why it exists at all.
     ///
-    /// Only what is unused **at this instant** goes back — a KCP queue that is empty right now,
-    /// a stream reassembly buffer the reader has fully consumed — so the session keeps working
+    /// Only what is unused **at this instant** goes back: a KCP queue that is empty right now,
+    /// a stream reassembly buffer the reader has fully consumed, so the session keeps working
     /// exactly as before and nothing received-but-not-read is disturbed.
     ///
     /// That is a weaker property than "only idle sessions are touched", and deliberately so: both
@@ -1419,7 +1419,7 @@ impl<C: Clock> UdpSession<C> {
 /// Three differences from Go, none visible on the wire:
 ///
 /// - **It holds a [`Weak`] reference.** Go's scheduler owns the `s.update` closure, and with it
-///   the session, until `Close` — a session that is dropped without being closed keeps flushing
+///   the session, until `Close`: a session that is dropped without being closed keeps flushing
 ///   (and keeps its socket) forever. Here the task retires at its next wake-up once the last
 ///   handle is gone, which also drops the [`TxHandle`] inside the session and lets the tx task
 ///   finish.
@@ -1428,7 +1428,7 @@ impl<C: Clock> UdpSession<C> {
 ///   flush by then (Deviation V05), so there is nothing left for that last pass to do.
 /// - **It gives capacity back.** Every 30 s it calls [`UdpSession::shrink_idle`], which releases
 ///   the ring, `rcv_buf`, `acklist` and `recvbuf` capacity a burst grew. kcp-go's `update()` does
-///   nothing of the kind — there the replaced arrays simply become garbage (plan 12.3,
+///   nothing of the kind: there the replaced arrays simply become garbage (plan 12.3,
 ///   [`crate::memory`]).
 pub struct Updater<C = SystemClock> {
     /// The session to flush, weakly (see above).
@@ -1500,7 +1500,7 @@ impl<C: Clock> Updater<C> {
 ///
 /// Because those are its only two wake-ups, a dialled session that is dropped without
 /// [`UdpSession::close`] leaves this loop parked in `recv_batch` until a datagram arrives, holding
-/// its [`PacketConn`] — and therefore the UDP port — for as long as it waits. (Go leaks the same
+/// its [`PacketConn`] (and therefore the UDP port) for as long as it waits. (Go leaks the same
 /// way: `readLoop` blocks in `ReadFrom` and `SystemTimedSched` keeps the session.)
 pub struct ReadLoop<C = SystemClock> {
     /// The session to feed, weakly (see above).
@@ -1560,7 +1560,7 @@ impl<C: Clock> ReadLoop<C> {
 /// Whether the read loops require every datagram to come from the address the session sends to.
 ///
 /// `false` is the default, and is **Deviation V23**: a datagram is accepted whatever its source,
-/// so a peer may answer from an address other than the one we send to. Go has no such mode —
+/// so a peer may answer from an address other than the one we send to. Go has no such mode,
 /// see [`set_strict_source`] for why this is the default and what it costs.
 static STRICT_SOURCE: AtomicBool = AtomicBool::new(false);
 
@@ -1575,7 +1575,7 @@ static STRICT_SOURCE: AtomicBool = AtomicBool::new(false);
 /// dialled session keeps writing to the address it dialled, and an accepted one keeps writing to
 /// the address it was created for. Nothing here can be made to redirect traffic, so the worst a
 /// spoofed source buys an attacker is the injection they could already attempt by spoofing the
-/// peer's address — which the strict filter never stopped either, the source address of a UDP
+/// peer's address, which the strict filter never stopped either, the source address of a UDP
 /// datagram being unauthenticated.
 ///
 /// **What it costs.** With `-crypt null` there is no integrity check at all, so an off-path
@@ -1620,7 +1620,7 @@ impl Drop for StrictSourceGuard {
 /// Go carries the peer as a `*net.UDPAddr` (`src`) or, when `s.remote` is some other `net.Addr`,
 /// as its string form (`srcStr`); the two collapse here, every address in this port being a
 /// [`SocketAddr`]. Comparison is Go's `sameUDPAddr`: port, zone and `net.IP.Equal`, which makes
-/// `::ffff:a.b.c.d` equal to `a.b.c.d` (see [`addr::same_udp_addr`]) — that is what lets a
+/// `::ffff:a.b.c.d` equal to `a.b.c.d` (see [`addr::same_udp_addr`]): that is what lets a
 /// dual-stack socket talk to an IPv4 peer.
 // Go: kcp-go/v5@v5.6.66 readloop.go:sameUDPAddr() and the filter in both read loops
 #[derive(Clone, Copy, Debug)]
@@ -1650,7 +1650,7 @@ impl SourceFilter {
     /// that does not, as Go does.
     fn accept(&mut self, addr: Option<SocketAddr>) -> bool {
         let Some(src) = self.src else {
-            // Go: "set source address if nil" — a session built without a remote adopts the
+            // Go: "set source address if nil", a session built without a remote adopts the
             // first sender. Only `newUDPSession(…, remote: nil)` reaches it; no kcp-go entry
             // point (and no caller here) passes a nil remote.
             self.src = addr;
@@ -1665,7 +1665,7 @@ impl SourceFilter {
         }
 
         // Deviation V23: the peer is allowed to answer from somewhere else. `self.src` is left
-        // alone deliberately — this widens what we accept and never moves where we send, so a
+        // alone deliberately: this widens what we accept and never moves where we send, so a
         // spoofed source cannot redirect the session.
         if !self.strict {
             return true;
@@ -1713,7 +1713,7 @@ pub(crate) async fn sleep_until(deadline: Option<Instant>) {
 /// Decrypts and integrity-checks one datagram in place, following `docs/WIRE-FORMAT.md` §2.
 ///
 /// Returns the plaintext payload, or `None` when the packet is dropped (`InCsumErrors` is moved
-/// for a failed check, but not for a packet that is too short to hold a crypto header — Go
+/// for a failed check, but not for a packet that is too short to hold a crypto header: Go
 /// returns silently there).
 // Go: kcp-go/v5@v5.6.66 sess.go:packetInput() / Listener.packetInput(), the `switch block`
 pub(crate) fn decrypt<'a>(block: Option<&PacketCrypt>, data: &'a mut [u8]) -> Option<&'a [u8]> {

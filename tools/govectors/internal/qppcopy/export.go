@@ -1,6 +1,6 @@
 // Package qpp (directory internal/qppcopy) is a verbatim copy of github.com/xtaci/qpp v1.1.25
 // (qpp.go, prng.go; see the header of each file) plus this file, which is NOT copied: it
-// exposes the few unexported things the vector generator has to record — seedToChunks, the pad
+// exposes the few unexported things the vector generator has to record: seedToChunks, the pad
 // tables and the PRNG state. The package keeps qpp's own name (qpp) so the copied files are
 // byte-identical; import it as qppcopy.
 //

@@ -1080,7 +1080,7 @@ const EADDRINUSE: i32 = 48;
 const EADDRINUSE: i32 = 10048;
 
 /// Both arms of [`smux_error_text`]: an `Error::Io` is spelled from Go's errno table (D30),
-/// every other variant is smux's own Go text and must come back **verbatim** — routing those
+/// every other variant is smux's own Go text and must come back **verbatim**: routing those
 /// through `go_error_text` too would lower-case them away from Go rather than towards it.
 #[test]
 fn smux_errors_take_gos_errno_text_and_keep_smuxs_own() {

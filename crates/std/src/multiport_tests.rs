@@ -1,8 +1,8 @@
 //! Tests for [`crate::multiport`] and [`crate::goaddr`].
 //!
 //! `testdata/vectors/multiport.json` (area `multiport`) holds both parsers: `tools/govectors`
-//! ran kcptun's own `std.ParseMultiPort` — a verbatim copy of `std/multiport.go`, regexp
-//! included — and Go's `net.SplitHostPort` over the address tables in
+//! ran kcptun's own `std.ParseMultiPort`: a verbatim copy of `std/multiport.go`, regexp
+//! included, and Go's `net.SplitHostPort` over the address tables in
 //! `tools/govectors/multiport.go` and recorded host, ports and error text for each. The two
 //! `vectors_*` tests below replay them; the unit tests spell out the quirks a reader would
 //! otherwise have to dig out of the vector file.

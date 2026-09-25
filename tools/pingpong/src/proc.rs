@@ -82,7 +82,7 @@ pub fn parse_status(text: &str) -> Status {
         let Some((key, value)) = line.split_once(':') else {
             continue;
         };
-        // "VmRSS:\t    2416 kB" — the number is the first whitespace-separated token.
+        // "VmRSS:\t    2416 kB": the number is the first whitespace-separated token.
         let Some(number) = value.split_whitespace().next() else {
             continue;
         };

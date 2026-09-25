@@ -334,7 +334,7 @@ impl Drop for RustEchoServer {
 }
 
 /// Writes back everything read, until an error or the idle timeout, then closes the session like
-/// Go's `defer conn.Close()` — which drops it from the listener's session map, decrements
+/// Go's `defer conn.Close()`, which drops it from the listener's session map, decrements
 /// `CurrEstab` and queues the final flush of Deviation V05.
 // Go: tools/gointerop/cmd/kcpecho/main.go:echo()
 async fn echo(conn: Arc<UdpSession>, idle: Option<Duration>) {

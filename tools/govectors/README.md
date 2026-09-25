@@ -62,7 +62,7 @@ key order. Byte fields are hex. Two derived passes are used throughout, identifi
 | Group (name) | `params` | `in` | `out` |
 |---|---|---|---|
 | `pbkdf2/<label>` (`default`, `empty`, `a`, `cjk` = `中文密钥`, `k300` = 300×`k`, `random32`) | `key` (string), `salt` `kcp-go`, `iter` 4096, `dklen` 32 | UTF-8 bytes of `key` (absent when empty) | the 32-byte pass |
-| `xor_pad/pass_id=<i>` | `pass_id`, `pass` | — | the 1500-byte `xortbl` of `NewSimpleXORBlockCrypt(pass)`, read back by encrypting 1500 zero bytes; the generator checks it equals `PBKDF2-HMAC-SHA1(pass, "sH3CIVoF#rWLtJo6", 32, 1500)` |
+| `xor_pad/pass_id=<i>` | `pass_id`, `pass` | - | the 1500-byte `xortbl` of `NewSimpleXORBlockCrypt(pass)`, read back by encrypting 1500 zero bytes; the generator checks it equals `PBKDF2-HMAC-SHA1(pass, "sH3CIVoF#rWLtJo6", 32, 1500)` |
 | `select/method=<m>` for `m` in `aes aes-128 aes-128-gcm aes-192 salsa20 blowfish twofish cast5 3des tea xtea xor sm4 none null bogus` and `""` (`select/method=`) | `method`, `pass` (pass 0, 32 bytes), `effective` (name returned), `nil` (result is nil: only `null`), `key_len` (bytes of `pass` given to the effective constructor, 0 for `null`), `nonce` (only `aes-128-gcm`), `log` (only when `SelectBlockCrypt` logged, flags off, no newline) | a fixed 64-byte buffer | whole-buffer `Encrypt(in)`; for `aes-128-gcm` `nonce ‖ Seal(nonce, in)`; absent for `null` |
 | `select_short/method=<m>` | same, with `pass` = the first 16 bytes of pass 0: exercises the fallback (`3des` fails, logs, and becomes AES-128 over the 16-byte pass) | same | same |
 | `cfb/<method>/pass_id=<i>/len=<n>` for `method` in `aes aes-128 aes-192 salsa20 blowfish twofish cast5 3des tea xtea sm4 xor none` and `n` in `20 21 23 24 25 31 32 33 63 64 65 127 128 129 1349 1350 1370 1500` | `method`, `pass_id`, `pass`, `key_len` | whole packet of `n` bytes: fixed 16-byte nonce ‖ 4 zero bytes (crc placeholder) ‖ PCG payload (the same for every method and pass) | `Encrypt(in)` in place, with the cipher built by `SelectBlockCrypt(method, pass)`. `none` is the identity. |
@@ -123,12 +123,12 @@ in wire order: `conv cmd frg wnd ts sn una len`.
 
 | Group (name) | `params` | `in` | `out` |
 |---|---|---|---|
-| `constants` | every exported `IKCP_*` constant of `kcp.go` (incl. `PacketType`, `FlushType`, log masks) and `RINGBUFFER_MIN`/`RINGBUFFER_EXP`, name → value | — | — |
+| `constants` | every exported `IKCP_*` constant of `kcp.go` (incl. `PacketType`, `FlushType`, log masks) and `RINGBUFFER_MIN`/`RINGBUFFER_EXP`, name → value | - | - |
 | `segment/<label>` for `zero max distinct_bytes push_mss_default push_mss_production push_msg_frg ack wask wins`, and `segment/random/<i>` (i < 8, every field random, len 0..64) | `segParams` (`len` = payload length) | the payload (absent when empty) | the 24-byte header written by `segment.encode`. The generator checks that `OutSegs` grew by exactly one and that decoding `out ‖ in` gives the params back. |
 | `real_ack/<label>` for `in_order ts_wrap out_of_order two_in_order reordered_pair` | `conv`, `push` (the input segments), `acks` (the output segments), `outputs` (the size of each output callback call), `input_ret` | a packet of PUSH segments (frg 0, wnd 32, una 0) | what a fresh `kcp.NewKCP(conv, …)` outputs from `Input(in, IKCP_PACKET_REGULAR, true)`: ACK segments, decoded and re-encoded with the copy to prove they match |
-| `itimediff/<i>`, `itimediff/random/<i>` (i < 16) | `later`, `earlier`, `want` = `_itimediff(later, earlier)` | — | — |
-| `ibound/<i>` | `lower`, `middle`, `upper`, `want` = `_ibound_(lower, middle, upper)` | — | — |
-| `snmp/zero`, `snmp/distinct` (field i = i+1), `snmp/large` (field i = MaxUint64 − i) | own shape (`snmpCase`): `fields` (struct field names in declaration order), `values`, `header` (`Header()`), `to_slice` (`ToSlice()`), `format` (`fmt.Sprintf("%+v", s.Copy())`) | — | — |
+| `itimediff/<i>`, `itimediff/random/<i>` (i < 16) | `later`, `earlier`, `want` = `_itimediff(later, earlier)` | - | - |
+| `ibound/<i>` | `lower`, `middle`, `upper`, `want` = `_ibound_(lower, middle, upper)` | - | - |
+| `snmp/zero`, `snmp/distinct` (field i = i+1), `snmp/large` (field i = MaxUint64 − i) | own shape (`snmpCase`): `fields` (struct field names in declaration order), `values`, `header` (`Header()`), `to_slice` (`ToSlice()`), `format` (`fmt.Sprintf("%+v", s.Copy())`) | - | - |
 
 ### Group `trace/<config>` (03.5): golden KCP API traces
 
@@ -371,7 +371,7 @@ PSH), and the Rust test regenerates its payload from `payload_stream`.
 
 Produced by `snappy.go` with golang/snappy v1.0.0. kcptun's `CompStream.Write` is one
 `snappy.Writer.Write` plus one `Flush` per call, so `snappyFrame` repeats exactly those two calls
-per write against the pinned library — the generator may not import kcptun (no `replace`
+per write against the pinned library: the generator may not import kcptun (no `replace`
 directives), and nothing about the framing is reimplemented: the bytes come from the library.
 Every `write/*` case is also read back with `snappy.NewReader` before it becomes a vector, and
 every `error/*` case must really fail, so no vector can describe something the library does not
@@ -379,8 +379,8 @@ do.
 
 | Group (name) | Fields | Meaning |
 |---|---|---|
-| `write/<kind>/len=<n>`, `write/sequence/<kind>` | `kind`, `stream`, `writes`, `len`, `in` or `in_blob`, `out` or `out_blob` | one scripted sequence of `CompStream.Write` calls (`writes` holds the length of each) and the framed bytes it puts on the connection. `write/empty` is a single empty write, which produces **no bytes at all** — not even the stream identifier, which Go's buffered writer only emits with the first chunk. 8200 bytes is one smux frame (8192 payload plus the 8-byte header) and 70000 spans two 64 KiB chunks |
-| `read/<what>` | `in`, `out`, `err` (`""`) | a framed stream the reader accepts: both data chunk types, empty bodies, skippable chunks (0x80, 0xfd), padding (0xfe), a repeated stream identifier, and a block whose length header is a **padded, non-canonical varint** of five and six bytes (`binary.Uvarint` reads up to ten, so Go accepts them — a decoder that insists on the shortest encoding would not) |
+| `write/<kind>/len=<n>`, `write/sequence/<kind>` | `kind`, `stream`, `writes`, `len`, `in` or `in_blob`, `out` or `out_blob` | one scripted sequence of `CompStream.Write` calls (`writes` holds the length of each) and the framed bytes it puts on the connection. `write/empty` is a single empty write, which produces **no bytes at all**, not even the stream identifier, which Go's buffered writer only emits with the first chunk. 8200 bytes is one smux frame (8192 payload plus the 8-byte header) and 70000 spans two 64 KiB chunks |
+| `read/<what>` | `in`, `out`, `err` (`""`) | a framed stream the reader accepts: both data chunk types, empty bodies, skippable chunks (0x80, 0xfd), padding (0xfe), a repeated stream identifier, and a block whose length header is a **padded, non-canonical varint** of five and six bytes (`binary.Uvarint` reads up to ten, so Go accepts them, a decoder that insists on the shortest encoding would not) |
 | `error/<what>` | `in`, `out`, `err` | a framed stream the reader rejects, with the bytes it delivered first and Go's error text (`snappy: corrupt input` or `snappy: unsupported input`). Covers the identifier-first rule, a reserved unskippable chunk type, a chunk longer than the reader's buffer, bodies that are too short or too long, flipped checksums, truncation and four malformed blocks |
 
 Payloads are built from `kind`: `text` cycles `"the quick brown fox jumps over the lazy dog. "`,
@@ -396,18 +396,18 @@ Produced by `qpp.go` with xtaci/qpp v1.1.25. `seedToChunks`, the pad tables and 
 are unexported, so the cases come from `internal/qppcopy`, a verbatim copy of `qpp.go` and
 `prng.go` with an export file beside it (the same arrangement as `internal/kcpcopy`).
 `internal/qppcopy/copy_test.go` checks the copied files against the pinned source and the
-copy's behaviour against the linked `github.com/xtaci/qpp` — same minimum sizes, and the same
-ciphertext for four seeds, five pad counts and six chunkings — so a vector cannot describe
+copy's behaviour against the linked `github.com/xtaci/qpp`: same minimum sizes, and the same
+ciphertext for four seeds, five pad counts and six chunkings, so a vector cannot describe
 anything the real library does not do. Every `pads/*` case is checked to be a permutation with
 `rpads` its inverse, and every `stream/*` case is decrypted again, before it becomes a vector.
 
 | Group (name) | Fields | Meaning |
 |---|---|---|
 | `minimum/qubits=<n>` | `qubits`, `seed_len`, `minimum_pads` | `QPPMinimumSeedLength(n)` and `QPPMinimumPads(n)` for 1..15 qubits, the range Go's own `TestQPPMinimumSeedLength` prints. Only 8 qubits is used in practice: 211 bytes and 7 pads |
-| `chunks/<seed>` | `seed` or `seed_stream`, `seed_len`, `expanded`, `chunks`, `out` | `seedToChunks(seed, 8)`: seven 32-byte chunks, concatenated in `out`. `expanded` marks a seed shorter than 32 bytes, which is PBKDF2-expanded first — after which `seedIdx` reads the same 32 bytes for every chunk, so all seven come out identical. The 300-byte seed is the case where `seedIdx` wraps mid-chunk |
+| `chunks/<seed>` | `seed` or `seed_stream`, `seed_len`, `expanded`, `chunks`, `out` | `seedToChunks(seed, 8)`: seven 32-byte chunks, concatenated in `out`. `expanded` marks a seed shorter than 32 bytes, which is PBKDF2-expanded first, after which `seedIdx` reads the same 32 bytes for every chunk, so all seven come out identical. The 300-byte seed is the case where `seedIdx` wraps mid-chunk |
 | `pads/num_pads=<n>` | `seed`, `num_pads`, `pad0`, `pads`, `rpads` | the permutation matrices for 1, 7, 61 and 101 pads, as `Blob`s, with the first one in full. The pad id goes into the HMAC message in binary (`QPP_%b`), so the counts span several id widths |
 | `prng/<create\|fast>/<seed>` | `ctor`, `seed` or `seed_stream`, `seed_len`, `xoshiro`, `seed64`, `count`, `outputs` | the generator `CreatePRNG`/`FastPRNG` produces, and its next 16 outputs |
-| `stream/<chunking>` | `seed`, `num_pads`, `chunk`, `chunk_stream`, `plain_stream`, `plain`, `out`, `rand_after` | 1 MiB encrypted with 61 pads in pieces of `chunk` bytes (0: one call, -1: random 1..4096 from `newRNG("qpp", chunk_stream)`), plus the generator's state afterwards. The transform is position-based, so all four chunkings give the same ciphertext — which is the point of the group |
+| `stream/<chunking>` | `seed`, `num_pads`, `chunk`, `chunk_stream`, `plain_stream`, `plain`, `out`, `rand_after` | 1 MiB encrypted with 61 pads in pieces of `chunk` bytes (0: one call, -1: random 1..4096 from `newRNG("qpp", chunk_stream)`), plus the generator's state afterwards. The transform is position-based, so all four chunkings give the same ciphertext, which is the point of the group |
 
 Seeds are either a fixed string (`seed`, as hex) or `randBytes(newRNG("qpp", seed_stream),
 seed_len)`; the 1 MiB plaintext is `randBytes(newRNG("qpp", plain_stream), 1<<20)`. Byte strings
@@ -546,15 +546,15 @@ is `.00` plus a zero-padded month, `snmp-pm.log` becomes `snmp-am.log`).
 
 Go's `syscall` error table (DECISIONS **D30**), read by `errno.go` straight out of the Go
 distribution's own generated files (`$GOROOT/src/syscall/zerrors_<goos>_<goarch>.go`,
-`var errors = [...]string{}`) — not out of a pinned module, which is why this is the one area
+`var errors = [...]string{}`), not out of a pinned module, which is why this is the one area
 whose input is the toolchain rather than `vendor/`. `tools/gen-vectors.sh` exports `GOROOT`
 for it, because `go build -trimpath` strips the compiled-in one.
 
 Go never calls `strerror(3)`: it renders every `syscall.Errno` from that table and falls back to
 `"errno " + itoa(n)` for an index the table leaves empty. Borrowing the C library's message
-instead is only right by coincidence — a static musl build's `strerror` spells `EADDRINUSE`
+instead is only right by coincidence: a static musl build's `strerror` spells `EADDRINUSE`
 `Address in use` where glibc's spells it `Address already in use`, and Go's own table entry is
-the lower-case `address already in use` — so `kcptun_kcp::goerrno` carries the table and
+the lower-case `address already in use`, so `kcptun_kcp::goerrno` carries the table and
 `tools/gen-errno-table.py` reshapes this file into `crates/kcp/src/goerrno/table.rs`.
 
 One case per GOOS/GOARCH, named `<goos>/<goarch>`, for the platforms of DECISIONS D22:
@@ -569,7 +569,7 @@ One case per GOOS/GOARCH, named `<goos>/<goarch>`, for the platforms of DECISION
 
 The generator refuses to write the file unless the table it parsed for the **host** platform
 reproduces the linked Go runtime's own `syscall.Errno(n).Error()` for every `n` up to 64 past
-the end of the table — the parser is checked against the real thing on the one platform where
+the end of the table: the parser is checked against the real thing on the one platform where
 that is possible, and every other target comes out of the same generated files by the same
 parser. The Rust side is checked by `kcptun_kcp::goerrno::tests::vectors_errno_tables`, which
 compares *every* platform's table, not only the host's.

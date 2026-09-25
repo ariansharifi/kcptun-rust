@@ -7,7 +7,7 @@
 # This exists because lab-stop.sh --signal USR1 would *also* wait for the process to exit and
 # then SIGKILL it: it is a stopper. kcptun's SNMP dump is a SIGUSR1 to a process that must keep
 # running (step 11: "both sides' SNMP (SIGUSR1 dump at the end)"), so it needs its own path.
-# Fatal signals are deliberately not accepted here — stopping is lab-stop.sh's job.
+# Fatal signals are deliberately not accepted here: stopping is lab-stop.sh's job.
 set -euo pipefail
 . "$(dirname "$0")/lab-common.sh"
 

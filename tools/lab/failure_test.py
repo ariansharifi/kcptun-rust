@@ -2,7 +2,7 @@
 """Tests for tools/lab/failure.py. Run with `python3 tools/lab/failure_test.py`.
 
 `failure.py` is the only thing in the lab that deliberately kills a running tunnel, and the
-answers it produces — "recovery took 57 s", "the stream never came back" — are read off a CSV by
+answers it produces ("recovery took 57 s", "the stream never came back") are read off a CSV by
 arithmetic nobody eyeballs. Both halves need a test that does not need a lab host:
 
 * the **timeline**, because an event that fires against the wrong process name, or a restart
@@ -10,7 +10,7 @@ arithmetic nobody eyeballs. Both halves need a test that does not need a lab hos
 * the **arithmetic**, because a recovery number computed from cumulative counters as if they
   were per-interval ones is wrong in a way that still looks plausible.
 
-The host is `lab_test.FakeRunner` — the same fake ssh `lab_test.py` uses, so a change to the
+The host is `lab_test.FakeRunner`: the same fake ssh `lab_test.py` uses, so a change to the
 guarded helpers' interface breaks both suites at once rather than only the one that is run.
 """
 
@@ -36,7 +36,7 @@ REPO = Path(__file__).resolve().parents[2]
 
 #: `CaseRun.run` sleeps `SETTLE` seconds and then once per event. A test that drives a real
 #: timeline would pay all of it, so the module's two waits are zeroed for the suite and the
-#: shipped values are asserted below — zeroing them here must never become zeroing them in a
+#: shipped values are asserted below, zeroing them here must never become zeroing them in a
 #: real run.
 _REAL_SETTLE = failure.SETTLE
 _REAL_SNMP_SETTLE = lab.SNMP_SETTLE_SECONDS
@@ -175,7 +175,7 @@ class CaseTableTests(unittest.TestCase):
                 self.assertLess(offset, case.duration, case.name)
 
     def test_no_case_uses_a_port_below_four_thousand(self):
-        """tools/lab/README.md rule 4 — `lab-start.sh` refuses one, but not until the run starts."""
+        """tools/lab/README.md rule 4: `lab-start.sh` refuses one, but not until the run starts."""
         ports = [failure.TUNNEL_PORT, failure.LISTEN_PORT, failure.PINGPONG_PORT,
                  failure.REFUSED_PORT, failure.SINK_PORT,
                  failure.TUNNEL_PORT + failure.TUNNEL_PORT_COUNT - 1]
@@ -250,7 +250,7 @@ class TimelineTests(unittest.TestCase):
     def an_aborting_run(self, case_name: str, fail_on):
         """A run that raises mid-timeline, as a Ctrl-C or any `LabError` would.
 
-        `fail_on` fires once, so the restore that follows is allowed to run — which is the
+        `fail_on` fires once, so the restore that follows is allowed to run, which is the
         whole point: the driver's cleanup path has to reach the host even after a failure.
         """
         class Aborting(lab_test.FakeRunner):
@@ -393,7 +393,7 @@ class TimelineTests(unittest.TestCase):
         """`Runner.lab` defaults to a two-minute ssh timeout, and a timeout there *raises*.
 
         Every recovery case is longer than two minutes, so the default aborted a 16-run
-        campaign at its first case — after the run had already been started on the host.
+        campaign at its first case, after the run had already been started on the host.
         """
 
         class Recording(lab_test.FakeRunner):
@@ -440,7 +440,7 @@ class MetricsTests(unittest.TestCase):
 
     def test_a_recovery_is_measured_from_the_repair_and_an_outage_from_the_fault(self):
         # Traffic to t=1019, nothing while the server is down and the session is still
-        # believed alive, back at t=1085 — the ~60 s keepalive path 09.3 measured.
+        # believed alive, back at t=1085: the ~60 s keepalive path 09.3 measured.
         rows = []
         requests = 0
         for second in range(0, 120):
@@ -507,7 +507,7 @@ class MetricsTests(unittest.TestCase):
     def test_the_error_spacing_is_a_median_and_not_a_mean(self):
         """A burst of refusals with one long gap: the mean would read as a dialTimeout.
 
-        Nineteen errors a second apart and then a single 40 s gap — an RST storm interrupted
+        Nineteen errors a second apart and then a single 40 s gap: an RST storm interrupted
         once. The median is 1 s, which is what `target-refused` is checked against; the mean is
         about 3 s and would still pass, but on a longer pause it would drift into the 8-14 s
         band `target-blackholed` uses and the two failure modes would stop being separable.
@@ -798,7 +798,7 @@ class CliTests(unittest.TestCase):
                                  "20260101T010000Z", "--out", str(out)])
             text = out.read_text()
             # A name that resolves to nothing is still refused, rather than quietly dropped
-            # from the concatenation — a session missing from a published document is exactly
+            # from the concatenation: a session missing from a published document is exactly
             # the kind of silence this command exists to prevent.
             with self.assertRaisesRegex(lab.LabError, "matches 0 sessions"):
                 failure.cmd_report(None, argparse.Namespace(

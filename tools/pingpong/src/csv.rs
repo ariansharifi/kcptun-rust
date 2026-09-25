@@ -3,12 +3,12 @@
 //! Every long-running lab tool writes its samples here, and the rules come straight from what a
 //! six-hour unattended run needs:
 //!
-//! - **append, never rewrite** — a restarted sampler continues the same file;
-//! - **header only when the file is empty** — so appending twice does not repeat it (the same
+//! - **append, never rewrite**: a restarted sampler continues the same file;
+//! - **header only when the file is empty**, so appending twice does not repeat it (the same
 //!   rule `kcptun_std::snmp` uses for `-snmplog`, which keeps the two CSVs consistent);
-//! - **flush after every row** — a dropped ssh session, a reboot or a SIGKILL loses nothing but
+//! - **flush after every row**: a dropped ssh session, a reboot or a SIGKILL loses nothing but
 //!   the row in flight;
-//! - **fixed field count** — a row with the wrong arity is a bug, not a silently skewed column.
+//! - **fixed field count**: a row with the wrong arity is a bug, not a silently skewed column.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write as _;

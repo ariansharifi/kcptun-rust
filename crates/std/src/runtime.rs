@@ -16,8 +16,8 @@
 //!
 //! **D01**: this port runs on tokio's multi-threaded runtime with one worker thread per CPU, and
 //! reads `GOMAXPROCS` the same way, so a deployment that pins it today keeps working. Note the
-//! base: `ParseInt(s, 10, 32)` is decimal only — unlike the flag values, which Go parses with
-//! base 0 (`crate::cli`) — it rejects underscores, `0x` prefixes and surrounding spaces, and it
+//! base: `ParseInt(s, 10, 32)` is decimal only, unlike the flag values, which Go parses with
+//! base 0 (`crate::cli`): it rejects underscores, `0x` prefixes and surrounding spaces, and it
 //! overflows above `i32::MAX`. Anything that does not parse, or is not positive, falls back to
 //! the CPU count, again like Go.
 
@@ -25,7 +25,7 @@ use std::io;
 use std::num::NonZeroUsize;
 
 /// The environment variable Go's runtime reads at start-up.
-// Go: runtime/proc.go:schedinit — gogetenv("GOMAXPROCS")
+// Go: runtime/proc.go:schedinit, gogetenv("GOMAXPROCS")
 pub const GOMAXPROCS: &str = "GOMAXPROCS";
 
 /// The name tokio gives the worker threads, so `top -H` / `perf` show where the time goes.
@@ -69,7 +69,7 @@ pub fn parse_gomaxprocs(s: &str) -> Option<usize> {
             return None;
         }
     }
-    // Go: `err == nil && n > 0` — a negative or zero value is parsed, then ignored.
+    // Go: `err == nil && n > 0`, a negative or zero value is parsed, then ignored.
     if neg || n == 0 {
         return None;
     }
@@ -97,12 +97,12 @@ pub fn worker_threads() -> usize {
 /// back to 1 when that is unavailable, but they round a cgroup CPU limit differently, so a
 /// container with a *fractional* limit gets fewer workers here than Go gets Ps:
 ///
-/// * Go (1.25+) takes `min(ncpu, max(ceil(quota/period), 2))` —
+/// * Go (1.25+) takes `min(ncpu, max(ceil(quota/period), 2))`,
 ///   `runtime/cgroup_linux.go:defaultGOMAXPROCS` → `adjustCgroupGOMAXPROCS` (Go 1.27.1);
 /// * Rust's `available_parallelism` divides quota by period rounding *down*, with a floor of 1.
 ///
 /// At a 1.5 CPU limit Go runs 2 Ps and this runs 1 worker; at 2.5, 3 against 2. It is a
-/// performance difference only — nothing reaches the wire — and D01 specifies
+/// performance difference only (nothing reaches the wire) and D01 specifies
 /// `available_parallelism`; a container deployment that cares should set `GOMAXPROCS` explicitly,
 /// which both runtimes then obey (see the README).
 // Go: runtime/proc.go:schedinit → defaultGOMAXPROCS(numCPUStartup)
@@ -140,7 +140,7 @@ mod tests {
     // started with `GOMAXPROCS=<case>` printing `runtime.GOMAXPROCS(0)` (10 = this machine's
     // NumCPU, i.e. the fallback). Only "1", "8", "+8", "0008" and "2147483647" changed it;
     // everything in the second list fell back. (Go accepts 2147483647 and then dies trying to
-    // create that many Ps — the value is honoured, which is what is asserted here.)
+    // create that many Ps: the value is honoured, which is what is asserted here.)
 
     /// Values Go's `strconv.ParseInt(s, 10, 32)` accepts and `schedinit` then uses.
     #[test]

@@ -1,6 +1,6 @@
 //! The bidirectional proxy pipe, and the buffer pool it copies through.
 //!
-//! Go source: `kcptun/std/copy.go` — `Pipe()`, `Copy()` and the `closeWriter` interface.
+//! Go source: `kcptun/std/copy.go`, `Pipe()`, `Copy()` and the `closeWriter` interface.
 //! Call sites: `kcptun/client/main.go:540` and `kcptun/server/main.go:530`,
 //! `err1, err2 := std.Pipe(s1, s2, closeWait)`, which log every error that is not `io.EOF` as
 //! `pipe: <err> in: <a> out: <b>`.
@@ -13,7 +13,7 @@
 //! an idle connection holds no copy buffer at all, which Go's `io.CopyBuffer` cannot say.
 //!
 //! What each direction does, in Go's order:
-//! 1. copy until the source ends (EOF) or either side errors — that error is the direction's
+//! 1. copy until the source ends (EOF) or either side errors: that error is the direction's
 //!    result;
 //! 2. sleep `close_wait` seconds if it is positive;
 //! 3. half-close the destination ([`HalfCloseWrite::poll_close_write`], Go's `CloseWrite()`), so
@@ -121,7 +121,7 @@ impl BufPool {
         self.outstanding.load(Ordering::Relaxed)
     }
 
-    /// How many buffers this pool has ever allocated — the high-water mark of concurrent use.
+    /// How many buffers this pool has ever allocated: the high-water mark of concurrent use.
     pub fn allocated(&self) -> usize {
         self.allocated.load(Ordering::Relaxed)
     }
@@ -184,7 +184,7 @@ pub fn default_buf_pool() -> &'static BufPool {
 ///
 /// Here that question is answered by the implementation: a type with a real half-close implements
 /// [`poll_close_write`](Self::poll_close_write) with it, and a type without one implements it as
-/// its full close — the same two branches, decided where the knowledge is.
+/// its full close: the same two branches, decided where the knowledge is.
 ///
 /// Implemented for [`tokio::net::TcpStream`] and [`tokio::net::UnixStream`] here, and as of step
 /// 07.3 for [`SmuxStream`](crate::smuxio::SmuxStream) and `QppStream` (`crate::qpp`, feature
@@ -195,9 +195,9 @@ pub trait HalfCloseWrite: AsyncRead + AsyncWrite {
     ///
     /// Go's `Copy` asks the same question at run time, `if wt, ok := src.(io.WriterTo)`, and a
     /// smux stream answers yes: `stream.WriteTo(dst)` hands each received frame straight to the
-    /// destination without ever filling a copy buffer. The QPP wrapper answers no — it has no
-    /// `WriteTo` in Go either — so a QPP stream takes the buffered path here as it does there.
-    // Go: kcptun/std/copy.go:Copy() — `if wt, ok := src.(io.WriterTo)`
+    /// destination without ever filling a copy buffer. The QPP wrapper answers no: it has no
+    /// `WriteTo` in Go either, so a QPP stream takes the buffered path here as it does there.
+    // Go: kcptun/std/copy.go:Copy(), `if wt, ok := src.(io.WriterTo)`
     const FRAME_SOURCE: bool = false;
 
     /// The next received frame, or `None` at the end of the stream.
@@ -221,7 +221,7 @@ pub trait HalfCloseWrite: AsyncRead + AsyncWrite {
 
     /// Closes the connection completely.
     ///
-    /// The default does nothing, for the types whose close is the drop that follows it — a
+    /// The default does nothing, for the types whose close is the drop that follows it: a
     /// `TcpStream` closes its descriptor when it goes out of scope. Types whose close has to be
     /// awaited (a smux stream returning its tokens and sending FIN) override it.
     // Go: io.Closer.Close()
@@ -258,7 +258,7 @@ impl HalfCloseWrite for tokio::net::UnixStream {
 ///
 /// The returned pair is Go's `(errA, errB)`: `errA` for `alice -> bob`, `errB` for `bob -> alice`.
 /// A source that ends cleanly yields `Ok(())` (Go's `io.Copy` swallows `io.EOF` the same way);
-/// anything else — a read error, a write error, a peer reset — is the `Err` the caller logs.
+/// anything else (a read error, a write error, a peer reset) is the `Err` the caller logs.
 ///
 /// Both ends are consumed and closed, as Go closes both after its `WaitGroup` returns.
 // Go: kcptun/std/copy.go:Pipe()
@@ -296,7 +296,7 @@ where
     })
     .await;
 
-    // Go: alice.Close(); bob.Close() — both errors discarded. Dropping the values afterwards is
+    // Go: alice.Close(); bob.Close(), both errors discarded. Dropping the values afterwards is
     // what closes the descriptors.
     let _ = std::future::poll_fn(|cx| Pin::new(&mut alice).poll_close(cx)).await;
     let _ = std::future::poll_fn(|cx| Pin::new(&mut bob).poll_close(cx)).await;
@@ -322,7 +322,7 @@ enum Phase {
 // Go: kcptun/std/copy.go:Pipe.streamCopy()
 struct Transfer<'p> {
     pool: &'p BufPool,
-    /// Held only between a read that produced data and the write that drains it — and while a
+    /// Held only between a read that produced data and the write that drains it, and while a
     /// read is in flight. A direction waiting for its source to speak holds nothing (D17).
     buf: Option<PooledBuf<'p>>,
     /// Bytes `pos..cap` of `buf` are read and not yet written.
@@ -506,7 +506,7 @@ impl<'p> Transfer<'p> {
                             }
                             return Poll::Pending;
                         }
-                        // Go: `nr == 0, err == io.EOF` — the copy ends with no error.
+                        // Go: `nr == 0, err == io.EOF`, the copy ends with no error.
                         Poll::Ready(Ok(())) if filled == 0 => self.end_copy(),
                         Poll::Ready(Ok(())) => {
                             self.pos = 0;
@@ -523,7 +523,7 @@ impl<'p> Transfer<'p> {
                     // buffers (a smux stream's frame writer) needs this before the half-close.
                     // A flush failure is the tail of the copy failing, which Go's unbuffered
                     // `Write` would have reported from `Copy` itself, so it becomes this
-                    // direction's result — unless the copy already has an error to report.
+                    // direction's result, unless the copy already has an error to report.
                     if let Err(e) = ready!(Pin::new(&mut *dst).poll_flush(cx))
                         && self.result.is_ok()
                     {
@@ -543,7 +543,7 @@ impl<'p> Transfer<'p> {
                     self.phase = Phase::Closing;
                 }
                 Phase::Closing => {
-                    // Go: cw.CloseWrite() — or dst.Close() for a type without half-close, which
+                    // Go: cw.CloseWrite(), or dst.Close() for a type without half-close, which
                     // is how such a type implements this. Either way the error is dropped.
                     let _ = ready!(Pin::new(&mut *dst).poll_close_write(cx));
                     self.phase = Phase::Done;

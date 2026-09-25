@@ -1,10 +1,10 @@
-//! `labsample` — periodic `/proc` sampling of the processes under test.
+//! `labsample`: periodic `/proc` sampling of the processes under test.
 //!
 //! Plan 11.4 asks for a sample every 60 s of *RSS, CPU%, fd count, session count and SNMP
 //! deltas*. The last two come from the tunnel binaries themselves (`-snmplog` writes a CSV whose
 //! `CurrEstab` column is the live session count), so this tool covers the first three plus the
 //! things that make a six-hour run interpretable: `VmHWM` (the peak RSS a Rust process never
-//! gives back — see `docs/benchmarks/memory.md`), thread count, context switches, page faults
+//! gives back, see `docs/benchmarks/memory.md`), thread count, context switches, page faults
 //! and the host's load average.
 //!
 //! It runs **outside** the network namespaces, as the same user as the processes it watches, and
@@ -14,7 +14,7 @@
 //!
 //! - `lab-stop.sh` verifies `/proc/<pid>/exe` against the recorded command before killing
 //!   anything, and an interpreter breaks that check (`/usr/bin/python3` records, `python3.12`
-//!   runs — the trap found in 12.3a). A compiled binary deployed as `kr-labsample` records and
+//!   runs: the trap found in 12.3a). A compiled binary deployed as `kr-labsample` records and
 //!   runs as exactly the same path.
 //! - The sampler must not itself leak over six hours: every file is opened and closed inside one
 //!   sample, the CSV is appended and flushed per row, and log watching reads a bounded amount.
@@ -47,7 +47,7 @@ const FLAGS: &[&str] = &[
 ];
 
 const USAGE: &str = "\
-labsample — /proc sampler for the network lab (development only)
+labsample: /proc sampler for the network lab (development only)
 
 usage:
   labsample --out proc.csv --pid LABEL=PID [--pid LABEL=PID...] [--log LABEL=PATH...]
@@ -232,7 +232,7 @@ fn sample_loop(mut cfg: Config) -> Result<()> {
                     }
                 }
                 // The first sample has nothing to diff against, and a counter that fell means
-                // the pid was reused — either way there is no rate to report.
+                // the pid was reused: either way there is no rate to report.
                 _ => None,
             };
             entry.cpu_ticks = cpu_ticks;
@@ -314,7 +314,7 @@ fn read_process(pid: i64) -> Option<(Stat, Status, Option<usize>)> {
 }
 
 /// Counts open file descriptors. `None` when the directory cannot be read (a different user, or
-/// the process exited between the two reads) — an empty cell, never a misleading zero.
+/// the process exited between the two reads): an empty cell, never a misleading zero.
 fn count_fds(pid: i64) -> Option<usize> {
     let mut n = 0usize;
     for entry in std::fs::read_dir(format!("/proc/{pid}/fd")).ok()? {
@@ -337,7 +337,7 @@ fn count_fds(pid: i64) -> Option<usize> {
 /// This only works because the writer holds the file with `O_APPEND` (`lab-start.sh` opens every
 /// process log with `>>`). A writer without it keeps its own file offset across our `set_len(0)`
 /// and re-extends the file to `offset + n` on its next write, leaving a hole of NUL bytes in
-/// front — the size never falls below the cap, so the truncation fires again every interval and
+/// front: the size never falls below the cap, so the truncation fires again every interval and
 /// the log's head becomes unreadable.
 fn watch_log(watched: &mut Watched, cap: u64) -> Option<u64> {
     let size = std::fs::metadata(&watched.path).ok()?.len();

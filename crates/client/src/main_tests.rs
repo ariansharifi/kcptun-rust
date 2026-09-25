@@ -5,8 +5,8 @@
 //! the timestamp and `file:line` header turned off; step 09.5 turns that comparison into a live
 //! differential test over ~30 command lines.
 //!
-//! The end-to-end cases drive the real client path — local TCP/unix accept → `create_conn` →
-//! `UDPSession` → `CompStream` → smux → `pipe` — against a minimal in-process kcptun *server*
+//! The end-to-end cases drive the real client path: local TCP/unix accept → `create_conn` →
+//! `UDPSession` → `CompStream` → smux → `pipe`, against a minimal in-process kcptun *server*
 //! (the mirror image of what `crates/server`'s tests do with an in-process client), so a
 //! regression anywhere between the local socket and the KCP session fails here rather than in
 //! step 09.3.
@@ -350,7 +350,7 @@ fn a_literal_listener_prints_the_address_it_bound() {
 
 /// `client_darwin_arm64 -l 127.0.0.1:<busy>` prints
 /// `listen tcp 127.0.0.1:<busy>: bind: address already in use`, and `-l :<busy>` names the
-/// *resolved* address, `:<busy>` — not the `[::]:<busy>` the socket would have bound.
+/// *resolved* address, `:<busy>`, not the `[::]:<busy>` the socket would have bound.
 #[test]
 fn a_failing_bind_reads_like_gos_net_operror() {
     let rt = runtime::build_with(1).expect("runtime");
@@ -558,7 +558,7 @@ fn e2e_config(
 
 /// The other half of kcptun: a KCP listener whose smux streams are proxied to `target`.
 ///
-/// This is `crates/server`'s `serve_listener` in miniature — the client tests cannot depend on
+/// This is `crates/server`'s `serve_listener` in miniature: the client tests cannot depend on
 /// the server binary, and only the parts the client talks to are needed.
 async fn tiny_server(
     listener: Arc<Listener>,

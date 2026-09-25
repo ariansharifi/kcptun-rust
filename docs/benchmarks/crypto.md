@@ -211,7 +211,7 @@ so `crates/kcp` keeps RustCrypto `aes-gcm`.**
 
 ---
 
-# 12.2b — AES-128-GCM: can the gap to Go be closed?
+# 12.2b: AES-128-GCM: can the gap to Go be closed?
 
 Step 12.2b asked for ≥ 1.0× Go for **both** seal and open at 1350 B on **both** machines, and named
 three candidates: `ring`, `aws-lc-rs`, and an interleaved AES-CTR + GHASH implementation. All three
@@ -231,7 +231,7 @@ workspace, so `ring` and `aws-lc-sys` never reach the product build, `cargo test
 
 1. **`ring` 0.17.14.** BoringSSL's `aes_gcm_{enc,dec}_kernel` assembly through `LessSafeKey`
    (kcptun derives the nonce itself, so the sequencing API would be wrong here).
-2. **`aws-lc-rs` 1.18.1** (with `aws-lc-sys` 0.45.0). AWS-LC — a BoringSSL fork — with the
+2. **`aws-lc-rs` 1.18.1** (with `aws-lc-sys` 0.45.0). AWS-LC (a BoringSSL fork) with the
    ring-compatible API.
 3. **Fused AES-CTR + GHASH, safe Rust** (`FusedGcm` in the harness). One pass over the packet in
    groups of 8 blocks: encrypt the 8 counter blocks with `aes`, XOR them in, GHASH the 8 ciphertext
@@ -239,7 +239,7 @@ workspace, so `ring` and `aws-lc-sys` never reach the product build, `cargo test
    one-dispatch-per-packet trick as `crypt::cfb`.
    One property to carry forward if a fused kernel is ever revisited for the product: a single pass
    **rewrites the packet before the tag can be checked**, so a failed `open` leaves decrypted,
-   unauthenticated plaintext in the caller's buffer. The shipping two-pass `AeadCrypt` does not —
+   unauthenticated plaintext in the caller's buffer. The shipping two-pass `AeadCrypt` does not,
    RustCrypto's `decrypt_inout_detached` verifies the tag first, so `open_in_place` leaves the
    buffer untouched on failure. (`ring` and `aws-lc-rs` overwrite on failure too, and say so.)
    kcptun drops a packet that fails to open, so nothing reads those bytes, but adopting a fused
@@ -282,12 +282,12 @@ on the N1), i.e. within 1.5%, which is what makes the harness comparable.
 at 1350 B; this session measures 0.77–0.78× for the same case, both in the harness and in
 `crates/kcp/benches/crypt.rs` itself, and the lower value is what reproduces today. The 02.6 M5
 decrypt cell (0.77×) and both N1 cells do reproduce. Nothing in `crypt::aead` changed between the
-two sessions, so the difference is a laptop-state artefact, not a regression — but where the two
+two sessions, so the difference is a laptop-state artefact, not a regression, but where the two
 tables disagree, this one is current.
 
 ## Why the fused backend works on the M5 and not on Linux
 
-Splitting it into its two halves — the `gcm/halves` group of the same harness — explains the whole
+Splitting it into its two halves (the `gcm/halves` group of the same harness) explains the whole
 result. Per 1350-byte packet, median of 3 rounds:
 
 | | M5 | N1 |
@@ -306,10 +306,10 @@ x86_64) both crates detect their features at run time and put the hardware code 
 `#[target_feature]` functions, which LLVM cannot inline into each other. Every 8-block group
 therefore pays two opaque calls, and the N1's reorder window is too small to overlap AES with PMULL
 across them. An explicit one-group software pipeline (keystream for group *g+1* computed between
-group *g*'s XOR and its GHASH) was tried and is **worse** on both machines — 195 ns on the M5 and
-950 ns on the N1 — so it was not kept in the harness.
+group *g*'s XOR and its GHASH) was tried and is **worse** on both machines: 195 ns on the M5 and
+950 ns on the N1, so it was not kept in the harness.
 
-So the fused approach can only pay off where the crypto features are known at compile time — i.e.
+So the fused approach can only pay off where the crypto features are known at compile time: i.e.
 on Apple silicon, which is the development machine, not a deployment target. Forcing
 `-C target-feature=+aes` for Linux builds would produce binaries that fault on CPUs without the
 extension, which is not acceptable for a release matrix like D22's.
@@ -335,10 +335,10 @@ Both were held to the sub-step's other three gates, and both pass:
   `i686-unknown-linux-{musl,gnu}`, `x86_64-pc-windows-gnu` and `x86_64-unknown-freebsd`;
   `x86_64-apple-darwin` builds with plain `cargo build` on the macOS host, and `aarch64-apple-darwin`
   is the host itself. `aws-lc-sys` builds through zig's `cc` wrapper and never invokes CMake, and
-  Windows needs its `prebuilt-nasm` feature — without it the build script panics looking for a
+  Windows needs its `prebuilt-nasm` feature, without it the build script panics looking for a
   local NASM.
 
-  **The two ARMv6 tiers, `arm-unknown-linux-{musleabi,gnueabi}`, do not link the bench binary —
+  **The two ARMv6 tiers, `arm-unknown-linux-{musleabi,gnueabi}`, do not link the bench binary,
   and the cause is not the crypto.** `cargo zigbuild --release --lib` succeeds for both, i.e.
   `ring` and `aws-lc-sys` compile and archive fine for ARMv6. It is `--benches` that fails, at the
   link step, with `undefined symbol: fmaximum_num` / `fminimum_num` referenced from
@@ -361,8 +361,8 @@ Both were held to the sub-step's other three gates, and both pass:
 
 Rejected, all three. The acceptance bar is ≥ 1.0× Go for seal and open on both machines and no
 candidate meets it: `aws-lc-rs` is 0.98× for seal on the N1, `ring` is 0.88–0.92× on the M5, and the
-fused backend is 0.67–0.68× on the N1. `aws-lc-rs` comes closest — it would turn a 23–32% deficit
-into between −2% and +8% — but paying 68 MB of vendored C, a mandatory C toolchain and a second
+fused backend is 0.67–0.68× on the N1. `aws-lc-rs` comes closest: it would turn a 23–32% deficit
+into between −2% and +8%, but paying 68 MB of vendored C, a mandatory C toolchain and a second
 crypto stack for a result that still misses the bar is not a trade this step should make on its
 own; it is proposed as a DECISIONS entry instead.
 

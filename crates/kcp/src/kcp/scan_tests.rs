@@ -1,14 +1,14 @@
 //! Skipping the part of `snd_buf` that a flush has already scanned (**Decision D29**, plan
 //! step 12.2c).
 //!
-//! Go rescans the whole send buffer on every flush — every write, every update tick and every
+//! Go rescans the whole send buffer on every flush: every write, every update tick and every
 //! ACK that advances `una`. At the production window (`-sndwnd 8192`) that is 8192
 //! `Segment`s, 512 kB, per call, and `docs/benchmarks/kcp.md` measured it at 8.16 µs on the M5
 //! and 30.8 µs on lab-arm64's Neoverse-N1: the dominant KCP-level cost of the profile.
 //!
 //! [`FlushScan`] is what makes leaving that scan out safe. It records three things about the
-//! segments a flush has looked at — when the earliest of them can fall due, whether any is
-//! waiting for a fast or early retransmit, and how long the never-transmitted tail is — and
+//! segments a flush has looked at: when the earliest of them can fall due, whether any is
+//! waiting for a fast or early retransmit, and how long the never-transmitted tail is, and
 //! every one of them is **conservative**: it may claim less than is true, which costs a full
 //! scan and nothing else, and it can never claim more.
 //!
@@ -22,7 +22,7 @@
 //!    asserts *how much* was skipped, because a differential test against a skip that never
 //!    fires proves nothing.
 //! 2. [`the_skip_is_byte_identical_to_the_naive_scan`] does the same over the randomised
-//!    two-endpoint traces of [`super::backpressure_tests`] — lossy, reordering links, real
+//!    two-endpoint traces of [`super::backpressure_tests`]: lossy, reordering links, real
 //!    retransmissions and real fast retransmits.
 //! 3. The golden Go traces of [`super::trace_tests`] and the pinned summaries of
 //!    [`super::sim_tests`] cover the same ground against Go itself, unchanged.
@@ -86,8 +86,8 @@ pub(super) struct OracleRun {
     pub(super) ack_index: AckIndex,
 }
 
-/// Runs `script` on two otherwise identical `Kcp`s — one with the `snd_buf` optimisations of
-/// plan step 12.2, one with the naive line-by-line scans of DECISIONS D25 — and asserts that
+/// Runs `script` on two otherwise identical `Kcp`s: one with the `snd_buf` optimisations of
+/// plan step 12.2, one with the naive line-by-line scans of DECISIONS D25, and asserts that
 /// they are indistinguishable: the same packets byte for byte, the same state down to every
 /// segment's `fastack`, and the same `nextUpdate` from every flush (the hint the session
 /// schedules on, so a wrong one changes when the next flush happens).
@@ -209,7 +209,7 @@ fn an_undue_window_is_scanned_once_and_then_skipped() {
 }
 
 /// `nextUpdate` is `interval` while the window is far from due and counts down once it is not,
-/// whether or not the scan was skipped — the property that makes skipping safe, stated on its
+/// whether or not the scan was skipped: the property that makes skipping safe, stated on its
 /// own so that a regression names itself.
 #[test]
 fn the_scheduling_hint_is_the_interval_until_a_segment_is_within_one() {
@@ -266,7 +266,7 @@ fn newly_admitted_segments_are_sent_without_rescanning_the_window() {
         skipped.1,
         (WND as u64 - 58) + WND as u64,
         "the first leaves everything but the newly admitted tail untouched, \
-         the second — which has nothing to admit — the whole window"
+         the second (which has nothing to admit) the whole window"
     );
 }
 
@@ -283,7 +283,7 @@ fn a_duplicate_ack_makes_the_next_flush_scan_again() {
         assert!(k.flush_scan.no_fastack);
 
         // Segment 0 was lost, so its successor is acknowledged selectively and `una` stays at
-        // 0. That raises `fastack` on segment 0 — one short of the fast-retransmit threshold,
+        // 0. That raises `fastack` on segment 0: one short of the fast-retransmit threshold,
         // so `input` does not flush and the duplicate ack is still outstanding.
         assert_eq!(
             k.input(&ack_packet(&[1], 0, T0 as u32), IKCP_PACKET_REGULAR, false),
@@ -401,8 +401,8 @@ fn an_una_past_what_we_sent_shortens_the_unsent_tail() {
 }
 
 /// 12.3b's [`Kcp::shrink_idle_buffers`] hands `snd_buf` a new, smaller array when the ring is
-/// empty. The summary holds no capacity, address or index of that array — only counts and a
-/// timestamp — so a shrink cannot invalidate it, and a session that bursts, drains, shrinks
+/// empty. The summary holds no capacity, address or index of that array, only counts and a
+/// timestamp, so a shrink cannot invalidate it, and a session that bursts, drains, shrinks
 /// and bursts again is still byte-identical to the oracle and still skips.
 #[test]
 fn shrinking_an_idle_send_buffer_neither_breaks_nor_defeats_the_skip() {
@@ -491,7 +491,7 @@ fn replacing_the_send_buffer_resets_the_summary() {
 
 /// [`FlushScan::can_skip`] is the whole safety argument in four lines, so it gets its own
 /// table: nothing is skipped without a bound, without `no_fastack`, or inside one `interval`
-/// of the earliest retransmission — and `_itimediff` decides "earliest", so the answer is the
+/// of the earliest retransmission, and `_itimediff` decides "earliest", so the answer is the
 /// same across the `u32` wrap.
 #[test]
 fn can_skip_needs_a_bound_no_fastack_and_a_whole_interval() {
@@ -588,7 +588,7 @@ fn an_unsent_segment_in_the_middle_gives_the_optimisation_up() {
     assert_eq!(k.scan_skipped, (1, 8), "the skip works to begin with");
 
     // Something no code path produces: an untransmitted segment with transmitted ones behind
-    // it. It is marked acknowledged so that the scan leaves it as it found it — a scan that
+    // it. It is marked acknowledged so that the scan leaves it as it found it: a scan that
     // simply transmits such a segment repairs the ring and needs no safety net.
     {
         let seg = k.snd_buf.iter_mut().nth(2).expect("segment 2");
@@ -614,8 +614,8 @@ fn an_unsent_segment_in_the_middle_gives_the_optimisation_up() {
 // Randomised two-endpoint traces (DECISIONS D25)
 // ---------------------------------------------------------------------------------------
 
-/// The D25 differential test: over randomised two-endpoint traces on lossy, reordering links —
-/// with real retransmissions, fast retransmissions and window probes — the optimised flush puts
+/// The D25 differential test: over randomised two-endpoint traces on lossy, reordering links,
+/// with real retransmissions, fast retransmissions and window probes: the optimised flush puts
 /// exactly the same bytes on the wire as the naive one, ends in the same state, returns the
 /// same `nextUpdate` from every call and finishes at the same virtual millisecond.
 #[test]
@@ -688,7 +688,7 @@ fn the_skip_is_byte_identical_to_the_naive_scan() {
 }
 
 /// The same under V18 backpressure, where flushes stop in the middle of `snd_buf` and leave a
-/// never-transmitted tail behind them — the one case that makes the unsent suffix longer than
+/// never-transmitted tail behind them: the one case that makes the unsent suffix longer than
 /// what the last admission added.
 #[test]
 fn the_skip_is_byte_identical_under_backpressure() {

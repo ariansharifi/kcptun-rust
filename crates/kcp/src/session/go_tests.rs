@@ -5,7 +5,7 @@
 //! post-pin; that one is adopted as V01 and these tests do walk it via `set_rate_limit`.)
 //! They run the real thing: a
 //! [`Listener`] on loopback with its monitor task, dialled [`UdpSession`]s with their read loops,
-//! tx pipelines and update tasks — the whole of Step 05 end to end.
+//! tx pipelines and update tasks: the whole of Step 05 end to end.
 //!
 //! Adaptations to the port, all of them noted at the tests:
 //!
@@ -26,8 +26,8 @@
 //!
 //! `DEFAULT_SNMP` is process-global, so every test holds `SNMP_TEST_LOCK` for reading (the
 //! convention from 03.3); none of them asserts a counter. Because the sessions' background tasks
-//! outlive the `close()` that stops them, every test also ends with [`settle`] — still inside the
-//! guard's scope — so that no straggler moves a counter for a test that holds the lock for
+//! outlive the `close()` that stops them, every test also ends with [`settle`], still inside the
+//! guard's scope, so that no straggler moves a counter for a test that holds the lock for
 //! writing.
 #![allow(
     clippy::await_holding_lock,
@@ -65,7 +65,7 @@ fn snmp_read() -> std::sync::RwLockReadGuard<'static, ()> {
 /// `close()` cancels the session's `die` token and closes its socket, but the read loop, the tx
 /// pipeline and the updater can still be one iteration behind, and a straggler that decodes one
 /// more FEC packet moves `DEFAULT_SNMP`. If that happened after the test dropped its read guard
-/// it would corrupt the deltas of whichever test holds the lock for writing — which it did, in
+/// it would corrupt the deltas of whichever test holds the lock for writing, which it did, in
 /// about one run in ten, in `fec::vector_tests::vectors_fec_decoder`. Far above a loopback round
 /// trip and paid in parallel with the other tests, so it costs no measurable wall time.
 const SETTLE: Duration = Duration::from_millis(250);
@@ -462,7 +462,7 @@ async fn test_1gb_echo() {
 /// Go clamps the second length against the byte count from *before* the first slice, so its
 /// writer overshoots `N` by up to one chunk and the reader leaves the remainder unread. The port
 /// clamps the pair as a whole, which sends exactly `N` bytes (the last call may therefore pass an
-/// empty second slice — `write_buffers` must skip it and still return the first slice's length).
+/// empty second slice: `write_buffers` must skip it and still return the first slice's length).
 // Go: kcp-go@v5.6.72 sess_test.go:TestSendVector(), randomEchoVectorTest()
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_send_vector() {

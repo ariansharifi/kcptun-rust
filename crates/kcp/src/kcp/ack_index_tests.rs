@@ -4,13 +4,13 @@
 //! `input` calls `parse_ack` and `parse_fastack` once per acknowledged segment, and a
 //! 1400-byte ACK packet from a kcp-go receiver carries 58 of them. Both walk `snd_buf` from
 //! the head until they reach the sequence number, so a *selective* ACK for the far end of the
-//! production window (`-sndwnd 8192`) walks thousands of segments — twice — and a window
+//! production window (`-sndwnd 8192`) walks thousands of segments (twice) and a window
 //! acknowledged around a single hole costs O(window²). `docs/benchmarks/kcp.md` measured
 //! exactly that as the worst case of the whole suite: `input_ack/sack/8192` at 42.9 ms on the
 //! M5 against 0.53 ms for the same window acknowledged in order.
 //!
 //! `snd_buf` holds the segments `snd_una ..< snd_nxt` in ascending order with no gaps, so the
-//! segment an ACK names is at offset `sn - snd_una` — [`Kcp::snd_buf_offset`] states why, in
+//! segment an ACK names is at offset `sn - snd_una`: [`Kcp::snd_buf_offset`] states why, in
 //! terms of the four places that touch the ring. `parse_ack` then needs no search at all, and
 //! `parse_fastack` gets its bound without testing every segment for it (the work it has left
 //! is one `fastack` per segment before `sn`, which no index can remove).
@@ -18,15 +18,15 @@
 //! What this module has to establish is that the offset is **the same answer** the scan gives,
 //! which is DECISIONS D25 and the same bar as D29 next door:
 //!
-//! 1. Debug builds check every computed offset against [`Kcp::scan_for_sn`] — the scan it
-//!    replaces — on every ACK of every test in this crate, the golden Go traces included.
+//! 1. Debug builds check every computed offset against [`Kcp::scan_for_sn`]: the scan it
+//!    replaces, on every ACK of every test in this crate, the golden Go traces included.
 //! 2. [`super::scan_tests::oracle_run`] runs the tests below twice, with the optimisations on
 //!    and with the naive line-by-line scans of D25, and compares the bytes on the wire, the
 //!    state down to every segment's `fastack`, and every `nextUpdate`. Each test then asserts
 //!    that the offset path really fired, because a differential test against a path that is
 //!    never taken proves nothing.
 //! 3. [`the_ack_index_is_byte_identical_to_the_naive_scan`] does the same over randomised
-//!    two-endpoint traces biased towards loss, reordering and duplicate ACKs — where an
+//!    two-endpoint traces biased towards loss, reordering and duplicate ACKs, where an
 //!    off-by-one in this code would hide.
 //! 4. The ring is never expected to break the invariant, so the fallback is the safety net
 //!    rather than a path in use: every trace here asserts `misses == 0`, and the two
@@ -99,7 +99,7 @@ fn a_window_acknowledged_around_a_hole_is_identical_to_the_naive_scan() {
 
 /// The ordinary case costs nothing here *or* in Go, and it is worth stating why: a kcp-go
 /// receiver puts its cumulative `una` into every ACK of the packet, and `input` applies that
-/// `una` — `parse_una`, then `shrink_buf` — before it looks at the command. The acknowledged
+/// `una` (`parse_una`, then `shrink_buf`) before it looks at the command. The acknowledged
 /// segments are gone from `snd_buf` by the time `parse_ack` sees their sequence numbers, so
 /// the guard both functions start with rejects every one of them and nothing reaches the
 /// offset at all. That, not the length of the scan, is why `input_ack/in_order` is two orders
@@ -133,8 +133,8 @@ fn a_cumulative_una_retires_the_segments_before_the_acks_are_parsed() {
     );
 }
 
-/// ACKs whose packet `una` lags behind them — the receiver's `rcv_nxt` had not caught up when
-/// it packed the packet, which is what a reordered or partly lost round produces — do reach
+/// ACKs whose packet `una` lags behind them: the receiver's `rcv_nxt` had not caught up when
+/// it packed the packet, which is what a reordered or partly lost round produces: do reach
 /// the ACK path, at offsets just past the head.
 #[test]
 fn acknowledgements_ahead_of_una_are_found_just_past_the_head() {
@@ -218,8 +218,8 @@ fn the_offset_is_computed_across_the_sequence_number_wrap() {
     assert_eq!(run.ack_index.skipped, (1..N as u64).sum::<u64>());
 }
 
-/// A sequence number outside `snd_una ..< snd_nxt` — a stale ACK for a segment already
-/// removed, or one for a segment never sent — is rejected by the guard both functions start
+/// A sequence number outside `snd_una ..< snd_nxt`: a stale ACK for a segment already
+/// removed, or one for a segment never sent: is rejected by the guard both functions start
 /// with, exactly as in Go: no offset is computed and nothing is touched.
 #[test]
 fn an_acknowledgement_outside_the_window_is_rejected_before_the_offset() {
@@ -338,8 +338,8 @@ fn fastack_counts_exactly_the_segments_the_scan_counts() {
 // The fallback, and the invariant it protects
 // ---------------------------------------------------------------------------------------
 
-/// A `snd_buf` whose sequence numbers are not contiguous — which no code path produces, since
-/// `flush` only appends `snd_nxt` and `parse_una` only discards a prefix — makes the offset
+/// A `snd_buf` whose sequence numbers are not contiguous, which no code path produces, since
+/// `flush` only appends `snd_nxt` and `parse_una` only discards a prefix: makes the offset
 /// land on the wrong segment or past the end. The lookup checks the segment it finds, misses,
 /// and the ACK falls back to kcp-go's scan, which decides.
 #[test]
@@ -375,14 +375,14 @@ fn a_send_buffer_with_a_gap_falls_back_to_the_scan() {
 
 /// The one thing the offset cannot check for itself: that the scan would have *reached* it.
 /// The scan stops at the first segment past `sn`, so a ring holding a larger sequence number
-/// in front of `sn` would make the two disagree — and debug builds catch it on every lookup.
+/// in front of `sn` would make the two disagree, and debug builds catch it on every lookup.
 /// Nothing produces such a ring; this test exists to show that the net is real.
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic(expected = "is not where the scan stops")]
 fn an_out_of_order_send_buffer_trips_the_debug_check() {
     let _g = snmp_read();
-    // The offset of sn 12 is 2 and the segment there does carry sn 12 — but kcp-go's scan
+    // The offset of sn 12 is 2 and the segment there does carry sn 12, but kcp-go's scan
     // would have stopped at sn 15 and left it alone.
     let mut k = hand_built(&[10, 15, 12], 10, 16);
     k.parse_ack(12);
@@ -426,7 +426,7 @@ fn state_of(k: &scan_tests::ScanKcp) -> Vec<(u32, u32, u32, u32, usize)> {
 // Randomised two-endpoint traces (DECISIONS D25)
 // ---------------------------------------------------------------------------------------
 
-/// The D25 differential test for the ACK path, on links that lose, reorder and duplicate —
+/// The D25 differential test for the ACK path, on links that lose, reorder and duplicate,
 /// where a selective ACK reaches deep into the window and an off-by-one in the offset would
 /// show up as one `fastack` too many or too few. The optimised endpoints must put exactly the
 /// same bytes on the wire as the naive ones, end in the same state segment by segment, return

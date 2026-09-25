@@ -21,10 +21,10 @@
 //! parser is written against Go's grammar rather than a general-purpose JSON crate.
 //!
 //! Go sources (Go 1.27.1, whose `encoding/json` is the v2 implementation behind the v1 API):
-//! - `encoding/json/{decode.go, stream.go}` — `Decoder.Decode`, `object`, `literalStore`,
+//! - `encoding/json/{decode.go, stream.go}`: `Decoder.Decode`, `object`, `literalStore`,
 //!   `UnmarshalTypeError`
-//! - `encoding/json/v2_scanner.go:transformSyntacticError` — the v1 wording of syntax errors
-//! - `encoding/json/internal/jsonwire/{decode.go, wire.go}` — the scanner and its messages
+//! - `encoding/json/v2_scanner.go:transformSyntacticError`: the v1 wording of syntax errors
+//! - `encoding/json/internal/jsonwire/{decode.go, wire.go}`: the scanner and its messages
 //!
 //! Every message below is checked against the real Go decoder by the `config` golden vectors
 //! (`tools/govectors/config.go`).
@@ -142,7 +142,7 @@ pub enum UnmarshalError {
         /// The struct's `reflect.Type.Name()`, e.g. `Config`.
         struct_name: &'static str,
         /// The key **as it appears in the document** (unescaped), which is what Go pushes
-        /// onto its field stack — not the `json:"…"` tag it matched.
+        /// onto its field stack, not the `json:"…"` tag it matched.
         field: String,
         /// `string`, `int` or `bool`.
         go_type: &'static str,

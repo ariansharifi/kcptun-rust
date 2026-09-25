@@ -27,7 +27,7 @@ use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use tokio::io::unix::AsyncFd;
 
 // Go's `syscall.Errno.Error()`. It lives in `addr` so that the platform-independent half of the
-// crate — and its tests, which run everywhere — can spell an errno Go's way too.
+// crate (and its tests, which run everywhere) can spell an errno Go's way too.
 use crate::addr::errno_text;
 
 /// One raw socket, plus the two facts its users need about it: which family it speaks and which
@@ -49,7 +49,7 @@ impl RawHandle {
     /// TCP traffic and a plain `send` reaches it.
     ///
     /// This is Go's `net.DialIP("ip:tcp", nil, &net.IPAddr{IP: raddr.IP})`, whose failures it
-    /// also spells Go's way — `dial ip:tcp 203.0.113.1: socket: operation not permitted` is what
+    /// also spells Go's way: `dial ip:tcp 203.0.113.1: socket: operation not permitted` is what
     /// a client without `CAP_NET_RAW` logs, on both sides of the port (see [`ip_op_error`]).
     // Go: tcpraw@v1.2.32 tcp_linux.go:Dial()
     pub fn dial(remote: IpAddr) -> io::Result<RawHandle> {
@@ -159,8 +159,8 @@ impl RawHandle {
     ///
     /// A **dialled** handle is connected to its one peer and writes with `send(2)`, a
     /// **listening** one names the destination with `sendto(2)`. Go makes the same distinction in
-    /// `WriteTo` — `if conn.tcpconn != nil { e.handle.Write(…) } else { e.handle.WriteToIP(…,
-    /// &net.IPAddr{IP: raddr.IP}) }` — which is exactly "did this handle come from `Dial`".
+    /// `WriteTo`: `if conn.tcpconn != nil { e.handle.Write(…) } else { e.handle.WriteToIP(…,
+    /// &net.IPAddr{IP: raddr.IP}) }`, which is exactly "did this handle come from `Dial`".
     // Go: tcpraw@v1.2.32 tcp_linux.go:WriteTo()
     pub async fn send_to(&self, buf: &[u8], dst: IpAddr) -> io::Result<usize> {
         if self.connected {
@@ -181,7 +181,7 @@ impl RawHandle {
     /// Sets the DSCP code point of the packets this socket sends.
     ///
     /// Go sets **one** option per handle, the one its family has: `IP_TOS` on an `AF_INET`
-    /// socket and `IPV6_TCLASS` on an `AF_INET6` one — unlike kcp-go's UDP path, which tries
+    /// socket and `IPV6_TCLASS` on an `AF_INET6` one, unlike kcp-go's UDP path, which tries
     /// both on the same socket and succeeds if either of them works.
     ///
     /// **Deviation V03**: the IPv6 value is `dscp << 2` here, where Go writes the raw DSCP into
@@ -191,7 +191,7 @@ impl RawHandle {
     /// [`kcptun_kcp::io::GO_RAW_IPV6_TCLASS`].
     ///
     /// The error is spelled Go's way. `setDSCP` calls `syscall.SetsockoptInt` directly and hands
-    /// the bare `syscall.Errno` back, with no `*net.OpError` around it — see [`errno_error`].
+    /// the bare `syscall.Errno` back, with no `*net.OpError` around it, see [`errno_error`].
     // Go: tcpraw@v1.2.32 tcp_linux.go:setDSCP()
     pub fn set_dscp(&self, dscp: i32) -> io::Result<()> {
         // Go hands setsockopt a Go `int`, which the kernel reads as a C `int`.
@@ -265,7 +265,7 @@ impl RawHandle {
 }
 
 /// An errno as Go prints a bare `syscall.Errno`, spelled from Go's own `syscall` table
-/// (`kcptun_kcp::goerrno`, DECISIONS D30) — the platform's C message only for an error the table
+/// (`kcptun_kcp::goerrno`, DECISIONS D30): the platform's C message only for an error the table
 /// has no entry for.
 ///
 /// The error deliberately carries **no** `raw_os_error`, only the kind and the text: a socket
@@ -284,7 +284,7 @@ fn errno_error(err: &io::Error) -> io::Error {
 /// `net.DialIP` and `net.ListenIP` wrap what the kernel refused in
 /// `&net.OpError{Op: "dial"|"listen", Net: "ip:tcp", Addr: &net.IPAddr{…},
 /// Err: os.NewSyscallError("socket"|"connect"|"bind", errno)}`, and tcpraw returns that error
-/// unchanged — so a client that lacks `CAP_NET_RAW` logs
+/// unchanged, so a client that lacks `CAP_NET_RAW` logs
 /// `dial(): tcpraw.Dial(): dial ip:tcp 203.0.113.1: socket: operation not permitted` in Go and,
 /// with this, here too. The network is `ip`**`:tcp`** because `net.DialIP` builds the `OpError`
 /// with the name it was called with, before `parseNetwork` splits the protocol off.
@@ -309,7 +309,7 @@ pub(crate) fn ip_op_error(op: &str, ip: IpAddr, syscall: &str, err: &io::Error) 
 // Go: go1.27.1 net/sock_posix.go:socket(), net/sockopt_linux.go:setDefaultSockopts()
 fn new_raw_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::RAW, Some(Protocol::TCP))?;
-    // Go: setDefaultSockopts() — "allow broadcast" on every `SOCK_RAW` socket, and its error is
+    // Go: setDefaultSockopts(), "allow broadcast" on every `SOCK_RAW` socket, and its error is
     // returned. (`IPV6_V6ONLY` is explicitly *not* set on a raw socket, so an AF_INET6 handle
     // keeps the kernel default; tcpraw never sends an IPv4 datagram through one.)
     socket.set_broadcast(true)?;
@@ -325,7 +325,7 @@ mod tests {
     const EPERM: i32 = 1;
 
     /// A failed socket option is spelled the way Go's bare `syscall.Errno` is, and carries no
-    /// `raw_os_error` — which is what stops the binaries wrapping it in a UDP `*net.OpError`.
+    /// `raw_os_error`, which is what stops the binaries wrapping it in a UDP `*net.OpError`.
     #[test]
     fn a_socket_option_error_reads_like_gos_errno() {
         let err = errno_error(&io::Error::from_raw_os_error(EPERM));
@@ -335,7 +335,7 @@ mod tests {
     }
 
     /// A raw socket that cannot be opened reads exactly as Go's `net.DialIP`/`net.ListenIP`
-    /// report it — the line the client logs after `re-connecting: dial(): tcpraw.Dial():` and the
+    /// report it: the line the client logs after `re-connecting: dial(): tcpraw.Dial():` and the
     /// one the server logs beside `Listening on:` when `--tcp` has no `CAP_NET_RAW`.
     #[test]
     fn a_failed_raw_socket_reads_like_gos_net_op_error() {

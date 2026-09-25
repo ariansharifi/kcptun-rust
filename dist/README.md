@@ -1,4 +1,4 @@
-# dist — files for \*nix distributions
+# dist: files for \*nix distributions
 
 Port of [`kcptun/dist/`](https://github.com/xtaci/kcptun) (Go, commit `39935d5307f0`): the service
 files, kernel tuning and example configurations that ship alongside the binaries. Nothing here is
@@ -32,7 +32,7 @@ high-water mark: it ramps **32–45 MiB/h and had not flattened after six hours 
 which on a 1 GB host is an OOM within a day. That is why the glibc image is the default even
 though it is five times the size on disk (155 MB against 30.5 MB, 31.7 MB against 7.4 MB to
 pull). Take `--target musl` only for a host with no usable glibc, or a tunnel short-lived enough
-that a monotone ramp never reaches the ceiling — see `docs/benchmarks/memory.md` §8.
+that a monotone ramp never reaches the ceiling, see `docs/benchmarks/memory.md` §8.
 
 The same split applies to the release archives: `kcptun-rust-linux-<arch>-<version>.tar.gz` is
 glibc 2.17 and is the default, `kcptun-rust-linux-<arch>-musl-<version>.tar.gz` is the static
@@ -42,7 +42,7 @@ fallback.
 
 Both files are upstream's, unchanged. They can be, because the JSON keys are part of the drop-in
 contract: `std/config.go`'s `json:"…"` tags are reproduced exactly in `crates/std/src/config.rs`, so
-every key in these files reaches the same field it reaches in Go — including the two that are not
+every key in these files reaches the same field it reaches in Go, including the two that are not
 spelled like their flags, `"qpp-count"` (flag `-QPPCount`) and `"nc"` (flag `-nc`). A key the parser
 does not know is **ignored**, exactly as Go's `encoding/json` ignores it, so a typo is silent; the
 `dist_*` tests exist to catch one in these two files.
@@ -77,7 +77,7 @@ written in.
 
 Dropped from the two units: `Environment="GOGC=20"` and `Environment="GOEXPERIMENT=greenteagc"`.
 Both tune the Go garbage collector, which this build does not have; carrying them over would leave
-two settings that do nothing. `GOMAXPROCS` is *not* dropped — the port reads it exactly as Go's
+two settings that do nothing. `GOMAXPROCS` is *not* dropped: the port reads it exactly as Go's
 runtime does, to size the tokio worker pool (see the repository `README.md`), and both units have a
 commented-out line for it.
 

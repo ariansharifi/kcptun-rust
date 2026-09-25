@@ -1,4 +1,4 @@
-//! `kcptun-smuxecho` — the Rust counterpart of the Go interop peer
+//! `kcptun-smuxecho`: the Rust counterpart of the Go interop peer
 //! `tools/gointerop/cmd/smuxecho`, so a Rust↔Rust run can be measured with exactly the same
 //! shape as a Go↔Go run (two processes, smux over TCP loopback, kcptun's `std.Pipe` half-close
 //! order on the server).
@@ -35,7 +35,7 @@
 //!
 //! `duration_ms` is **not** a smux measurement: it is the client's wall time, and the
 //! verifying client spends most of it generating `PrngStream` and hashing, not in smux. Any
-//! run of it must therefore be cross-matrixed — Rust client → Go server and Go client → Rust
+//! run of it must therefore be cross-matrixed: Rust client → Go server and Go client → Rust
 //! server as well as the two like-for-like pairs. On TCP loopback at these sizes only the
 //! *client* implementation moves the number; swapping the server changes nothing, which is
 //! the proof that smux is not the bottleneck. A smux-bound throughput comparison needs a
@@ -786,7 +786,7 @@ mod tests {
         assert_eq!(parse_ps_rss("7\n"), Some(7));
         assert_eq!(parse_ps_rss("\n"), None);
         assert_eq!(parse_ps_rss("RSS\n"), None);
-        // The real thing, for this process — skipped where `ps` is absent or restricted, so
+        // The real thing, for this process: skipped where `ps` is absent or restricted, so
         // the parser test stays environment-independent.
         if let Some(rss) = rss_kb(std::process::id()) {
             assert!(rss > 0);

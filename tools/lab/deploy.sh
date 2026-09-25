@@ -118,7 +118,7 @@ fi
 DEPLOYED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # macOS (where deploy.sh runs) has shasum; Linux has sha256sum. Either is fine, the digest is
-# the same, and a host without one simply leaves lab.py unable to verify — never silently happy.
+# the same, and a host without one simply leaves lab.py unable to verify, never silently happy.
 sha256_of() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{print $1}'
@@ -130,8 +130,8 @@ sha256_of() {
 # The Go reference binaries are NOT built from this repository, so `commit` does not identify
 # them: reference/ is a symlink to a checkout that is gitignored and shared between worktrees,
 # and tools/fetch-reference.sh can replace every binary in it without this tree changing by one
-# byte. What does identify them is reference/VERSIONS.txt — the pinned kcptun module version and
-# the Go toolchain they were built with — so the go stamp carries both. Missing (a reference
+# byte. What does identify them is reference/VERSIONS.txt: the pinned kcptun module version and
+# the Go toolchain they were built with, so the go stamp carries both. Missing (a reference
 # checkout that was never fetched) is recorded as `unknown` rather than omitted: a field that is
 # simply absent reads as "nobody thought about this", which is how 11.3 happened.
 go_reference_fields() {
@@ -197,7 +197,7 @@ if [[ $DO_GO -eq 1 ]]; then
   done
   scp -q "$tmp"/kg-* "$HOST:kcptun-lab/bin/go/"
   echo "deploy: Go reference (linux/$GO_ARCH) -> $HOST:kcptun-lab/bin/go/ ($(ls "$tmp" | tr '\n' ' '))"
-  # `commit` here is only *this* tree's revision — it says when the deployment was made, not
+  # `commit` here is only *this* tree's revision: it says when the deployment was made, not
   # what was deployed, because reference/ is a gitignored symlink to a shared checkout that no
   # worktree's HEAD describes. `reference_version` and `go_toolchain` come out of
   # reference/VERSIONS.txt and are what actually name these binaries, alongside the sha256 of

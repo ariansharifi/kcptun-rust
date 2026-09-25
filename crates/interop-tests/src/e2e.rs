@@ -18,7 +18,7 @@
 //! | [`serial_guard`] | runs the end-to-end tests one at a time |
 //!
 //! Every process is a [`Proc`], which kills and reaps on drop, so a panicking or timing-out test
-//! leaves nothing running — there is no explicit kill on any path. Fixed UDP ports come from
+//! leaves nothing running: there is no explicit kill on any path. Fixed UDP ports come from
 //! [`kcptun_testkit::ports`] (`[22000, 29000)`, never below 4000, as `tools/lab/README.md` requires); the
 //! client's local listener binds port 0 and the harness reads the port back out of its
 //! `listening on:` line.
@@ -552,7 +552,7 @@ impl AsyncWrite for LocalStream {
         }
     }
 
-    /// `shutdown(2)` on the write side — the half-close the application performs.
+    /// `shutdown(2)` on the write side: the half-close the application performs.
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.get_mut() {
             LocalStream::Tcp(s) => Pin::new(s).poll_shutdown(cx),
@@ -570,7 +570,7 @@ impl AsyncWrite for LocalStream {
 /// `EADDRNOTAVAIL` is retried for [`CONNECT_RETRY_WINDOW`], [`CONNECT_RETRY_DELAY`] apart: a case
 /// that opens thousands of connections can exhaust the platform's ephemeral port range (macOS
 /// offers 16384 of them and holds each for a 30 s `TIME_WAIT`), and that is pressure from the test
-/// itself, not a tunnel failure — the range refills on its own, so waiting is the right answer.
+/// itself, not a tunnel failure: the range refills on its own, so waiting is the right answer.
 /// A range still full at the end of the window fails with the same error as before, and the test's
 /// own timeout bounds the wait either way.
 pub async fn connect_local(endpoint: &LocalEndpoint) -> io::Result<LocalStream> {
@@ -653,7 +653,7 @@ pub async fn expect_eof<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<()> {
 }
 
 /// Sends the `(seed, len)` [`PrngStream`], half-closes, and returns the SHA-256 of what came
-/// back — the round trip an echo target completes.
+/// back: the round trip an echo target completes.
 pub async fn echo_round_trip<S>(stream: &mut S, seed: u64, len: u64) -> io::Result<String>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send,
@@ -665,7 +665,7 @@ where
     };
     // Both halves run in this task; `tokio::spawn` would need a `'static` stream.
     let (written, sha) = tokio::join!(send, hash_exact(&mut r, len));
-    // The read result leads — a truncated echo says more than the write error it causes — but the
+    // The read result leads (a truncated echo says more than the write error it causes) but the
     // write error is carried along rather than dropped: "the echo stopped at 0 bytes" and "the
     // request never went out" are very different failures, and only the second names a cause.
     match (sha, written) {
@@ -814,7 +814,7 @@ impl ResponderServer {
 /// An echo target on a unix socket; testkit's servers are TCP only.
 ///
 /// A unix target also costs no ephemeral ports, which matters for the cases that open thousands
-/// of streams — see `e2e_slow_one_thousand_short_streams`.
+/// of streams, see `e2e_slow_one_thousand_short_streams`.
 #[derive(Debug)]
 #[cfg(unix)]
 pub struct UnixEchoServer {

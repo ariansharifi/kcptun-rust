@@ -28,8 +28,8 @@ A scenario runs in one of two **modes** (11.1 built the first, 11.3 added the se
         tools/lab/lab.py --host lab-x86-3 run tools/lab/scenarios/wan-s1-bulk.json \\
             --server-host lab-arm64 --server-addr <lab-arm64-ip>
 
-    A real path is *not* reproducible between sessions — its capacity, queueing and cross
-    traffic are somebody else's — so only Go-versus-Rust comparisons taken inside one session,
+    A real path is *not* reproducible between sessions: its capacity, queueing and cross
+    traffic are somebody else's, so only Go-versus-Rust comparisons taken inside one session,
     interleaved (GG, RR, GR, RG), mean anything. `plan_runs` interleaves; the report says so.
 
 Everything that changes state on the host goes through the guarded helpers in
@@ -51,7 +51,7 @@ A six-hour soak is the reason several things look paranoid:
   tunnel ends and ``iperf3 -s`` have no such bound: they keep running (as does the namespace lab)
   until ``lab.py collect`` or ``lab.py cleanup`` stops them, which is why cleanup has to end
   every session;
-* workload and sampler output is append-only CSV, flushed per row, written on the host — a
+* workload and sampler output is append-only CSV, flushed per row, written on the host: a
   dropped ssh connection loses nothing;
 * ``run --detach`` returns as soon as the run is started, and ``collect`` finishes it later.
 
@@ -103,7 +103,7 @@ SSH_OPTS = [
 #: retry. Every lab host is a VPS with sshd on the public Internet, so all of them are under
 #: continuous credential-stuffing traffic; when a bot fills sshd's `MaxStartups` queue, an
 #: honest connection is dropped during the key exchange. One 12-run cell of the 11.2 matrix is
-#: about 250 ssh round trips, and losing that race once killed a cell mid-run — leaving a tunnel
+#: about 250 ssh round trips, and losing that race once killed a cell mid-run, leaving a tunnel
 #: up on the host, which then failed the port check of every cell after it. These signatures all
 #: come from ssh's own pre-authentication path (`ssh` exits 255 and the command never started),
 #: so retrying cannot run anything twice. A mid-session drop reads differently
@@ -144,7 +144,7 @@ DEFAULT_PINGPONG_PORT = 22600     # loopback-only test range 22000-28999
 #: ``USER_HZ``: the unit of ``utime``/``stime`` in ``/proc/<pid>/stat``. 100 on every Linux the
 #: lab runs on (lab-arm64 included), but it is a kernel build option, so the value lives here and
 #: is passed to ``kr-labsample --clock-ticks`` as well as used to turn the CSV's tick counters
-#: into seconds — one number, so the report's "CPU s" column can never contradict its own CSV.
+#: into seconds, one number, so the report's "CPU s" column can never contradict its own CSV.
 CLOCK_TICKS = 100
 
 #: The netns addresses ``lab-netns.sh`` configures.
@@ -168,7 +168,7 @@ SNMP_SETTLE_SECONDS = 1.0
 #: From `reference/kcptun/client/main.go:185-188` and `reference/kcptun/server/main.go:176-179`,
 #: both ``Value: 4194304 // default socket buffer size in bytes``. It is applied to the UDP
 #: socket with ``SetReadBuffer(config.SockBuf)`` *and* ``SetWriteBuffer(config.SockBuf)``
-#: (`client/main.go:467-471`, `server/main.go:412-416`), unconditionally — so a configuration
+#: (`client/main.go:467-471`, `server/main.go:412-416`), unconditionally, so a configuration
 #: that passes no ``-sockbuf`` at all is **not** asking for a small buffer: it is asking for
 #: 4 MiB, 20x the stock `net.core.rmem_max` of 212992. S1 is the loud case because it names
 #: 8 MiB explicitly, but S2/S3/S4 are clamped on a stock host too, which is why this is a
@@ -181,7 +181,7 @@ DEFAULT_SOCKBUF = 4194304
 #: Flag sets from step 11.2. Values are rendered Go style (``-flag value``); ``True``
 #: renders as a bare flag and ``False`` omits it.
 CONFIGS: dict[str, dict[str, dict[str, Any]]] = {
-    # S1 — the user's production profile (docs/benchmarks/memory.md uses exactly these).
+    # S1: the user's production profile (docs/benchmarks/memory.md uses exactly these).
     "s1": {
         "common": {
             "mode": "normal", "crypt": "xor", "mtu": 1390,
@@ -192,7 +192,7 @@ CONFIGS: dict[str, dict[str, dict[str, Any]]] = {
         "client": {"conn": 4, "sockbuf": 8388608},
         "server": {"sockbuf": 67108868},
     },
-    # S2 — kcptun's own defaults, written out so the scenario is self-documenting.
+    # S2: kcptun's own defaults, written out so the scenario is self-documenting.
     "s2": {
         "common": {
             "mode": "fast", "crypt": "aes", "mtu": 1350,
@@ -203,7 +203,7 @@ CONFIGS: dict[str, dict[str, dict[str, Any]]] = {
         "client": {"conn": 1},
         "server": {},
     },
-    # S3 — fast3 with AEAD and FEC.
+    # S3: fast3 with AEAD and FEC.
     "s3": {
         "common": {
             "mode": "fast3", "crypt": "aes-128-gcm", "mtu": 1350,
@@ -213,7 +213,7 @@ CONFIGS: dict[str, dict[str, dict[str, Any]]] = {
         "client": {"conn": 1},
         "server": {},
     },
-    # S4 — a stream cipher without FEC.
+    # S4: a stream cipher without FEC.
     "s4": {
         "common": {
             "mode": "fast", "crypt": "salsa20", "mtu": 1350,
@@ -296,10 +296,10 @@ def remote_quote(arg: str) -> str:
     Remote paths are written ``$HOME/kcptun-lab/...`` (tools/lab/README.md) because the lab lives in
     the login user's home directory and the helpers are invoked through it.
 
-    Some flags take the path *inside* a ``label=path`` value — ``kr-labsample --log
+    Some flags take the path *inside* a ``label=path`` value: ``kr-labsample --log
     cli=$HOME/kcptun-lab/logs/...``. Those must expand too: ``shlex.quote`` would single-quote
     the whole word because of the ``$``, the literal ``$HOME`` would then survive lab-start.sh's
-    ``printf '%q '``, and the sampler would open a file that does not exist — silently, since
+    ``printf '%q '``, and the sampler would open a file that does not exist: silently, since
     a log it cannot stat is simply not reported. ``cli="$HOME/..."`` is one shell word and
     expands correctly, so the prefix is kept bare and only the path is quoted.
     """
@@ -425,7 +425,7 @@ class Runner:
         buffer and never hears about it. On the 11.2 matrix that difference was the whole of
         the S1 `lossy10` result: one 65 s run overflowed the receive buffer 223,000 times, and
         the same run with `rmem_max` raised to lab-arm64's 8 MiB overflowed it **zero** times.
-        Which is to say it is not a detail — it can invert the conclusion — so it is read
+        Which is to say it is not a detail (it can invert the conclusion) so it is read
         before every run and kept in `state.json`.
         """
         out = self.ssh("cat /proc/sys/net/core/rmem_max /proc/sys/net/core/wmem_max",
@@ -553,7 +553,7 @@ class Scenario:
     server_flags: dict[str, Any] = field(default_factory=dict)
     workloads: list[Workload] = field(default_factory=list)
     tunnel_port: int = DEFAULT_TUNNEL_PORT
-    #: How many consecutive tunnel ports the tunnel spans — kcptun's multiport range
+    #: How many consecutive tunnel ports the tunnel spans, kcptun's multiport range
     #: (``-l :29900-29903``, ``-r host:29900-29903``). 1 is a single port, as before.
     tunnel_port_count: int = 1
     listen_port: int = DEFAULT_LISTEN_PORT
@@ -579,7 +579,7 @@ class Scenario:
 
     @property
     def target(self) -> str:
-        """``iperf3`` or ``pingpong`` — a kcptun server forwards to exactly one address."""
+        """``iperf3`` or ``pingpong``: a kcptun server forwards to exactly one address."""
         return "pingpong" if any(w.needs_pingpong for w in self.workloads) else "iperf3"
 
     @property
@@ -719,15 +719,15 @@ def parse_scenario(raw: dict[str, Any], source: str = "") -> Scenario:
 def check_runnable(scenario: Scenario, client_host: str) -> None:
     """Whatever can only be checked once the command line's overrides are in.
 
-    `server_host`/`server_addr` may come from the scenario file *or* from ``run``'s flags — one
-    WAN scenario is meant to be pointed at every rung of the RTT ladder in turn (step 11.3)
-    — so neither can be required while the file is being parsed.
+    `server_host`/`server_addr` may come from the scenario file *or* from ``run``'s flags: one
+    WAN scenario is meant to be pointed at every rung of the RTT ladder in turn (step 11.3),
+    so neither can be required while the file is being parsed.
     """
     if not scenario.is_wan:
         return
     if scenario.netem != "clean":
         # Re-checked here and not only in `parse_scenario`, because `run --server-host` /
-        # `--server-addr` promote a netns scenario to WAN *after* it has been parsed — which is
+        # `--server-addr` promote a netns scenario to WAN *after* it has been parsed, which is
         # how every WAN run in the runbook is actually started. Checked at parse time only, a
         # `netem: wan50` file pointed at a real path ran with no impairment at all and a report
         # that said so in passing.
@@ -840,7 +840,7 @@ class RunPlan:
 
     @property
     def server_sampler_name(self) -> str:
-        """The sampler on the *server* host — WAN mode only; /proc is per machine."""
+        """The sampler on the *server* host: WAN mode only; /proc is per machine."""
         return f"{self.runid}-smps"
 
     @property
@@ -917,7 +917,7 @@ class RunPlan:
         `pids` is what decides which processes it watches, which is also what splits a WAN run
         in two: ``/proc`` is per machine, so the client host is given the client's pid and the
         server host its server's and target's. The label sets are then disjoint and the two
-        ``proc.csv`` files merge into one table without a collision — and a label missing from a
+        ``proc.csv`` files merge into one table without a collision, and a label missing from a
         WAN report means the process was not on that machine, not that it was not sampled.
         """
         s = self.scenario
@@ -1021,7 +1021,7 @@ def preflight(runner: Runner, *, max_load: float, wait_seconds: int, force: bool
             message = (f"load average {load} is at or above {max_load}; the host carries live "
                        "traffic (tools/lab/README.md rule 6)")
             if not force:
-                raise LabError(message + " — wait, or pass --force")
+                raise LabError(message + ": wait, or pass --force")
             notes.append("WARNING: " + message)
             break
         print(f"lab: load average {load} >= {max_load}, waiting…", file=sys.stderr)
@@ -1056,8 +1056,8 @@ def preflight(runner: Runner, *, max_load: float, wait_seconds: int, force: bool
 # particular tree. A silent empty field is exactly how that got 27 runs deep, so a run whose
 # artefact cannot be identified now refuses to start.
 #
-# 11.3b re-took the question on the 95.3 ms rung with this check in force — 26 runs, every
-# artefact on both hosts stamped, hashed and recorded — and the deficit did not reproduce
+# 11.3b re-took the question on the 95.3 ms rung with this check in force: 26 runs, every
+# artefact on both hosts stamped, hashed and recorded, and the deficit did not reproduce
 # (1.17x up, 1.68x down). That is what the refusal is for: the point is not that the old number
 # was wrong, it is that nobody could tell.
 
@@ -1089,8 +1089,8 @@ BUILD_STAMP_FLAG = {"go": "--go", "rust": "--rust", "lab": "--tools"}
 #: This tuple is the *only* thing `unprovenanced_notes` iterates, so an artefact that `start_run`
 #: requires but does not record is one whose refusal can never reach a report:
 #: `--allow-unprovenanced` would promise an UNPROVENANCED banner and then produce a document
-#: without one. That is 11.3's failure shape exactly — a loud check whose result never reaches
-#: the page the number is quoted from — so requiring a stamp and recording it are one step here,
+#: without one. That is 11.3's failure shape exactly, a loud check whose result never reaches
+#: the page the number is quoted from, so requiring a stamp and recording it are one step here,
 #: never two. The `target` keys are present only when the scenario's target is `kr-pingpong`; an
 #: `iperf3` target is the host's own package and carries no stamp of ours.
 BUILD_DETAIL_KEYS = ("client_build_detail", "server_build_detail",
@@ -1104,7 +1104,7 @@ ARTEFACT_LABELS = {
     "tools": "lab tools",
     "server_tools": "lab tools (server host)",
     # Not "pingpong target": on a WAN run `kr-pingpong serve` sits on the *server* host while
-    # `kr-pingpong ping|bulk|churn` — the end that emits every percentile — runs on the client
+    # `kr-pingpong ping|bulk|churn`: the end that emits every percentile, runs on the client
     # host, so calling the client-host copy the "target" misnames the measuring instrument.
     # Each line already carries the binary path and the host; the label need only say which file.
     "target": "pingpong",
@@ -1114,8 +1114,8 @@ ARTEFACT_LABELS = {
 #: A stamp line is ``key=value``; anything else is prose (the human summary line).
 BUILD_FIELD_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
-#: A commit as `git rev-parse` prints it. `unknown` — what `deploy.sh` records outside a
-#: checkout — deliberately does not match.
+#: A commit as `git rev-parse` prints it. `unknown`, what `deploy.sh` records outside a
+#: checkout, deliberately does not match.
 COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
 #: The libc note `deploy.sh` writes, both as a stamp's `libc=` value and inside the pre-12.0
@@ -1134,12 +1134,12 @@ class BuildStamp:
     (the default) or carried into the report as an "unprovenanced" marker.
 
     `legacy_summary` is the pre-12.0 aggregate line, when there was one and the per-family stamp
-    is missing. It is never trusted as provenance — that is the whole point of the refusal — but
+    is missing. It is never trusted as provenance (that is the whole point of the refusal) but
     it is the only evidence left of how the host was deployed, and `remedy()` uses it so that
     the suggested redeployment does not change the libc out from under the operator.
     Which target triple, which libc and which revision was measured is the difference between two
-    opposite conclusions about the same numbers — D07 measured glibc returning 95.6 % of a burst
-    where musl returns 4.9 % — so it belongs in `state.json` and in the report, not in prose
+    opposite conclusions about the same numbers: D07 measured glibc returning 95.6 % of a burst
+    where musl returns 4.9 %, so it belongs in `state.json` and in the report, not in prose
     somebody has to remember to write.
 
     Empty is **refused by the caller**, not tolerated: 11.3's whole 131 ms rung was measured with
@@ -1178,7 +1178,7 @@ class BuildStamp:
         """What is known about this host's libc: the stamp's note, the pre-12.0 line's, or ``""``.
 
         A stamp that resolved is authoritative. The case that matters more is the one this gate
-        exists for — no per-family stamp at all, which is every host deployed before 12.0 — and
+        exists for (no per-family stamp at all, which is every host deployed before 12.0) and
         there `self.libc` is empty while the aggregate line `read_stamp_fields` already had to
         read usually still names a target and a libc note. That line is not provenance and is
         never recorded as such, but it is evidence, and evidence beats `deploy.sh`'s default.
@@ -1196,14 +1196,14 @@ class BuildStamp:
         """The command line that would actually fix this, on the host that was refused.
 
         It names `lab.py deploy`, not `deploy.sh`: the script has no `--host` and takes its
-        host from `$KCPTUN_LAB_HOST`, whose default is `lab-arm64` — the box carrying the live
+        host from `$KCPTUN_LAB_HOST`, whose default is `lab-arm64`: the box carrying the live
         production mesh. A remedy of the form `deploy.sh --host <h> --rust` therefore exits 2
         with `unknown argument --host`, and the obvious hand-correction (dropping the flag)
         redeploys production instead of the host this run was refused on. `cmd_deploy` passes
         `--host` on as `$KCPTUN_LAB_HOST`, so the wrapper is the form that is safe to paste.
 
         The flags matter as much as the host. `deploy.sh` defaults to `GNU=0` and
-        `PROFILE=release`, so a bare `deploy --rust` rebuilds a glibc host as static musl —
+        `PROFILE=release`, so a bare `deploy --rust` rebuilds a glibc host as static musl,
         the exact substitution DECISIONS D07 measured as 95.6% versus 4.9% of a burst returned
         to the OS, i.e. opposite RSS conclusions, and RSS is Step 12's headline. A refusal
         whose one actionable line quietly changes what is being measured is worse than no line
@@ -1311,8 +1311,8 @@ def artefact_path(impl: str, side: str) -> str:
 def read_stamp_fields(runner: Runner, kind: str) -> tuple[dict[str, str], str, str | None, str]:
     """Reads one family's stamp from the host.
 
-    Returns its fields, its summary, what is wrong with it, and — only when there is no stamp
-    at all — the pre-12.0 aggregate line that was read to explain why. That last one is not
+    Returns its fields, its summary, what is wrong with it, and, only when there is no stamp
+    at all: the pre-12.0 aggregate line that was read to explain why. That last one is not
     provenance and is never recorded as such; it is kept because it is the only surviving
     statement of how the host was deployed, and throwing it away is what made the refusal's
     remedy default a glibc host to musl.
@@ -1323,7 +1323,7 @@ def read_stamp_fields(runner: Runner, kind: str) -> tuple[dict[str, str], str, s
         # The remote command ends in `|| true`, so a non-zero code is ssh itself failing: the
         # host is down, the key was rejected, the name does not resolve. Before 12.0 the first
         # thing to touch the host was `preflight`, which said so plainly; the provenance gate
-        # now runs first and must not answer an unreachable host with "redeploy it" — a remedy
+        # now runs first and must not answer an unreachable host with "redeploy it": a remedy
         # that would fail in exactly the same way.
         raise LabError(f"{runner.host}: cannot read {path} over ssh: {result.err.strip()}")
     text = result.out
@@ -1351,12 +1351,12 @@ def verify_binary_hash(runner: Runner, fields: dict[str, str], binary_path: str)
         return f"the stamp records no sha256 for {name}"
     # `sha256sum` was verified present at /usr/bin/sha256sum on lab-x86-1 (2026-09-24, read
     # only); it is not in the set of tools any lab host is assumed to have, so it is not assumed anywhere
-    # else — a host without it comes back with no digest and is unprovenanced, not good.
+    # else: a host without it comes back with no digest and is unprovenanced, not good.
     result = runner.ssh(f'sha256sum {remote_quote(binary_path)} 2>/dev/null || true',
                         check=False)
     if not result.ok:
         # Same reasoning as `read_stamp_fields`: the remote command ends in `|| true`, so a
-        # non-zero code is ssh itself failing — the host went away between the stamp read and
+        # non-zero code is ssh itself failing: the host went away between the stamp read and
         # this one. Answering "could not be hashed" would have `require()` print a redeploy
         # line that would fail in exactly the same way.
         raise LabError(f"{runner.host}: cannot hash {binary_path} over ssh: "
@@ -1366,12 +1366,12 @@ def verify_binary_hash(runner: Runner, fields: dict[str, str], binary_path: str)
         return f"{binary_path} could not be hashed on {runner.host} (missing, or no sha256sum)"
     if got != recorded:
         return (f"{binary_path} is sha256 {got[:12]}… but the stamp beside it records "
-                f"{recorded[:12]}… — the binary was replaced without redeploying")
+                f"{recorded[:12]}…: the binary was replaced without redeploying")
     return None
 
 
 class BuildProvenance:
-    """Resolves — and caches — the artefact each end of a run will actually execute.
+    """Resolves (and caches) the artefact each end of a run will actually execute.
 
     One instance covers a whole session, so the stamp is read once per (host, implementation,
     side) however many runs are interleaved across it.
@@ -1391,7 +1391,7 @@ class BuildProvenance:
 
         The stamp alone is not enough: 11.3's far host held a `kr-server` from an earlier
         session that a later deployment never replaced, so a stamp one directory up described a
-        file that was not the one being executed. The recorded sha256 closes that gap — the
+        file that was not the one being executed. The recorded sha256 closes that gap: the
         artefact that runs is the artefact that was stamped, or the run does not start.
         """
         key = (runner.host, impl, side)
@@ -1421,11 +1421,11 @@ class BuildProvenance:
         stamp = self.stamp(runner, impl, side)
         if stamp.ok:
             return stamp
-        message = (f"{runner.host}: the {impl} {side} artefact is unprovenanced — "
+        message = (f"{runner.host}: the {impl} {side} artefact is unprovenanced, "
                    f"{stamp.problem}")
         if not self.allow_unprovenanced:
             # The caveat is its own line and never appended to the remedy: that line is meant
-            # to be pasted — a test parses it back through `build_parser` — so prose after the
+            # to be pasted (a test parses it back through `build_parser`) so prose after the
             # command would arrive as arguments.
             caveat = stamp.remedy_caveat()
             raise LabError(
@@ -1438,7 +1438,7 @@ class BuildProvenance:
             )
         if (runner.host, impl, side) not in self._warned:
             self._warned.add((runner.host, impl, side))
-            print(f"lab: WARNING — {message}; this session's report will be marked "
+            print(f"lab: WARNING, {message}; this session's report will be marked "
                   "UNPROVENANCED", file=sys.stderr)
         return stamp
 
@@ -1450,7 +1450,7 @@ def unprovenanced_notes(states: Sequence[dict[str, Any]]) -> list[str]:
         runid = state.get("runid", "?")
         details = {key: state.get(key) for key in BUILD_DETAIL_KEYS}
         if not any(details.values()):
-            # A state from before 12.0 — the 11.3 campaign's 27 runs are exactly this. A report
+            # A state from before 12.0: the 11.3 campaign's 27 runs are exactly this. A report
             # regenerated from one must not look like a clean measurement either.
             notes.append(f"`{runid}`: no artefact identity was recorded at all (the run "
                          "predates the 12.0 build stamp)")
@@ -1469,13 +1469,13 @@ def unprovenanced_banner(states: Sequence[dict[str, Any]]) -> list[str]:
     """The warning block a report leads with, or `[]` when every artefact was identified.
 
     Every document a number can be quoted out of carries this: the session report, and the
-    per-pair comparison table that `lab.py compare` writes — which is what a WAN rung is
+    per-pair comparison table that `lab.py compare` writes, which is what a WAN rung is
     actually read from, and what carried 11.3's unattributable 0.75x.
     """
     notes = unprovenanced_notes(states)
     if not notes:
         return []
-    lines = ["> ⚠ **UNPROVENANCED — do not quote these numbers as a measurement of a "
+    lines = ["> ⚠ **UNPROVENANCED: do not quote these numbers as a measurement of a "
              "particular revision.** At least one end of the runs below could not be "
              "identified from what the host recorded:", ">"]
     lines += [f"> - {note}" for note in notes]
@@ -1493,7 +1493,7 @@ def require_build(runner: Runner) -> str:
             return "(dry run)"
         raise LabError(
             f"{runner.host}: no readable $HOME/kcptun-lab/bin/BUILD.txt, so the binaries this "
-            f"run would measure cannot be attributed to a revision or a libc — deploy first: "
+            f"run would measure cannot be attributed to a revision or a libc: deploy first: "
             f"tools/lab/lab.py --host {runner.host} deploy --gnu"
         )
     return build
@@ -1523,7 +1523,7 @@ def start_run(runner: Runner, plan: RunPlan, server: Runner | None = None,
     ns_client = None if wan else NS_CLIENT
     ns_server = None if wan else NS_SERVER
     # Resolved before anything starts, so the recorded artefact is the one this run is about to
-    # use — and so that an unprovenanced end refuses the run instead of producing numbers
+    # use, and so that an unprovenanced end refuses the run instead of producing numbers
     # nobody can attribute afterwards (11.3).
     provenance = provenance or BuildProvenance()
     client_stamp = provenance.require(runner, plan.client_impl, "client")
@@ -1537,7 +1537,7 @@ def start_run(runner: Runner, plan: RunPlan, server: Runner | None = None,
     server_target_stamp: BuildStamp | None = None
     if scenario.target == "pingpong":
         # Both ends of the latency measurement: the echo target on the server host, and the
-        # `kr-pingpong` the client host runs as the workload — the one that actually emits
+        # `kr-pingpong` the client host runs as the workload: the one that actually emits
         # every percentile. In a netns run they are the same host; in a WAN run the client's
         # copy is a separate file that nothing else hashes, which is precisely the
         # stale-binary-beside-a-fresh-stamp case the sha256 exists to catch. An `iperf3` target
@@ -1545,7 +1545,7 @@ def start_run(runner: Runner, plan: RunPlan, server: Runner | None = None,
         #
         # Both stamps are *kept*, not just demanded. `--allow-unprovenanced` turns a refusal
         # into a marker carried by the state, and a marker thrown away here is a report that
-        # promises an UNPROVENANCED banner and then prints a clean one — which is 11.3 again,
+        # promises an UNPROVENANCED banner and then prints a clean one, which is 11.3 again,
         # inside 11.3's own fix, for the instrument that emits every latency percentile.
         target_stamp = provenance.require(runner, "lab", "target")
         server_target_stamp = provenance.require(server, "lab", "target") if wan else target_stamp
@@ -1670,8 +1670,8 @@ def check_client_host(runner: Runner, state: dict[str, Any]) -> None:
     ``--host`` defaults to ``lab-arm64``, and only the *server* host is recovered from the state
     (``server_runner``), so ``collect``/``status`` on a detached WAN run started elsewhere would
     silently address the default host: ``stop`` finds no pid files, ``collect`` fails on a
-    missing log directory, and the real ``<runid>-cli`` — nohup'd by ``lab-start.sh`` with no
-    timeout — is left running for ever. ``start_run`` records ``host``, so the mismatch is free
+    missing log directory, and the real ``<runid>-cli``: nohup'd by ``lab-start.sh`` with no
+    timeout: is left running for ever. ``start_run`` records ``host``, so the mismatch is free
     to detect; a state written before it did has no ``host`` key and is let through.
     """
     recorded = state.get("host")
@@ -1731,9 +1731,9 @@ def finish_run(runner: Runner, state: dict[str, Any], local_dir: Path,
     # failure and `fetch_dir` raises on any tar/ssh error, and the tar download is a long
     # unguarded window for Ctrl-C; with the server stopped last, either of those left
     # `<runid>-srv` and `<runid>-tgt` up on the other machine. `lab-start.sh` uses a bare
-    # `nohup` with no timeout, so a kcptun server left that way runs for ever — only the sampler
+    # `nohup` with no timeout, so a kcptun server left that way runs for ever, only the sampler
     # and `kr-pingpong` self-terminate on `--duration`. `cmd_run` has a `finally` that stops
-    # everything, but `cmd_collect` — the path a detached WAN run *must* use — has none, which
+    # everything, but `cmd_collect` (the path a detached WAN run *must* use) has none, which
     # is exactly the case step 11.1 ("cleanup on exit or Ctrl-C") is about.
     runner.stop(client_side)
     if server_side:
@@ -1824,7 +1824,7 @@ def iperf3_summary(path: Path) -> dict[str, Any] | None:
 #: its smux windows, its KCP buffers and its allocator's arenas, and it climbs steeply and
 #: legitimately while it does; step 11.4's acceptance is a flat slope **after warm-up**, so
 #: including that climb would report a leak on every healthy run. The cutoff is the later of ten
-#: minutes and a tenth of the run — a tenth for a six-hour soak (36 min), the ten-minute floor
+#: minutes and a tenth of the run, a tenth for a six-hour soak (36 min), the ten-minute floor
 #: for a short one.
 WARMUP_SECONDS = 600.0
 WARMUP_FRACTION = 0.1
@@ -1858,7 +1858,7 @@ def warmup_cutoff(observed_span_s: float, total_duration: float | None) -> float
     The window is a property of the run that was **asked for**, not of the samples that happen to
     have arrived. Deriving it from the samples alone is how a six-hour soak collected after twenty
     minutes gets a ten-minute cutoff, six post-warm-up samples, and a gradient fitted entirely to
-    its own warm-up — printed under a line calling it the acceptance criterion. `total_duration`
+    its own warm-up: printed under a line calling it the acceptance criterion. `total_duration`
     is the intended length; only when it is unknown (0 or None) does the observed span stand in.
     """
     return max(WARMUP_SECONDS, WARMUP_FRACTION * (total_duration or observed_span_s))
@@ -1900,9 +1900,9 @@ def leak_slopes(series: Sequence[tuple[float, float, float | None]],
 
 
 def format_slope(value: float | None) -> str:
-    """A slope for the report table. `None` is "—", not 0: they mean different things."""
+    """A slope for the report table. `None` is "-", not 0: they mean different things."""
     if value is None:
-        return "—"
+        return "-"
     return f"{value:+.1f}"
 
 
@@ -1979,7 +1979,7 @@ def process_metrics(path: Path,
     for entry in out.values():
         if entry["rss_kb_first"] is None:
             # Every row for this label was a post-mortem one: the process was already gone when
-            # sampling started. There is nothing to report, but the report must still render —
+            # sampling started. There is nothing to report, but the report must still render,
             # the `states` column ("X") is what tells the reader what happened.
             entry["rss_kb_first"] = 0.0
             entry["cpu_ticks_first"] = 0.0
@@ -2015,7 +2015,7 @@ def collected_process_metrics(directory: Path,
 
 
 def snmp_totals(path: Path) -> dict[str, int]:
-    """The last ``-snmplog`` record's counters — the run's totals — plus the peak CurrEstab.
+    """The last ``-snmplog`` record's counters (the run's totals) plus the peak CurrEstab.
 
     See ``SNMP_COLUMNS`` above for why this is an absolute value and not a delta.
     """
@@ -2100,7 +2100,7 @@ def markdown_report(states: list[dict[str, Any]], directories: list[Path]) -> st
     """One Markdown document for a session: a summary table plus a section per run."""
     lines: list[str] = []
     first = states[0]
-    lines.append(f"# Lab results — {first['scenario']}")
+    lines.append(f"# Lab results: {first['scenario']}")
     lines.append("")
     if state_is_wan(first):
         lines.append(f"**Real path**: client host `{first['host']}` → server host "
@@ -2109,8 +2109,8 @@ def markdown_report(states: list[dict[str, Any]], directories: list[Path]) -> st
         lines.append("")
         # The single most important caveat on any WAN number, and the one most easily lost
         # between a terminal and a commit message.
-        lines.append("A real Internet path is not reproducible between sessions — its capacity, "
-                     "queueing and cross traffic belong to somebody else — so **only the "
+        lines.append("A real Internet path is not reproducible between sessions: its capacity, "
+                     "queueing and cross traffic belong to somebody else, so **only the "
                      "Go-versus-Rust comparisons inside this session mean anything**. The runs "
                      "are interleaved (GG, RR, GR, RG) precisely so that whatever the path did "
                      "during the session happened to both implementations.")
@@ -2135,7 +2135,7 @@ def markdown_report(states: list[dict[str, Any]], directories: list[Path]) -> st
     lines.append("")
 
     if len(states) > 1:
-        # The comparison is the point of a multi-run session — a dozen run sections are the
+        # The comparison is the point of a multi-run session: a dozen run sections are the
         # evidence for it, not a substitute. It goes above them so the file can be read.
         lines.append("## Comparison")
         lines.append("")
@@ -2224,9 +2224,9 @@ def workload_metrics(workload: dict[str, Any],
 #: cannot say whether a rung was slow because the path lost packets or because the implementation
 #: retransmitted needlessly, and on the jittery rung (tools/lab/README.md, mdev 6.6 ms) the retransmit
 #: and FEC counters are what RTO estimation and the FEC/ARQ interaction actually show up in.
-#: All three components of `RetransSegs` are here — kcp-go adds `LostSegs + FastRetransSegs +
+#: All three components of `RetransSegs` are here, kcp-go adds `LostSegs + FastRetransSegs +
 #: EarlyRetransSegs` into it (reference/kcptun/vendor/github.com/xtaci/kcp-go/v5/kcp.go, the
-#: "counter updates" block of `flush`) — so the total decomposes exactly. Quoting two of the
+#: "counter updates" block of `flush`), so the total decomposes exactly. Quoting two of the
 #: three leaves a remainder that reads as unattributable retransmission, which is the one thing
 #: these rows exist to attribute.
 COMPARE_SNMP = ("RetransSegs", "FastRetransSegs", "EarlyRetransSegs", "LostSegs",
@@ -2234,12 +2234,12 @@ COMPARE_SNMP = ("RetransSegs", "FastRetransSegs", "EarlyRetransSegs", "LostSegs"
 
 
 def pair_code(state: dict[str, Any]) -> str:
-    """``GG``, ``RR``, ``GR`` or ``RG`` — client implementation first, as the run id spells it."""
+    """``GG``, ``RR``, ``GR`` or ``RG``: client implementation first, as the run id spells it."""
     return (IMPLS[state["client_impl"]] + IMPLS[state["server_impl"]]).upper()
 
 
 def median(values: Sequence[float]) -> float | None:
-    """The median, or None for an empty sequence (the caller prints `—`, never 0)."""
+    """The median, or None for an empty sequence (the caller prints `-`, never 0)."""
     ordered = sorted(values)
     count = len(ordered)
     if count == 0:
@@ -2251,9 +2251,9 @@ def median(values: Sequence[float]) -> float | None:
 
 
 def format_number(value: float | None) -> str:
-    """A table cell. `None` is "—" (not measured), never `0` (measured as nothing)."""
+    """A table cell. `None` is "-" (not measured), never `0` (measured as nothing)."""
     if value is None:
-        return "—"
+        return "-"
     # SNMP counters and stream counts are whole numbers and read as noise with a decimal point
     # on them; a rate or a percentile is not. Deciding by the value rather than by the column
     # keeps a median of an odd number of integers (which is one of them) looking like a count.
@@ -2272,7 +2272,7 @@ def compare_artefacts(states: Sequence[dict[str, Any]]) -> list[str]:
     The unprovenanced banner is only half of 12.0: `compare` is the table a rung is actually
     quoted from, so the case where everything *did* resolve has to say what produced the
     numbers, not stay silent and leave the reader to assume. Identities collapse to one entry
-    per (family, commit, libc, target) — a session's client, server and instruments are
+    per (family, commit, libc, target): a session's client, server and instruments are
     normally one build, and then this is one short line.
     """
     hosts: dict[tuple[str, str, str, str], set[str]] = {}
@@ -2307,8 +2307,8 @@ def compare_report(states: Sequence[dict[str, Any]], directories: Sequence[Path]
 
     This is what a WAN rung is read from (step 11.3): the pairs ran interleaved inside one
     session, so the columns share whatever the path was doing, and the medians are over the
-    repetitions of that one session only. Comparing a column here with one from another session
-    — another evening, the same hosts — is exactly what a real path does not support.
+    repetitions of that one session only. Comparing a column here with one from another session,
+    another evening, the same hosts: is exactly what a real path does not support.
     """
     if not states:
         return "No runs.\n"
@@ -2320,7 +2320,7 @@ def compare_report(states: Sequence[dict[str, Any]], directories: Sequence[Path]
     lines: list[str] = []
     where = (f"`{first['host']}` → `{first.get('server_host', first['host'])}`"
              if state_is_wan(first) else f"`{first['host']}`, netem `{first['netem']}`")
-    lines.append(f"### {first['scenario']} — {where}, config {first['config'].upper()}")
+    lines.append(f"### {first['scenario']}: {where}, config {first['config'].upper()}")
     lines.append("")
     repetitions = collections.Counter(pair_code(s) for s in states)
     plural = "run" if len(states) == 1 else "runs"
@@ -2351,7 +2351,7 @@ def compare_report(states: Sequence[dict[str, Any]], directories: Sequence[Path]
         for label, metric, by_pair in rows:
             cells = [format_number(median(by_pair.get(code, []))) for code in present]
             gg, rr = median(by_pair.get("GG", [])), median(by_pair.get("RR", []))
-            ratio = "—" if not gg or rr is None else f"{rr / gg:.2f}×"
+            ratio = "-" if not gg or rr is None else f"{rr / gg:.2f}×"
             lines.append(f"| {label} | {metric} | " + " | ".join(cells) + f" | {ratio} |")
         lines.append("")
 
@@ -2373,14 +2373,14 @@ def compare_report(states: Sequence[dict[str, Any]], directories: Sequence[Path]
         for side_label, name, by_pair in snmp_rows:
             cells = [format_number(median(by_pair.get(code, []))) for code in present]
             gg, rr = median(by_pair.get("GG", [])), median(by_pair.get("RR", []))
-            ratio = "—" if not gg or rr is None else f"{rr / gg:.2f}×"
+            ratio = "-" if not gg or rr is None else f"{rr / gg:.2f}×"
             lines.append(f"| {side_label} | {name} | " + " | ".join(cells) + f" | {ratio} |")
         lines.append("")
     return "\n".join(lines) + "\n"
 
 
 def artefact_lines(state: dict[str, Any], side: str) -> list[str]:
-    """The exact file one end of a run executed: commit, libc and sha256 — or why not.
+    """The exact file one end of a run executed: commit, libc and sha256, or why not.
 
     A run section that only carries `deploy.sh`'s prose summary cannot be checked against
     anything later; the commit and the hash can be. A state written before 12.0 has neither, and
@@ -2411,11 +2411,11 @@ MATRIX_ACCEPTANCE = 0.95
 
 
 def matrix_family(state: dict[str, Any]) -> str:
-    """Which scenario *file* a run came from — ``bulk-iperf3``, ``bulk-capped``, ``latency``.
+    """Which scenario *file* a run came from: ``bulk-iperf3``, ``bulk-capped``, ``latency``.
 
     `--config`/`--netem` put the cell's two axes into the scenario's *name*, so the name alone
     cannot tell the capped control (`bulkcap-s1-clean`) from the cell it is a control for
-    (`bulk-s1-clean`) once both are grouped by `(config, netem)` — they would merge, and a
+    (`bulk-s1-clean`) once both are grouped by `(config, netem)`: they would merge, and a
     250 Mbit/s cap would be averaged into an uncapped measurement. The file behind the run does
     distinguish them, and `parse_scenario` records it.
     """
@@ -2497,7 +2497,7 @@ def run_tunnel_cpu(state: dict[str, Any], directory: Path) -> tuple[float, float
     The tunnel is the ``cli`` and ``srv`` samples only: ``tgt`` is ``iperf3 -s``, which is the
     workload rather than the thing under test, and on a one-vCPU host it is a third of the CPU
     in the box. The megabits are the workloads' own reported goodput multiplied by their
-    durations, so CPU per delivered bit is a ratio of two numbers from the same run — which is
+    durations, so CPU per delivered bit is a ratio of two numbers from the same run, which is
     the only form in which D29's flush-scan cost can be read off a host whose throughput is
     itself CPU-bound.
     """
@@ -2531,7 +2531,7 @@ def snmp_ratio_rows(runs: Sequence[tuple[dict[str, Any], Path]],
     `parse_data` finds a segment it already has (kcp-go `kcp.go`, the `IKCP_PACKET_REGULAR`
     branch of `Input`); `LostSegs` is incremented by the **sender** when `flush` finds a segment
     past its `resendts`. So a duplicate counted here was caused by the *other* process, and the
-    spurious-retransmission ratio is a cross-side one — `cell_spurious_rows` computes it.
+    spurious-retransmission ratio is a cross-side one: `cell_spurious_rows` computes it.
     """
     gathered: dict[str, dict[str, list[float | None]]] = {}
     for state, directory in runs:
@@ -2581,7 +2581,7 @@ def cell_spurious_rows(
 
     The duplicates one end *receives* were caused by the retransmissions the other end *sent*,
     so the figure that says whether a retransmission storm was spurious pairs one side's
-    `RepeatSegs` with the other side's `LostSegs` — never with its own. A ratio well above 1
+    `RepeatSegs` with the other side's `LostSegs`, never with its own. A ratio well above 1
     means the sender was retransmitting segments that had in fact arrived. It is a lower bound
     on the waste, because it counts only the duplicates that reached the peer.
     """
@@ -2608,7 +2608,7 @@ def cell_spurious_rows(
 def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path]) -> str:
     """step 11.2's matrix: one row per (config, profile), Go and Rust side by side.
 
-    `compare` is one session — one cell — in full. This is the campaign: every cell's goodput
+    `compare` is one session (one cell) in full. This is the campaign: every cell's goodput
     with the RR/GG ratio the acceptance criterion is written in, the tunnel CPU per delivered
     bit, and the retransmission counters that attribute a difference to a mechanism.
     """
@@ -2621,7 +2621,7 @@ def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path])
     builds = sorted({str(s.get("build") or "(not recorded)") for s in states})
 
     lines: list[str] = []
-    lines.append("### Impairment matrix — goodput")
+    lines.append("### Impairment matrix: goodput")
     lines.append("")
     lines.append(f"{len(cells)} cells, {len(states)} runs, host(s) `{'`, `'.join(hosts)}`.")
     lines.append("Build(s): " + "; ".join(f"`{b}`" for b in builds) + ".")
@@ -2645,17 +2645,17 @@ def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path])
     ceiling_rule = "---|" if split else ""
 
     def ceiling_cell(sockbuf: str) -> str:
-        return f"{sockbuf or '—'} | " if split else ""
+        return f"{sockbuf or '-'} | " if split else ""
 
     if split:
         lines.append("")
         if len([c for c in ceilings if c]) > 1:
             lines.append("**More than one ceiling is represented here**, and a median across "
-                         "two of them is a number no experiment produced — so those runs are "
+                         "two of them is a number no experiment produced, so those runs are "
                          "kept in separate cells and the `ceiling` column says which row is "
                          "which.")
         else:
-            lines.append("Some of these runs **do not record a ceiling** (`—`), so they are "
+            lines.append("Some of these runs **do not record a ceiling** (`-`), so they are "
                          "kept in their own cells rather than merged with the runs that do: "
                          "what a run does not say about itself is not something this table "
                          "can assume. The `ceiling` column says which row is which.")
@@ -2675,7 +2675,7 @@ def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path])
                           for code in pairs_present]
             gg, rr = median(by_pair.get("GG", [])), median(by_pair.get("RR", []))
             if not gg or rr is None:
-                ratio, verdict = "—", "—"
+                ratio, verdict = "-", "-"
             else:
                 ratio = f"{rr / gg:.2f}×"
                 verdict = "ok" if rr / gg >= MATRIX_ACCEPTANCE else "**investigate**"
@@ -2688,7 +2688,7 @@ def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path])
 
     lines.append("### Tunnel CPU per delivered bit")
     lines.append("")
-    lines.append("`cli` + `srv` CPU seconds over the megabits the same run delivered — "
+    lines.append("`cli` + `srv` CPU seconds over the megabits the same run delivered: "
                  "`iperf3 -s` (`tgt`) is excluded because it is the workload, not the "
                  "implementation. Lower is better; a ratio above 1 means Rust spent more CPU "
                  "for the same delivered data.")
@@ -2708,7 +2708,7 @@ def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path])
             continue
         cells_text = [format_number(median(by_pair.get(code, []))) for code in pairs_present]
         gg, rr = median(by_pair.get("GG", [])), median(by_pair.get("RR", []))
-        ratio = "—" if not gg or rr is None else f"{rr / gg:.2f}×"
+        ratio = "-" if not gg or rr is None else f"{rr / gg:.2f}×"
         lines.append(f"| {config.upper()} | {netem} | {ceiling_cell(sockbuf)}{family} | "
                      + " | ".join(cells_text) + f" | {ratio} |")
     lines.append("")
@@ -2734,7 +2734,7 @@ def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path])
         lines.append("64-byte `pingpong ping`, median across repetitions of each run's whole-run "
                      "percentile. A `…load` tag is the same probe with a competing bulk flow "
                      "over the same tunnel. Lower is better, so **RR/GG below 1 is Rust ahead** "
-                     "— the opposite of the goodput table.")
+                     "- the opposite of the goodput table.")
         lines.append("")
         lines.append(f"| config | profile | {ceiling_head}probe | metric | "
                      + " | ".join(pairs_present) + " | RR/GG |")
@@ -2743,7 +2743,7 @@ def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path])
             cells_text = [format_number(median(by_pair.get(code, [])))
                           for code in pairs_present]
             gg, rr = median(by_pair.get("GG", [])), median(by_pair.get("RR", []))
-            ratio = "—" if not gg or rr is None else f"{rr / gg:.2f}×"
+            ratio = "-" if not gg or rr is None else f"{rr / gg:.2f}×"
             lines.append(f"| {config.upper()} | {netem} | {ceiling_cell(sockbuf)}{tag} | "
                          f"{metric} | " + " | ".join(cells_text) + f" | {ratio} |")
         lines.append("")
@@ -2753,7 +2753,7 @@ def matrix_report(states: Sequence[dict[str, Any]], directories: Sequence[Path])
     lines.append("Whole-run SNMP totals, medians across repetitions. `RepeatSegs` is counted by "
                  "the **receiver** and `LostSegs` by the **sender**, so the ratio that says "
                  "whether a retransmission storm was spurious pairs one end's duplicates with "
-                 "the *other* end's timeouts — the two `dups / lost` rows. Well above 1 means "
+                 "the *other* end's timeouts: the two `dups / lost` rows. Well above 1 means "
                  "segments were retransmitted that had in fact arrived. Go and Rust meet the "
                  "same impairment in the same cell, so a ratio they share is KCP's behaviour "
                  "and one they do not is ours. `CurrEstab (peak)` beside `CurrEstab (end)` is "
@@ -2812,8 +2812,8 @@ def run_section(state: dict[str, Any], directory: Path) -> list[str]:
     lines.append(f"- started {state['started_iso']}, traffic {state['total_duration']} s")
     # Which host and which artefact. Without these a section is unattributable, and two runs
     # reported side by side (11.1b's whole shape) cannot be told apart at all. `build` is the
-    # *client implementation's* per-family stamp summary — target triple, libc, profile,
-    # revision — resolved before preflight; `server_build` is the server's. In the netns
+    # *client implementation's* per-family stamp summary: target triple, libc, profile,
+    # revision: resolved before preflight; `server_build` is the server's. In the netns
     # arrangement both ends share one machine, so the summary is labelled as the client's
     # rather than as a property of the host, which also runs the other implementation.
     if state_is_wan(state):
@@ -2907,7 +2907,7 @@ def run_section(state: dict[str, Any], directory: Path) -> list[str]:
                 # a property of the process rather than of when the samples were taken. A run
                 # that is simply shorter than the warm-up window (the smoke scenario) is not
                 # this, and does not get the sentence.
-                note += (f" This run was collected before warm-up ended — {observed:.0f} s of "
+                note += (f" This run was collected before warm-up ended: {observed:.0f} s of "
                          f"samples against an intended {intended:.0f} s.")
             lines.append(note)
         lines.append("")
@@ -2922,11 +2922,11 @@ def run_section(state: dict[str, Any], directory: Path) -> list[str]:
         lines.append("| counter | client | server |")
         lines.append("|---|---|---|")
         for name in names:
-            lines.append(f"| {name} | {snmp['cli'].get(name, '—')} | "
-                         f"{snmp['srv'].get(name, '—')} |")
+            lines.append(f"| {name} | {snmp['cli'].get(name, '-')} | "
+                         f"{snmp['srv'].get(name, '-')} |")
         if "CurrEstabMax" in snmp["cli"] or "CurrEstabMax" in snmp["srv"]:
-            lines.append(f"| CurrEstab (max) | {snmp['cli'].get('CurrEstabMax', '—')} | "
-                         f"{snmp['srv'].get('CurrEstabMax', '—')} |")
+            lines.append(f"| CurrEstab (max) | {snmp['cli'].get('CurrEstabMax', '-')} | "
+                         f"{snmp['srv'].get('CurrEstabMax', '-')} |")
         lines.append(f"| _records_ | {snmp['cli'].get('_records', 0)} | "
                      f"{snmp['srv'].get('_records', 0)} |")
         lines.append("")
@@ -2985,7 +2985,7 @@ def find_run(args: argparse.Namespace, runid: str) -> Path:
 def find_session(args: argparse.Namespace, name: str) -> list[Path]:
     """Every collected run of one session, oldest first.
 
-    `name` is a session directory, a path, or enough of one to identify it — sessions are
+    `name` is a session directory, a path, or enough of one to identify it: sessions are
     ``<runs-dir>/<stamp>-<scenario>/``. The runs of a session are the rows of a comparison
     table, and they were interleaved, so their order matters.
     """
@@ -3014,8 +3014,8 @@ def cmd_compare(_runner: Runner, args: argparse.Namespace) -> int:
     order = sorted(range(len(states)), key=lambda index: states[index].get("started_unix", 0))
     states = [states[index] for index in order]
     directories = [directories[index] for index in order]
-    # The comparison table is the artefact a rung is quoted from — `--report` writes it straight
-    # into docs/lab-results/ — so it leads with the same refusal to look clean that
+    # The comparison table is the artefact a rung is quoted from: `--report` writes it straight
+    # into docs/lab-results/, so it leads with the same refusal to look clean that
     # `markdown_report` does. 11.3's 0.75x reached a document through exactly this path.
     banner = unprovenanced_banner(states)
     text = ("\n".join(banner) + "\n" if banner else "") + compare_report(states, directories)
@@ -3029,7 +3029,7 @@ def cmd_compare(_runner: Runner, args: argparse.Namespace) -> int:
 
 
 def find_matrix_sessions(args: argparse.Namespace, name: str) -> list[Path]:
-    """Every session directory matching `name` — a campaign, not a single session.
+    """Every session directory matching `name`: a campaign, not a single session.
 
     `find_session` refuses an ambiguous prefix, which is right for `compare` (one session is one
     table) and wrong here: a campaign's cells are *separate* sessions by construction, so
@@ -3050,7 +3050,7 @@ def find_matrix_sessions(args: argparse.Namespace, name: str) -> list[Path]:
 
 
 def cmd_matrix(_runner: Runner, args: argparse.Namespace) -> int:
-    """step 11.2's table across many sessions — one per (config, netem) cell."""
+    """step 11.2's table across many sessions: one per (config, netem) cell."""
     directories: list[Path] = []
     for name in args.sessions:
         for session in find_matrix_sessions(args, name):
@@ -3082,7 +3082,7 @@ def cmd_deploy(runner: Runner, args: argparse.Namespace) -> int:
         if getattr(args, flag):
             argv.append(f"--{flag}")
     # `auto` is deploy.sh's own default (it asks the host for `uname -m`), so passing it would be
-    # harmless — but leaving it off keeps the echoed command line honest about what was chosen.
+    # harmless, but leaving it off keeps the echoed command line honest about what was chosen.
     if args.arch != "auto":
         argv += ["--arch", args.arch]
     if args.glibc:
@@ -3091,7 +3091,7 @@ def cmd_deploy(runner: Runner, args: argparse.Namespace) -> int:
         argv += ["--profile", args.profile]
     # deploy.sh takes its host from $KCPTUN_LAB_HOST and knows nothing about our --host, so it
     # has to be told: without this, `lab.py --host lab-x86-1 deploy` would write into lab-arm64's
-    # ~/kcptun-lab — the box that carries the live production mesh.
+    # ~/kcptun-lab: the box that carries the live production mesh.
     result = runner.local(argv, check=False,
                           env={**os.environ, "KCPTUN_LAB_HOST": runner.host})
     print(result.out, end="")
@@ -3161,7 +3161,7 @@ def warn_clamped_sockbuf(runner: Runner, scenario: Scenario,
 
     Not an error: measuring a tunnel against a small receive buffer is a legitimate thing to
     do, and it is what an untuned VPS gives a real deployment. Measuring it *without knowing*
-    is not — tools/lab/README.md records lab-arm64 at `rmem_max` 8 MiB while a stock Ubuntu box is at
+    is not: tools/lab/README.md records lab-arm64 at `rmem_max` 8 MiB while a stock Ubuntu box is at
     212992, so the same scenario on two lab hosts is two different experiments.
 
     `sides` is which end's flags this host actually runs: both in the namespace lab, one each
@@ -3170,7 +3170,7 @@ def warn_clamped_sockbuf(runner: Runner, scenario: Scenario,
 
     A side that names no ``-sockbuf`` is **not** skipped. It still asks the kernel for
     `DEFAULT_SOCKBUF`, so S2/S3/S4 are clamped 20x on a stock host exactly as S1 is clamped
-    40x — and treating an absent flag as "no request" is what kept that silent.
+    40x, and treating an absent flag as "no request" is what kept that silent.
     """
     limits = runner.socket_buffer_limits()
     if not limits:
@@ -3206,7 +3206,7 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
             raise LabError(f"--pair {args.pair!r}: want client:server, each go or rust")
         scenario.pairs = [(client_impl, server_impl)]
     # The iperf3 `-b` cap is a guard rail against saturating a host's NIC, not part of the
-    # measurement — and what it has to clear is a property of the *path*, not of the scenario
+    # measurement, and what it has to clear is a property of the *path*, not of the scenario
     # file. 400M never binds on the 131 ms rung 11.3 ran and binds hard on the 95 ms one, where
     # a Go client alone drives 631 Mbit/s; a cap that binds makes every implementation report
     # the cap, which is how 11.3's first attempt produced four pairs all reporting exactly
@@ -3261,8 +3261,8 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
     # Provenance first: it is read-only, it costs about one ssh per stamp file (one per family
     # per host, cached across the whole session) plus one per binary hashed, and it is the check
     # whose failure invalidates every number the session would otherwise spend hours producing.
-    # Refusing here means nothing has been started, no baseline taken, no namespace touched and
-    # — because this runs before the mkdir below — not even an empty session directory left for
+    # Refusing here means nothing has been started, no baseline taken, no namespace touched and,
+    # because this runs before the mkdir below, not even an empty session directory left for
     # `find_session` to match ambiguously later.
     provenance = BuildProvenance(
         allow_unprovenanced=getattr(args, "allow_unprovenanced", False))
@@ -3278,7 +3278,7 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
         provenance.require(runner, "lab", "target")
         provenance.require(server, "lab", "target")
 
-    # A dry run previews commands; it must not leave a run directory, a state.json or — worse —
+    # A dry run previews commands; it must not leave a run directory, a state.json or: worse,
     # a fabricated, empty report inside the git-tracked docs/lab-results/.
     if not runner.dry_run:
         session.mkdir(parents=True, exist_ok=True)
@@ -3292,15 +3292,15 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
         # on both would refuse a run because the *other* machine's port is busy.
         checks = preflight(runner, max_load=args.max_load, wait_seconds=args.wait_load,
                            force=args.force, ports=(scenario.listen_port,))
-        print(f"lab: preflight {runner.host} — {checks}")
+        print(f"lab: preflight {runner.host}, {checks}")
         checks = preflight(server, max_load=args.max_load, wait_seconds=args.wait_load,
                            force=args.force,
                            ports=(*scenario.tunnel_ports, target_port))
-        print(f"lab: preflight {server.host} — {checks}")
+        print(f"lab: preflight {server.host}, {checks}")
         # Both ends, because a WAN run uses the same S1 `-sockbuf 8388608` and each host clamps
         # its own half of it. 11.3's committed results were measured on hosts whose `rmem_max`
         # was never read, which is exactly the condition 11.2 found capable of inverting a
-        # cell's conclusion — a WAN path cannot be re-run under a raised ceiling afterwards.
+        # cell's conclusion: a WAN path cannot be re-run under a raised ceiling afterwards.
         warn_clamped_sockbuf(runner, scenario, ("client",))
         warn_clamped_sockbuf(server, scenario, ("server",))
     else:
@@ -3308,7 +3308,7 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
                            force=args.force,
                            ports=(*scenario.tunnel_ports, scenario.listen_port,
                                   scenario.iperf_port, scenario.pingpong_port))
-        print(f"lab: preflight — {checks}")
+        print(f"lab: preflight, {checks}")
         warn_clamped_sockbuf(runner, scenario)
         ensure_netns(runner, scenario.netem)
 
@@ -3324,14 +3324,14 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
     current: RunPlan | None = None
 
     def stop_everything(plan: RunPlan) -> None:
-        """Stop this run on every host it touches — Ctrl-C must not leave a tunnel up."""
+        """Stop this run on every host it touches: Ctrl-C must not leave a tunnel up."""
         runner.stop(plan.client_host_names)
         if plan.server_host_names:
             server.stop(plan.server_host_names)
 
     def emergency_stop(*_ignored: Any) -> None:
         if current is not None and not args.detach:
-            print("\nlab: interrupted — stopping this run's processes", file=sys.stderr)
+            print("\nlab: interrupted, stopping this run's processes", file=sys.stderr)
             stop_everything(current)
         raise SystemExit(130)
 
@@ -3384,7 +3384,7 @@ def cmd_collect(runner: Runner, args: argparse.Namespace) -> int:
 
 
 def cmd_report(runner: Runner, args: argparse.Namespace) -> int:
-    """Rebuild a report from collected runs — one run, or a whole session.
+    """Rebuild a report from collected runs: one run, or a whole session.
 
     A session is accepted because a scenario that aborts part-way (one flaky workload out of
     twelve) never reaches `write_report`, and the runs it *did* collect are on the laptop with
@@ -3410,7 +3410,7 @@ def write_report(states: list[dict[str, Any]], directories: list[Path],
     if dry_run:
         # Nothing was collected, so there is nothing to summarise; writing anyway would drop an
         # empty report into the git-tracked docs/lab-results/.
-        print(f"lab: dry run — no report written (would be {destination})")
+        print(f"lab: dry run, no report written (would be {destination})")
         return
     text = markdown_report(states, directories)
     (session / "report.md").write_text(text, encoding="utf-8")
@@ -3481,7 +3481,7 @@ def build_parser() -> argparse.ArgumentParser:
                      help="override every iperf3 workload's -b guard rail (e.g. 900M). The cap "
                           "belongs to the path, not to the scenario: 400M never binds on the "
                           "131 ms rung and binds hard on the 95 ms one, where a Go client alone "
-                          "drives 631 Mbit/s — and a cap that binds makes every implementation "
+                          "drives 631 Mbit/s, and a cap that binds makes every implementation "
                           "report the cap")
     run.add_argument("--server-host", metavar="HOST",
                      help="run the kcptun server on this second ssh host, over the real path "

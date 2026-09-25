@@ -83,7 +83,7 @@ fn runtime() -> tokio::runtime::Runtime {
 }
 
 /// Frames `data` with a Rust `CompStream`, writing it in chunks whose sizes cycle through
-/// `chunks` — the same script `snappycheck encode -chunk` follows.
+/// `chunks`: the same script `snappycheck encode -chunk` follows.
 fn rust_encode(data: &[u8], chunks: &[usize]) -> Vec<u8> {
     runtime().block_on(async {
         let stream = CompStream::new(MemConn::new(Vec::new(), usize::MAX));

@@ -4,7 +4,7 @@
 //! for which architecture, and they are python and bash, so `cargo test` never saw them. That
 //! gap has already cost something real: `lab_test.py` kept asserting `closewait 0` for the soak
 //! after DECISIONS D28 changed the scenario to the production default, and nothing noticed,
-//! because nothing ran the file. This test closes the loop — the python suites are now part of
+//! because nothing ran the file. This test closes the loop: the python suites are now part of
 //! the gate, and their fake-ssh `Runner` means they still touch no host.
 //!
 //! They are skipped, not failed, where there is no `python3`: the gate must stay runnable on a

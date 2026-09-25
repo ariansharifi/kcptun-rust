@@ -36,16 +36,16 @@
 //!
 //! Each run drives one [`MatrixTarget`] through the tunnel, three times:
 //!
-//! 1. **bulk** — one stream, [`Workload::bulk_bytes`] each way, SHA-256 verified in both
+//! 1. **bulk**: one stream, [`Workload::bulk_bytes`] each way, SHA-256 verified in both
 //!    directions;
-//! 2. **streams** — [`Workload::streams`] concurrent streams, each a
+//! 2. **streams**: [`Workload::streams`] concurrent streams, each a
 //!    [`Workload::stream_bytes`] request/echo pair, SHA-256 verified;
-//! 3. **half-close** — one stream whose answer is produced only *after* the application's
+//! 3. **half-close**: one stream whose answer is produced only *after* the application's
 //!    `shutdown(SHUT_WR)`, so every response byte crosses a half-closed stream.
 //!
 //! (1) and (2) read their whole answer *before* half-closing, so they never depend on half-close
 //! semantics; (3) depends on nothing else. Both processes' logs are then scanned for the
-//! [`ERROR_MARKERS`] denylist — the substrings neither implementation prints in a healthy run —
+//! [`ERROR_MARKERS`] denylist: the substrings neither implementation prints in a healthy run,
 //! rather than against an allowlist of known-good lines.
 //!
 //! # The expected Go behaviours
@@ -53,19 +53,19 @@
 //! Exactly one thing is allowed to differ, and only in workload (3), and only with a **Go
 //! client**. Both halves of it reproduce in the `go -> go` control, which runs no Rust at all.
 //!
-//! * **V11** — Go's smux discards received-but-unread data when the peer's FIN completes a
+//! * **V11**: Go's smux discards received-but-unread data when the peer's FIN completes a
 //!   half-close (`tryHalfCloseCleanup` -> `streamClosed` -> `recycleTokens`), so a Go client cuts
-//!   the answer at whatever was still unread in smux's buffer when the FIN landed — usually, but
+//!   the answer at whatever was still unread in smux's buffer when the FIN landed, usually, but
 //!   not always, a frame boundary. Measured here on the real binaries: 57344 of 65536 bytes
 //!   (`go -> rs`) and 49152 of 65536 (`go -> go`).
-//! * **V04** — with `-QPP` on top, Go's `QPPPort` implements no `CloseWrite`, so kcptun's `Pipe`
+//! * **V04**, with `-QPP` on top, Go's `QPPPort` implements no `CloseWrite`, so kcptun's `Pipe`
 //!   falls back to a full `Close` (`std/copy.go:72`) and tears the stream down the instant the
 //!   application half-closes; nothing of the answer survives.
 //!
 //! [`Expectation`] encodes both. Whatever does arrive must still be a correct *prefix* of the
 //! expected stream, and the `pipe:` line the Go peer logs about its own torn-down stream is
 //! allowed (and recorded as a note). A **Rust client is held to a complete response against
-//! either server** — that is what V11 and V04 bought, and the `rs -> rs` control stays strict.
+//! either server**: that is what V11 and V04 bought, and the `rs -> rs` control stays strict.
 //!
 //! # Running it
 //!
@@ -112,7 +112,7 @@ pub const DEFAULT_KEY: &str = "kcptun-rust interop matrix";
 /// Length of [`qpp_key`], as the plan's QPP dimension specifies.
 ///
 /// Go's `ValidateQPPParams` warns (in red) when the key is shorter than
-/// `qpp.QPPMinimumSeedLength(8)`, which is 211 bytes — the byte length of `log2(256!)`. 300 bytes
+/// `qpp.QPPMinimumSeedLength(8)`, which is 211 bytes: the byte length of `log2(256!)`. 300 bytes
 /// clears it, so a QPP case starts with no warnings on either implementation and the log scan can
 /// stay strict.
 // Go: kcptun@v0.0.0-20260208051026-39935d5307f0 std/qpp.go:ValidateQPPParams
@@ -507,7 +507,7 @@ pub fn crypt_cases() -> Vec<InteropCase> {
 }
 
 /// The pairwise expansion of [`DIMENSIONS`]: every pair of values of any two dimensions appears
-/// in at least one case. Deterministic — the same list in the same order on every run.
+/// in at least one case. Deterministic: the same list in the same order on every run.
 pub fn pairwise_cases() -> Vec<InteropCase> {
     let levels: Vec<usize> = DIMENSIONS.iter().map(|d| d.levels.len()).collect();
     pairwise_indices(&levels)
@@ -603,7 +603,7 @@ pub enum Expectation {
     /// **V11**, a Go client without `-QPP`: once the application half-closes and the peer's FIN
     /// arrives, Go's smux runs `tryHalfCloseCleanup` → `streamClosed` → `recycleTokens`, which
     /// discards everything received but not yet read. The reader then sees EOF early, so the
-    /// answer is cut at whatever was still buffered — usually, but not always, a frame boundary.
+    /// answer is cut at whatever was still buffered, usually, but not always, a frame boundary.
     ///
     /// Any length is accepted, including `0`, which makes such a row no stronger a statement than
     /// "what arrived was a correct prefix". In practice V11 cuts only what smux still holds when
@@ -784,7 +784,7 @@ impl MatrixTarget {
         self.connections.load(Ordering::SeqCst)
     }
 
-    /// Connections that did not start with a readable header — a tunnel that corrupts or
+    /// Connections that did not start with a readable header: a tunnel that corrupts or
     /// reorders the first bytes shows up here rather than as a silent hang.
     pub fn bad_headers(&self) -> u64 {
         self.bad_headers.load(Ordering::SeqCst)
@@ -856,7 +856,7 @@ async fn send_header<W: tokio::io::AsyncWrite + Unpin>(
 /// half-close and the end of the stream.
 ///
 /// The answer is read in full *before* the half-close, so this workload does not depend on
-/// half-close semantics at all — that is what the third workload is for.
+/// half-close semantics at all: that is what the third workload is for.
 async fn echo_exchange(stream: &mut LocalStream, seed: u64, len: u64) -> Result<(), String> {
     let (send, sha) = {
         let (mut r, mut w) = tokio::io::split(&mut *stream);
@@ -895,7 +895,7 @@ async fn echo_exchange(stream: &mut LocalStream, seed: u64, len: u64) -> Result<
 ///
 /// A reset counts: the application has already read every byte it asked for, both kcptun peers
 /// are tearing the stream down, and whether the last `close(2)` lands as a FIN or an RST on
-/// loopback is a race with no bearing on data integrity. Anything else — a stray byte — is a
+/// loopback is a race with no bearing on data integrity. Anything else (a stray byte) is a
 /// failure.
 async fn end_of_stream(stream: &mut LocalStream) -> Result<(), String> {
     let mut buf = [0u8; 64];
@@ -1022,7 +1022,7 @@ pub struct RunReport {
 
 impl RunReport {
     /// The table cell: `ok` for a strict run, or `ok (V11 253952/262144)` for one where a Go
-    /// client was allowed to truncate — the numbers say how much of the half-close answer
+    /// client was allowed to truncate: the numbers say how much of the half-close answer
     /// survived, so `262144/262144` means the expected truncation did not happen on this run.
     pub fn status(&self) -> String {
         match self.expectation {
@@ -1093,7 +1093,7 @@ async fn run_case_inner(
         .key(case.key.clone())
         // Every stream of this matrix is torn down by the application, and `-closewait` delays
         // exactly that teardown by its full number of seconds per direction. The default of 30 s
-        // would add minutes per case and pins nothing this matrix is about — 09.3's
+        // would add minutes per case and pins nothing this matrix is about: 09.3's
         // `e2e_closewait_delays_the_half_close_of_the_target` owns that behaviour.
         .server_args(["-closewait", "0"])
         .start()
@@ -1112,7 +1112,7 @@ async fn run_case_inner(
     if expectation == Expectation::GoSmuxTruncation && half_close_bytes == 0 {
         // V11 cuts what is still unread in smux's buffer, so it does not normally take the whole
         // answer: a zero here looks like V04's total loss without `-QPP` to explain it. It is
-        // still a correct (empty) prefix, so it is not a failure — but it is worth a look.
+        // still a correct (empty) prefix, so it is not a failure, but it is worth a look.
         notes.push(
             "the half-close probe returned 0 bytes on a V11 row; V11 normally cuts only part of \
              the answer, so compare this crossing with its go->go control"
@@ -1223,7 +1223,7 @@ async fn drive(
 ///
 /// The probe's connection is the one exception. When `-QPP` makes a Go client close the stream
 /// outright (V04) the application sees EOF as soon as the *client* gives up, which can be before
-/// the server has finished dialling the target — and since no response byte arrives there is
+/// the server has finished dialling the target, and since no response byte arrives there is
 /// nothing to wait for. Such a run therefore requires only that the dial has not produced a
 /// *spurious* extra connection. Every other run must show all of them, after a short grace period
 /// for the server's dial.
@@ -1273,7 +1273,7 @@ fn logs_of(tunnel: &Tunnel) -> String {
 /// This is a denylist, not an allowlist: a line neither implementation prints in a healthy run
 /// fails the case, but a log site that reports its error bare (Go's `server/main.go` does so for
 /// `smux.Server`, `mux.AcceptStream` and the target dial) would pass unnoticed. Those failures
-/// are caught by the workload instead — no byte of the response would arrive.
+/// are caught by the workload instead, no byte of the response would arrive.
 fn check_logs(
     tunnel: &Tunnel,
     expectation: Expectation,
@@ -1313,7 +1313,7 @@ fn check_logs(
 // The report
 // ---------------------------------------------------------------------------------------
 
-/// `20 MB`, `256 KiB`, `1024 B` — whichever reads best for `n`.
+/// `20 MB`, `256 KiB`, `1024 B`, whichever reads best for `n`.
 fn bytes_human(n: u64) -> String {
     if n >= 1_000_000 && n.is_multiple_of(1_000_000) {
         format!("{} MB", n / 1_000_000)
@@ -1340,7 +1340,7 @@ pub fn timing_table(results: &[CaseResult]) -> String {
         let total: Duration = runs.iter().map(|r| r.elapsed).sum();
         let slowest = match runs.iter().max_by_key(|r| r.elapsed) {
             Some(r) => format!("`{}` at {:.1} s", r.case_id, r.elapsed.as_secs_f64()),
-            None => "—".to_string(),
+            None => "-".to_string(),
         };
         s.push_str(&format!(
             "| {p} | {} | {:.0} s | {slowest} |\n",
@@ -1393,7 +1393,7 @@ impl CaseResult {
 }
 
 /// The Markdown results table: one row per case, one column per pairing. A (case, pairing) with
-/// no result at all is a failure, not a blank — a run that never happened proves nothing.
+/// no result at all is a failure, not a blank: a run that never happened proves nothing.
 pub fn result_table(results: &[CaseResult]) -> String {
     let mut s = String::new();
     s.push_str("| Case |");
@@ -1501,7 +1501,7 @@ pub fn environment_table() -> String {
                 file_digest(&path)
             ),
             Err(e) => format!(
-                "| {which} {name} | not found | — | — |\n<!-- {} -->\n",
+                "| {which} {name} | not found | - | - |\n<!-- {} -->\n",
                 e.to_string().replace('\n', " ")
             ),
         };
@@ -1530,7 +1530,7 @@ pub fn preamble() -> String {
         "Plan step 09.4. Every case below runs the real `kcptun-client` and `kcptun-server` \
          binaries on loopback in **all four pairings**: `go->rs` and `rs->go` are the interop \
          crossings, `go->go` and `rs->rs` are **controls**. A control that fails means the \
-         harness is wrong, not the port — `go->go` runs no Rust at all.\n\n",
+         harness is wrong, not the port: `go->go` runs no Rust at all.\n\n",
     );
     s.push_str(
         "Regenerate one platform's section (the others are kept):\n\n```sh\ncargo build \
@@ -1547,18 +1547,18 @@ pub fn preamble() -> String {
     s.push_str(
         "Those two tags are the **only** tolerated difference, they apply only to the half-close \
          probe, and only with a **Go client**:\n\n\
-         * **V11** — Go's smux discards received-but-unread data when the peer's FIN completes a \
+         * **V11**: Go's smux discards received-but-unread data when the peer's FIN completes a \
          half-close (`tryHalfCloseCleanup` → `streamClosed` → `recycleTokens`), so the answer is \
          cut, usually at a frame boundary.\n\
-         * **V04** — with `-QPP` on top, Go's `std.QPPPort` implements no `CloseWrite`, so \
+         * **V04**, with `-QPP` on top, Go's `std.QPPPort` implements no `CloseWrite`, so \
          kcptun's `Pipe` falls back to `Close()` and tears the whole stream down; nothing of the \
          answer survives, hence the `0/…` rows.\n\n\
          Both reproduce in the `go->go` control. Every byte that *does* arrive is still checked \
          against the expected stream, so a truncation can never hide corruption, and a **Rust \
-         client is held to a complete response against either server** — that is what V11 and \
+         client is held to a complete response against either server**: that is what V11 and \
          V04 bought. `b/b` on a V11 row means the expected truncation happened not to occur that \
          run: it is a race inside Go, not a difference between the peers. A V11 row is only ever \
-         a statement that what arrived was a correct prefix — `0/b` would be accepted too, so a \
+         a statement that what arrived was a correct prefix: `0/b` would be accepted too, so a \
          run that produces one carries a note saying to compare it with its `go->go` control.\n\n",
     );
     s.push_str("## Cases\n\n");
@@ -1575,7 +1575,7 @@ pub fn section(results: &[CaseResult], workload: &Workload) -> String {
     let passed = results.iter().filter(|r| r.passed()).count();
     let key = platform_key();
     let mut s = format!("{PLATFORM_MARKER}{key} -->\n");
-    s.push_str(&format!("## {key} — {}\n\n", utc_now()));
+    s.push_str(&format!("## {key}: {}\n\n", utc_now()));
     s.push_str(&format!(
         "**{passed}/{total}** runs passed.\n\n",
         total = results.len()
@@ -1583,7 +1583,7 @@ pub fn section(results: &[CaseResult], workload: &Workload) -> String {
     s.push_str(&format!(
         "Workload per run: {bulk} each way on one bulk stream, {streams} concurrent streams of \
          {sb} each way, and a half-close probe that asks for {rb} after `shutdown(SHUT_WR)` \
-         (having waited {delay:?} first, so the answer and the peer's FIN are both buffered) — \
+         (having waited {delay:?} first, so the answer and the peer's FIN are both buffered): \
          all SHA-256 verified, with both processes' logs scanned afterwards. The harness adds \
          `-closewait 0` to the server so teardown is not delayed by 30 s per direction; nothing \
          else is added to a case's flags.\n\n",
@@ -1928,7 +1928,7 @@ mod tests {
     fn a_section_is_tagged_with_its_platform() {
         let s = section(&sample_results(), &SMOKE);
         assert!(s.starts_with(&format!("{PLATFORM_MARKER}{} -->\n", platform_key())));
-        assert!(s.contains(&format!("## {} — ", platform_key())));
+        assert!(s.contains(&format!("## {}: ", platform_key())));
         assert!(s.contains("**4/4** runs passed."));
         assert!(s.contains("### Results"), "{s}");
         assert!(s.contains("No failures."));
@@ -1939,7 +1939,7 @@ mod tests {
     #[test]
     fn merging_keeps_the_other_platforms_sections() {
         let other = format!(
-            "{PLATFORM_MARKER}sunos/sparc64 -->\n## sunos/sparc64 — long ago\n\nnothing to see\n"
+            "{PLATFORM_MARKER}sunos/sparc64 -->\n## sunos/sparc64: long ago\n\nnothing to see\n"
         );
         let mine = section(&sample_results(), &SMOKE);
 
@@ -1975,20 +1975,20 @@ mod tests {
         assert_eq!(again.matches("### Results").count(), 1);
         // The preamble is regenerated, so the committed case list can never go stale.
         assert!(again.contains("| `pair/16` | pairwise |"));
-        // `report` is `merge` over a freshly rendered `section`, so it is the same document —
-        // except for the `## <platform> — <time>` header, whose second-resolution clock may have
+        // `report` is `merge` over a freshly rendered `section`, so it is the same document,
+        // except for the `## <platform>: <time>` header, whose second-resolution clock may have
         // ticked since `mine` was built. That one line is normalised away rather than compared.
         let fresh = report(Some(&doc), &sample_results(), &SMOKE);
         assert_eq!(without_section_times(&fresh), without_section_times(&again));
     }
 
-    /// Replaces every `## <platform> — <time>` header with a fixed line, so two renderings taken
+    /// Replaces every `## <platform>: <time>` header with a fixed line, so two renderings taken
     /// at different instants can be compared.
     fn without_section_times(doc: &str) -> String {
         doc.lines()
             .map(|line| {
-                if line.starts_with("## ") && line.contains(" — ") {
-                    "## <platform> — <time>"
+                if line.starts_with("## ") && line.contains(": ") {
+                    "## <platform>: <time>"
                 } else {
                     line
                 }
@@ -2011,7 +2011,7 @@ mod tests {
         let t = timing_table(&[]);
         assert_eq!(t.lines().count(), PAIRINGS.len() + 2);
         for p in PAIRINGS {
-            assert!(t.contains(&format!("| {p} | 0 | 0 s | — |")), "{t}");
+            assert!(t.contains(&format!("| {p} | 0 | 0 s | - |")), "{t}");
         }
     }
 

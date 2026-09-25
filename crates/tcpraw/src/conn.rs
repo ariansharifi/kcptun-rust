@@ -26,7 +26,7 @@
 //! 2. A **real** TCP listener accepts the peers' connections. Every accepted connection gets
 //!    TTL 1 and is recorded as its flow's `conn`, which is what makes that flow deliverable;
 //!    a discard task drains it.
-//! 3. One `filter/OUTPUT` rule per protocol — matching TTL 1 and the listening source port —
+//! 3. One `filter/OUTPUT` rule per protocol: matching TTL 1 and the listening source port,
 //!    keeps the kernel's own segments for *any* peer on the host.
 //!
 //! Go reference: `tcpraw@v1.2.32 tcp_linux.go`, `clear.go`.
@@ -58,7 +58,7 @@ const CAPTURE_BUF_SIZE: usize = 2048;
 /// Go's `chMessage` is **unbuffered**: the capture loop blocks until `ReadFrom` takes the packet.
 /// A tokio channel cannot have capacity 0, so this is the smallest bound that exists, which lets
 /// exactly one packet sit in the channel where Go's sender would still be waiting. Nothing
-/// observes the difference — the order is unchanged and no packet is dropped — and it keeps the
+/// observes the difference (the order is unchanged and no packet is dropped) and it keeps the
 /// same backpressure on the capture loop. Raising it is a throughput question for Step 12, not a
 /// correctness one.
 const MESSAGE_BACKLOG: usize = 1;
@@ -84,7 +84,7 @@ struct Message {
 /// The flow table and the fingerprint, under one lock.
 ///
 /// Go keeps `tcpFingerPrint` on the connection rather than here, but only ever reads or rewrites
-/// it inside a `lockflow` closure — i.e. under `flowsLock` — so this is the same object with the
+/// it inside a `lockflow` closure (i.e. under `flowsLock`) so this is the same object with the
 /// lock it already had.
 // Go: tcpraw@v1.2.32 tcp_linux.go:tcpConn.flowTable + .tcpFingerPrint
 struct Flows {
@@ -130,7 +130,7 @@ pub struct TcpConnInner {
     /// The reader's end. Only one task reads at a time, which is what the async mutex enforces.
     rx: tokio::sync::Mutex<mpsc::Receiver<Message>>,
     flows: Mutex<Flows>,
-    /// Filled in after the connection is up, hence the lock — by the blocking task that installs
+    /// Filled in after the connection is up, hence the lock, by the blocking task that installs
     /// them ([`TcpConnInner::store_rules`]), which may well outlive the `dial` that asked for it.
     rules: Mutex<Vec<InstalledRule>>,
     local_addr: SocketAddr,
@@ -173,7 +173,7 @@ impl TcpConn {
     /// Sets the DSCP code point (IPv4 TOS, IPv6 traffic class) of every raw socket this
     /// connection sends through, stopping at the first failure as Go does.
     ///
-    /// A connection with no handles — one that has been closed — succeeds without doing
+    /// A connection with no handles (one that has been closed) succeeds without doing
     /// anything, which is Go's empty `for k := range conn.handles`.
     // Go: tcpraw@v1.2.32 tcp_linux.go:(*tcpConn).SetDSCP()
     pub fn set_dscp(&self, dscp: i32) -> io::Result<()> {
@@ -205,7 +205,7 @@ impl TcpConn {
     /// rules this connection added and stops every task. Calling it twice is harmless.
     ///
     /// It **blocks** while `iptables`/`ip6tables` run, as Go's `Close` does, so that the rules
-    /// are gone by the time it returns — which is what makes it usable from `Drop` and from the
+    /// are gone by the time it returns, which is what makes it usable from `Drop` and from the
     /// process-exit path. A caller that is already on the tokio runtime should use
     /// [`close_async`](Self::close_async) instead, which runs those subprocesses on a blocking
     /// thread. Go returns the error of closing the real socket here; there is none to return,
@@ -256,7 +256,7 @@ impl TcpConnInner {
             () = self.die.cancelled() => Err(eof()),
             msg = rx.recv() => match msg {
                 Some(msg) => {
-                    // Go: `n = copy(p, packet.bts)` — a datagram longer than `p` is truncated.
+                    // Go: `n = copy(p, packet.bts)`, a datagram longer than `p` is truncated.
                     let n = p.len().min(msg.bts.len());
                     p[..n].copy_from_slice(&msg.bts[..n]);
                     Ok((n, msg.addr))
@@ -276,7 +276,7 @@ impl TcpConnInner {
 
         // Everything up to the send happens under the flow lock, as in Go; only the send itself
         // is outside it, because a task must not hold a mutex across an await (porting guide §6).
-        // Two concurrent writes to the *same* peer can therefore leave in the other order — which
+        // Two concurrent writes to the *same* peer can therefore leave in the other order, which
         // nothing observes, since the receiver takes each segment's payload as it arrives and
         // never reassembles by sequence number.
         let built = {
@@ -359,7 +359,7 @@ impl TcpConnInner {
         } else if let Some(listener) = lock(&self.listener).take() {
             // Go: `err = conn.listener.Close()`, then every accepted connection in the flow
             // table is given TTL 64, closed and removed. Dropping this reference leaves the
-            // accept loop holding the last one, and it stops on `die` — the same few
+            // accept loop holding the last one, and it stops on `die`: the same few
             // microseconds' delay as the raw handles below, and just as unobservable.
             drop(listener);
 
@@ -381,7 +381,7 @@ impl TcpConnInner {
         // Go: `for k := range conn.handles { conn.handles[k].Close() }`. Letting go of the
         // connection's own references leaves the capture loops holding the last one each, and
         // those stop on `die`, so every descriptor is closed as soon as its loop has been
-        // scheduled once more — a few microseconds later than Go's explicit `Close`, and never
+        // scheduled once more: a few microseconds later than Go's explicit `Close`, and never
         // observable on the wire.
         lock(&self.handles).clear();
 
@@ -400,7 +400,7 @@ impl TcpConnInner {
         }
     }
 
-    /// Records the rules the dial path installed — or, when the connection was closed while they
+    /// Records the rules the dial path installed, or, when the connection was closed while they
     /// were being installed, removes them again on the spot.
     ///
     /// The window is real: `dial` hands the installation to a blocking task, and that task runs
@@ -442,7 +442,7 @@ fn eof() -> io::Error {
 ///
 /// Needs `CAP_NET_RAW` for the raw socket. The iptables rules are best effort, exactly as in Go:
 /// if `iptables` is missing or refuses the rule, the connection still works, because the TTL of 1
-/// already keeps the kernel's segments from leaving the host — but the first hop will answer ICMP
+/// already keeps the kernel's segments from leaving the host, but the first hop will answer ICMP
 /// Time Exceeded.
 ///
 /// # Ordering
@@ -450,7 +450,7 @@ fn eof() -> io::Error {
 /// The steps below are Go's, in Go's order, with one exception: the connection joins the global
 /// list before the iptables rules are installed rather than after. Go's `Dial` cannot be
 /// cancelled, a Rust future can be dropped at any `.await`, and from the moment the tasks are
-/// spawned there is state that only `close` undoes — so the connection is registered and guarded
+/// spawned there is state that only `close` undoes, so the connection is registered and guarded
 /// first (see [`CloseOnCancel`]). Nothing observes the difference: the list is only read by
 /// [`iptables_reset`], for which a half-built connection is a connection to close like any other.
 ///
@@ -481,8 +481,8 @@ pub async fn dial(network: &str, address: &str) -> io::Result<TcpConn> {
     // The real connection, whose 5-tuple every crafted segment pretends to belong to.
     //
     // Go: `net.DialTCP(network, nil, raddr)`, whose failure is an
-    // `&net.OpError{Op: "dial", Net: network, Addr: raddr, Err: os.NewSyscallError("connect", …)}`
-    // — `dial tcp 203.0.113.1:29900: connect: connection refused`. `raddr` is already unmapped,
+    // `&net.OpError{Op: "dial", Net: network, Addr: raddr, Err: os.NewSyscallError("connect", …)}`,
+    // `dial tcp 203.0.113.1:29900: connect: connection refused`. `raddr` is already unmapped,
     // so its `Display` is Go's `TCPAddr.String()` (`net.JoinHostPort(ip.String(), port)`).
     let tcpconn = tokio::net::TcpStream::connect(raddr).await.map_err(|err| {
         io::Error::new(
@@ -500,7 +500,7 @@ pub async fn dial(network: &str, address: &str) -> io::Result<TcpConn> {
     // splits the string because that is where it has the address; `net.IP.String()` has already
     // printed an IPv4-mapped address as a dotted quad by then. Rust's `Display` prints
     // `[::ffff:10.0.0.1]:54321`, which `iptables` rejects, so the two operands are taken from the
-    // `SocketAddr` itself — `ip_string` being exactly `net.IP.String()`.
+    // `SocketAddr` itself: `ip_string` being exactly `net.IP.String()`.
     let laddr = addr::ip_string(local_addr.ip());
     let lport = local_addr.port().to_string();
 
@@ -524,7 +524,7 @@ pub async fn dial(network: &str, address: &str) -> io::Result<TcpConn> {
         rx: tokio::sync::Mutex::new(rx),
         flows: Mutex::new(Flows {
             table,
-            // Go: `fingerPrintLinux.Clone()` — one per connection, shared by its flows.
+            // Go: `fingerPrintLinux.Clone()`, one per connection, shared by its flows.
             fingerprint: FingerPrint::linux(),
         }),
         rules: Mutex::new(Vec::new()),
@@ -535,7 +535,7 @@ pub async fn dial(network: &str, address: &str) -> io::Result<TcpConn> {
     tokio::spawn(capture_flow(inner.clone(), 0, local_addr.port()));
     tokio::spawn(cleaner(inner.clone()));
 
-    // Go: `conn.elem = connList.PushBack(conn)`, which Go does at the very end — see "Ordering".
+    // Go: `conn.elem = connList.PushBack(conn)`, which Go does at the very end, see "Ordering".
     push_conn(inner.clone());
     let guard = CloseOnCancel(Some(inner.clone()));
 
@@ -550,7 +550,7 @@ pub async fn dial(network: &str, address: &str) -> io::Result<TcpConn> {
     //
     // The blocking task records what it installed itself, rather than handing it back to this
     // future: a `spawn_blocking` task cannot be cancelled, so if `dial` is dropped at this await
-    // the rules are still appended — and they have to be remembered (or removed again) whatever
+    // the rules are still appended, and they have to be remembered (or removed again) whatever
     // becomes of this future. `store_rules` does the one or the other.
     let rip = addr::ip_string(raddr.ip());
     let rport = raddr.port();
@@ -561,7 +561,7 @@ pub async fn dial(network: &str, address: &str) -> io::Result<TcpConn> {
     })
     .await;
 
-    // Go: `go io.Copy(ioutil.Discard, tcpconn)` — the peer's real TCP stack keeps talking.
+    // Go: `go io.Copy(ioutil.Discard, tcpconn)`, the peer's real TCP stack keeps talking.
     tokio::spawn(discard(real, inner.die.clone()));
 
     // The connection is complete: closing it is `TcpConn`'s job from here.
@@ -573,7 +573,7 @@ pub async fn dial(network: &str, address: &str) -> io::Result<TcpConn> {
 ///
 /// Go's `Dial` runs to completion once it is called; a Rust future can be dropped at any `.await`,
 /// and a `dial` inside a `tokio::select!` or a `tokio::time::timeout` would otherwise leave the
-/// tasks, the raw socket, the real TCP connection and — worst — the `filter/OUTPUT` rules behind,
+/// tasks, the raw socket, the real TCP connection and (worst) the `filter/OUTPUT` rules behind,
 /// with no `TcpConn` whose `Drop` could clean them up.
 struct CloseOnCancel(Option<Arc<TcpConnInner>>);
 
@@ -601,7 +601,7 @@ impl Drop for CloseOnCancel {
 fn setup_dial_rules(laddr: &str, lport: &str, rip: &str, rport: u16) -> Vec<InstalledRule> {
     let mut installed = Vec::new();
     for proto in [Protocol::IPv4, Protocol::IPv6] {
-        // Go: `if ipt, err := iptables.NewWithProtocol(…); err == nil` — no binary, no rule.
+        // Go: `if ipt, err := iptables.NewWithProtocol(…); err == nil`, no binary, no rule.
         let Ok(ipt) = IpTables::new_with_protocol(proto) else {
             continue;
         };
@@ -638,7 +638,7 @@ fn setup_dial_rules(laddr: &str, lport: &str, rip: &str, rport: u16) -> Vec<Inst
 ///   Nothing can arrive for the port in that window but traffic addressed to a port nobody is
 ///   listening on, and the kernel queues it on the raw socket until the loop starts anyway;
 /// - the connection joins the global list before the iptables rules are installed rather than
-///   after, so that a `listen` future dropped at an `.await` still cleans up — see `dial`'s
+///   after, so that a `listen` future dropped at an `.await` still cleans up, see `dial`'s
 ///   "Ordering" and [`CloseOnCancel`].
 // Go: tcpraw@v1.2.32 tcp_linux.go:Listen()
 pub async fn listen(network: &str, address: &str) -> io::Result<TcpConn> {
@@ -658,12 +658,12 @@ pub async fn listen(network: &str, address: &str) -> io::Result<TcpConn> {
         Err(err) => return Err(io::Error::other(err)),
     };
 
-    // Go: `ifaces, err := net.Interfaces()` — asked for before it is known whether the address
+    // Go: `ifaces, err := net.Interfaces()`, asked for before it is known whether the address
     // even needs them, and a failure there fails the listen.
     let ifaces = iface::interface_addrs()?;
 
     // Go: "if address is not specified, capture on all ifaces". Go's `laddr.IP` is nil for an
-    // address without a host, which `resolve_tcp_addr` reports as `0.0.0.0` — unspecified either
+    // address without a host, which `resolve_tcp_addr` reports as `0.0.0.0`: unspecified either
     // way.
     let handles = if laddr.ip().is_unspecified() {
         let mut handles = Vec::new();
@@ -675,7 +675,7 @@ pub async fn listen(network: &str, address: &str) -> io::Result<TcpConn> {
             }
         }
         if handles.is_empty() {
-            // Go returns `nil, lasterr` — and `lasterr` is nil when the host listed no address at
+            // Go returns `nil, lasterr`, and `lasterr` is nil when the host listed no address at
             // all, which hands the caller a nil connection with a nil error to dereference. An
             // `io::Result` has to name the failure, so this one does.
             return Err(lasterr.unwrap_or_else(|| {
@@ -690,10 +690,10 @@ pub async fn listen(network: &str, address: &str) -> io::Result<TcpConn> {
         vec![Arc::new(RawHandle::listen(laddr.ip())?)]
     };
 
-    // Go: `l, err := net.ListenTCP(network, laddr)`, which closes the handles on failure — here
+    // Go: `l, err := net.ListenTCP(network, laddr)`, which closes the handles on failure, here
     // they are simply dropped with `handles`. Its `*net.OpError` is the error a privileged
     // `--tcp` server actually sees (`listen tcp :29900: bind: address already in use`), so it is
-    // spelled Go's way — see `addr::listen_op_error`.
+    // spelled Go's way, see `addr::listen_op_error`.
     let listener = addr::listen_tcp(&network, laddr)
         .map_err(|err| addr::listen_op_error(&network, &address, laddr, err))?;
     let listener = Arc::new(tokio::net::TcpListener::from_std(listener)?);
@@ -715,7 +715,7 @@ pub async fn listen(network: &str, address: &str) -> io::Result<TcpConn> {
         rx: tokio::sync::Mutex::new(rx),
         flows: Mutex::new(Flows {
             table: HashMap::new(),
-            // Go: `fingerPrintLinux.Clone()` — one per connection, shared by its flows.
+            // Go: `fingerPrintLinux.Clone()`, one per connection, shared by its flows.
             fingerprint: FingerPrint::linux(),
         }),
         rules: Mutex::new(Vec::new()),
@@ -728,7 +728,7 @@ pub async fn listen(network: &str, address: &str) -> io::Result<TcpConn> {
     }
     tokio::spawn(cleaner(inner.clone()));
 
-    // Go: `conn.elem = connList.PushBack(conn)`, which Go does at the very end — see "Ordering".
+    // Go: `conn.elem = connList.PushBack(conn)`, which Go does at the very end, see "Ordering".
     push_conn(inner.clone());
     let guard = CloseOnCancel(Some(inner.clone()));
 
@@ -761,7 +761,7 @@ pub async fn listen(network: &str, address: &str) -> io::Result<TcpConn> {
 fn setup_listen_rules(lport: u16) -> Vec<InstalledRule> {
     let mut installed = Vec::new();
     for proto in [Protocol::IPv4, Protocol::IPv6] {
-        // Go: `if ipt, err := iptables.NewWithProtocol(…); err == nil` — no binary, no rule.
+        // Go: `if ipt, err := iptables.NewWithProtocol(…); err == nil`, no binary, no rule.
         let Ok(ipt) = IpTables::new_with_protocol(proto) else {
             continue;
         };
@@ -778,20 +778,20 @@ fn setup_listen_rules(lport: u16) -> Vec<InstalledRule> {
 }
 
 /// Accepts the peers' real TCP connections, pins each one's TTL to 1, records it as its flow's
-/// connection — which is what lifts the flow out of orphan state and makes its packets
-/// deliverable — and drains it.
+/// connection, which is what lifts the flow out of orphan state and makes its packets
+/// deliverable, and drains it.
 // Go: tcpraw@v1.2.32 tcp_linux.go:Listen() (the accept goroutine)
 async fn accept_loop(conn: Arc<TcpConnInner>, listener: Arc<tokio::net::TcpListener>) {
     loop {
         // The peer address comes from `accept(2)` itself, as Go's `tcpconn.RemoteAddr()` does:
         // it is the address the kernel handed back with the socket, so it is always available
-        // and costs no extra syscall — unlike `getpeername(2)`, which answers `ENOTCONN` once
+        // and costs no extra syscall, unlike `getpeername(2)`, which answers `ENOTCONN` once
         // the peer has already reset the connection.
         let (stream, peer) = tokio::select! {
             () = conn.die.cancelled() => return,
             result = listener.accept() => match result {
                 Ok(accepted) => accepted,
-                // Go: `if err != nil { return }` — the listener is closed, so is this loop.
+                // Go: `if err != nil { return }`, the listener is closed, so is this loop.
                 Err(_) => return,
             },
         };
@@ -799,11 +799,11 @@ async fn accept_loop(conn: Arc<TcpConnInner>, listener: Arc<tokio::net::TcpListe
         let real = Arc::new(RealConn::new(stream));
         // Go: "if we cannot set TTL = 1, the only thing reasonable is panic". A panic in a spawned
         // task would only end the task here, and letting the peer's kernel talk on a connection
-        // whose segments leave the host is exactly what tcpraw exists to prevent — so the process
+        // whose segments leave the host is exactly what tcpraw exists to prevent, so the process
         // goes down, which is what Go's panic does under DECISIONS D24 (`panic = "abort"`).
         //
         // `abort(2)` runs neither the panic hook nor the exit hooks, so the rules are removed
-        // here, by hand, before the process goes — the one thing this path must not leave behind
+        // here, by hand, before the process goes: the one thing this path must not leave behind
         // (Go leaves them: its `panic` reaches no `postProcess` either). `iptables_reset` closes
         // every connection of the process, this one included, and holds no lock this loop holds.
         if let Err(err) = real.set_ttl(1) {
@@ -846,7 +846,7 @@ async fn capture_flow(conn: Arc<TcpConnInner>, index: usize, port: u16) {
             () = conn.die.cancelled() => return,
             result = handle.recv_from(&mut buf) => match result {
                 Ok(read) => read,
-                // Go: `if err != nil { return }` — the handle is gone, so is this loop.
+                // Go: `if err != nil { return }`, the handle is gone, so is this loop.
                 Err(_) => return,
             },
         };
@@ -872,7 +872,7 @@ async fn capture_flow(conn: Arc<TcpConnInner>, index: usize, port: u16) {
             continue;
         }
 
-        // Go: "address building" — the source IP of the packet with the segment's source port.
+        // Go: "address building", the source IP of the packet with the segment's source port.
         let src = addr::canonical(SocketAddr::new(from, segment.header.src_port));
 
         let orphan = {
@@ -971,7 +971,7 @@ fn remove_from_conn_list(id: u64) {
 /// Closes every tcpraw connection of this process, which is what removes their iptables rules.
 ///
 /// kcptun calls this from its signal handler and on the normal exit paths; a `SIGKILL` cannot be
-/// caught, and then the rules survive — exactly as with Go, whose documentation points at a
+/// caught, and then the rules survive, exactly as with Go, whose documentation points at a
 /// manual cleanup script for that case.
 ///
 /// Go closes the connections concurrently, one goroutine each, and waits for all of them. This
@@ -979,8 +979,8 @@ fn remove_from_conn_list(id: u64) {
 /// time is the same order and the sequence of rules removed is identical.
 ///
 /// **Blocking**: it runs `iptables`/`ip6tables` as subprocesses, each waiting for the xtables
-/// lock without a timeout. This is the call the signal path uses — it has no [`TcpConn`] to
-/// reach [`TcpConn::close_async`] through — and it is registered as an exit hook by
+/// lock without a timeout. This is the call the signal path uses: it has no [`TcpConn`] to
+/// reach [`TcpConn::close_async`] through, and it is registered as an exit hook by
 /// `kcptun_std::signal::register_iptables_reset`, which deliberately lets it block the
 /// signal-handling task: Go's `postProcess()` blocks the signal goroutine in exactly the same
 /// way, and the 5 s fallback `exit(0)` task is already armed before the hooks run. A caller
@@ -1046,7 +1046,7 @@ mod tests {
     /// test takes it with `blocking_lock`, which is allowed outside a runtime.
     static PRIVILEGED: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-    /// Nothing registered, nothing to close — and the global list stays usable.
+    /// Nothing registered, nothing to close, and the global list stays usable.
     #[test]
     fn iptables_reset_without_connections_is_a_noop() {
         let _guard = PRIVILEGED.blocking_lock();
@@ -1208,7 +1208,7 @@ mod tests {
             1
         );
 
-        // Go: `go io.Copy(ioutil.Discard, tcpconn)` — more than any socket buffer holds, so this
+        // Go: `go io.Copy(ioutil.Discard, tcpconn)`, more than any socket buffer holds, so this
         // only completes because the discard task keeps reading.
         let payload = vec![0x5a; 1 << 20];
         tokio::time::timeout(
@@ -1222,7 +1222,7 @@ mod tests {
         conn.close().expect("close");
     }
 
-    /// An IPv4 peer of a **dual-stack** listener — what `-l :29900 --tcp` accepts — is keyed by
+    /// An IPv4 peer of a **dual-stack** listener (what `-l :29900 --tcp` accepts) is keyed by
     /// its plain IPv4 address, and `setTTL` takes Go's IPv4 branch for it: `IP_TTL` on an
     /// `AF_INET6` socket, which Linux forwards to the IPv4 option handler.
     ///
@@ -1259,7 +1259,7 @@ mod tests {
 
     /// Closing a listening connection closes the listener and every accepted connection, with the
     /// TTL restored first so the FIN survives the (absent, here) iptables rule, and empties the
-    /// flow table — Go's `Close()` for the `conn.listener != nil` case.
+    /// flow table: Go's `Close()` for the `conn.listener != nil` case.
     #[tokio::test]
     async fn closing_a_listening_connection_closes_the_listener_and_its_flows() {
         use tokio::io::AsyncReadExt as _;
@@ -1389,7 +1389,7 @@ mod tests {
     ///
     /// The DSCP branch is where **Deviation V03** lives: `46 << 2 = 184` goes into `IP_TOS` on an
     /// `AF_INET` handle and into `IPV6_TCLASS` on an `AF_INET6` one, where Go writes the unshifted
-    /// 46 — so both arms have to be executed by a caller, not just the IPv4 one.
+    /// 46, so both arms have to be executed by a caller, not just the IPv4 one.
     fn assert_settings_reached(handles: &[Arc<RawHandle>], before: &[(usize, usize)]) {
         for (handle, (rcv_before, snd_before)) in handles.iter().zip(before) {
             let socket = handle.socket();
@@ -1425,15 +1425,15 @@ mod tests {
     /// `the_setters_of_a_handleless_connection_succeed` exercises.
     ///
     /// Go only checks that none of them returns an error, which a setter that silently applied to
-    /// nothing would also pass. This reads every option back off every handle — the buffer sizes
+    /// nothing would also pass. This reads every option back off every handle: the buffer sizes
     /// against the values the same handle had a moment earlier, so a setter that reached nothing
     /// fails here.
     ///
     /// It runs the setters against **both** shapes a `TcpConn` comes in, because only the second
     /// has more than one handle and only the second has an `AF_INET6` one:
     ///  * a `dial`, whose single handle is the IPv4 socket of the dialled flow, and
-    ///  * a wildcard `listen`, which opens one handle per interface address — loopback, IPv6
-    ///    included — so the `IPV6_TCLASS` arm of `RawHandle::set_dscp` is executed and
+    ///  * a wildcard `listen`, which opens one handle per interface address: loopback, IPv6
+    ///    included, so the `IPV6_TCLASS` arm of `RawHandle::set_dscp` is executed and
     ///    **Deviation V03** (the code point written shifted, `46 << 2 = 184`, where Go writes the
     ///    unshifted 46) is pinned on a live socket rather than only asserted in the IPv4 arm.
     ///
@@ -1475,7 +1475,7 @@ mod tests {
         assert!(lock(&CONN_LIST).is_empty());
 
         // The same three setters against a wildcard `listen`, which is the only configuration
-        // with more than one handle and the only one with an `AF_INET6` handle — so this, and
+        // with more than one handle and the only one with an `AF_INET6` handle, so this, and
         // not the dial above, is what executes the IPv6 arm of `RawHandle::set_dscp`.
         let conn = listen("tcp", &format!(":{LISTEN_PORT}"))
             .await
@@ -1488,7 +1488,7 @@ mod tests {
         );
         assert!(
             handles.iter().any(|handle| !handle.is_v4()),
-            "no AF_INET6 handle, so the IPV6_TCLASS branch this test exists for never ran — \
+            "no AF_INET6 handle, so the IPV6_TCLASS branch this test exists for never ran: \
              the namespace needs an IPv6 address (`lo` up gives it `::1`)"
         );
         let before = buffer_sizes(&handles);
@@ -1512,7 +1512,7 @@ mod tests {
         String::from_utf8_lossy(&out.stdout).into_owned()
     }
 
-    /// A `dial` future dropped before it returns leaves nothing behind — no `filter/OUTPUT` rule,
+    /// A `dial` future dropped before it returns leaves nothing behind, no `filter/OUTPUT` rule,
     /// no entry in the global list.
     ///
     /// `tokio::time::timeout` around `dial` is what a client startup naturally writes,
@@ -1586,12 +1586,12 @@ mod tests {
         0
     }
 
-    /// Both directions of the data path, against an ordinary kernel TCP peer — the Rust
+    /// Both directions of the data path, against an ordinary kernel TCP peer: the Rust
     /// counterpart of Go's `TestDialTCPStream`.
     ///
     /// This is what "fake TCP" means: the segment `send_to` crafts continues the real
     /// connection's sequence space, so the peer's own stack accepts it as data and hands it to
-    /// the application — and the data the peer's stack sends back is picked up from the raw
+    /// the application, and the data the peer's stack sends back is picked up from the raw
     /// socket and delivered by `recv_from`.
     ///
     /// Needs `CAP_NET_RAW` only; the iptables rules are not what makes this work (the peer's
@@ -1606,13 +1606,13 @@ mod tests {
     /// tcpraw `cbf9635`) places a uniformly random 0–30 days in the past, while the *kernel's*
     /// handshake on the same 5-tuple used its own clock. When our random offset lands below the
     /// host's uptime, the peer's RFC 7323 PAWS check reads the crafted segment as ancient and
-    /// discards it — measured on a host up for 21 days: 3 of 6 runs, with `TcpExtPAWSEstab`
+    /// discards it: measured on a host up for 21 days: 3 of 6 runs, with `TcpExtPAWSEstab`
     /// rising each time, and 6 of 6 passing with timestamps off.
     ///
     /// **This does not affect kcptun.** A tcpraw peer reads its datagrams from its *raw* socket,
     /// which the kernel fills before TCP ever looks at the segment, so PAWS cannot touch that
     /// path; only a plain kernel TCP peer, which nothing but this test and Go's own
-    /// `TestDialTCPStream` uses, is affected — and upstream Go is affected identically.
+    /// `TestDialTCPStream` uses, is affected, and upstream Go is affected identically.
     #[tokio::test]
     #[ignore = "needs CAP_NET_RAW (and tcp_timestamps=0, see PAWS); run in Step 10.5 (netns lab)"]
     async fn test_dial_tcp_stream() {
@@ -1643,7 +1643,7 @@ mod tests {
                 assert_eq!(
                     dropped, 0,
                     "the peer's kernel discarded {dropped} segment(s) on the PAWS check; \
-                     see this test's docs — run it with net.ipv4.tcp_timestamps=0"
+                     see this test's docs: run it with net.ipv4.tcp_timestamps=0"
                 );
                 panic!("the peer never received the crafted segment");
             }
@@ -1683,7 +1683,7 @@ mod tests {
             .await
             .expect("listen");
 
-        // Go: `net.ListenTCP("tcp", &TCPAddr{IP: nil, Port: …})` — the dual-stack wildcard.
+        // Go: `net.ListenTCP("tcp", &TCPAddr{IP: nil, Port: …})`, the dual-stack wildcard.
         let local = conn.local_addr();
         assert!(matches!(local, SocketAddr::V6(_)), "{local}");
         assert_eq!(local.port(), LISTEN_PORT);
@@ -1756,8 +1756,8 @@ mod tests {
     /// The Rust counterpart of Go's `TestDialToTCPPacket`: a dialled tcpraw connection and a
     /// listening one, talking to each other over crafted segments only.
     ///
-    /// This is the whole of Step 10.3 end to end — per-interface capture, the accept loop that
-    /// makes the server's flow deliverable, and `sendto` on a bound raw socket — and the shape
+    /// This is the whole of Step 10.3 end to end, per-interface capture, the accept loop that
+    /// makes the server's flow deliverable, and `sendto` on a bound raw socket, and the shape
     /// the client and server binaries use, now that Step 10.4 has wired them up.
     ///
     /// Needs `CAP_NET_RAW` and `CAP_NET_ADMIN` (the listener's rule must be in place, or the

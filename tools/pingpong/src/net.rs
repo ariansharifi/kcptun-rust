@@ -182,15 +182,15 @@ where
 
 /// Serves one connection until the peer closes it or something goes wrong.
 ///
-/// `payload` is the shared buffer a `DN` transfer is written from — shared, because the churn
+/// `payload` is the shared buffer a `DN` transfer is written from: shared, because the churn
 /// workload has hundreds of connections open at once and a per-connection copy of it cost the
 /// target 125 MB of RSS in the first lab run of this code. Only `scratch_len` bytes are
 /// allocated per connection, for the bytes that arrive.
 ///
 /// `idle` bounds how long the connection may sit **between** requests, never how long a
 /// transfer may take, so a long-lived stream that echoes once every five seconds is safe while
-/// a peer that vanished without a FIN — a real possibility when the tunnel under test is being
-/// restarted or blackholed — cannot hold a file descriptor for the rest of a six-hour run.
+/// a peer that vanished without a FIN: a real possibility when the tunnel under test is being
+/// restarted or blackholed: cannot hold a file descriptor for the rest of a six-hour run.
 pub async fn serve_connection<R, W>(
     reader: &mut R,
     writer: &mut W,
@@ -236,7 +236,7 @@ where
 
 /// Performs one request from the client side.
 ///
-/// When `verify` is set, an `ECHO` reply is compared byte for byte with what was sent — the
+/// When `verify` is set, an `ECHO` reply is compared byte for byte with what was sent: the
 /// tunnel is supposed to be lossless, and a soak that silently corrupted a stream would
 /// otherwise look healthy.
 pub async fn request<R, W>(

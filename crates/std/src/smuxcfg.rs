@@ -145,7 +145,7 @@ pub fn build_smux_config(
 
 /// The configuration `smux.Server`/`smux.Client` is handed, which in Go *is* the value
 /// `BuildSmuxConfig` returns.
-// Go: kcptun/std/smuxcfg.go:BuildSmuxConfig — the *smux.Config it returns
+// Go: kcptun/std/smuxcfg.go:BuildSmuxConfig, the *smux.Config it returns
 impl From<SmuxConfig> for kcptun_smux::Config {
     fn from(cfg: SmuxConfig) -> kcptun_smux::Config {
         kcptun_smux::Config {

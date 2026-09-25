@@ -20,7 +20,7 @@ unix time, and every case runs against **both implementations** so each answer i
 * one where it does not is a finding for docs/DECISIONS.md.
 
 Why a second file rather than another `lab.py` scenario type: a scenario there is a workload
-schedule and nothing more — nothing in it can stop the server halfway and start it again, and
+schedule and nothing more: nothing in it can stop the server halfway and start it again, and
 adding a fault timeline to `Scenario` would put "kill this" in the same object the soak and the
 WAN matrix are described with. The two share everything that touches the host (the guarded
 `lab-*.sh` helpers, the build stamps, the preflight, the netns lab) and differ only in what they
@@ -67,7 +67,7 @@ PINGPONG_PORT = 22640          # the echo target, inside kr-srv on 127.0.0.1
 REFUSED_PORT = 22641           # nothing ever listens here: connect() gets an RST
 #: An address the server namespace has a route to but nothing answers at: the next hop is the
 #: *client* namespace, which does not forward, so a SYN is dropped rather than refused. That is
-#: the difference between the two target cases — a refused target fails in microseconds, an
+#: the difference between the two target cases, a refused target fails in microseconds, an
 #: unreachable one has to wait out Go's 10 s `dialTimeout` (reference/kcptun/server/main.go:488).
 SINK_ADDR = "198.51.100.7"
 SINK_PORT = 22642
@@ -90,7 +90,7 @@ REPORT_INTERVAL = 1
 #: How long the tunnel is given to come up before the workload starts.
 SETTLE = 4
 
-#: Whether the timeline is walked in real time. Always true in a real run — the offsets *are*
+#: Whether the timeline is walked in real time. Always true in a real run, the offsets *are*
 #: the case, and a fault injected early enough measures something else. `failure_test.py` sets
 #: it false so that driving a 160-second timeline against a fake host costs no wall clock; the
 #: shipped value is asserted there, so zeroing it for the suite cannot quietly become zeroing it
@@ -161,7 +161,7 @@ class Check:
 
 @dataclass(frozen=True)
 class LogCheck:
-    """A line both implementations must log — kcptun's messages are part of its behaviour.
+    """A line both implementations must log: kcptun's messages are part of its behaviour.
 
     `side` is `cli` or `srv`; `count` is the minimum number of matching lines. Matched
     case-sensitively against the collected process log, because these strings are ported
@@ -173,7 +173,7 @@ class LogCheck:
     text: str
     count: int = 1
     #: Invert it: the line must NOT appear. `count` is then ignored. A failure mode is defined
-    #: as much by the mechanism that does *not* fire as by the one that does — 11.5's own plan
+    #: as much by the mechanism that does *not* fire as by the one that does, 11.5's own plan
     #: bullet named the wrong one, and only an absence check can say so.
     absent: bool = False
     why: str = ""
@@ -198,7 +198,7 @@ class Case:
     ping_size: int = 64
     ping_interval_ms: int = 200
     #: `--tcp` (fake TCP, Step 10). Both ends need raw sockets and their own `filter/OUTPUT`
-    #: chain, so they are started with `lab-start.sh --root` — inside the lab namespaces, whose
+    #: chain, so they are started with `lab-start.sh --root`, inside the lab namespaces, whose
     #: rulesets are their own and disappear with them.
     tcp: bool = False
     #: Pairs this case can say anything about, as pair codes. Empty means all of them.
@@ -208,7 +208,7 @@ class Case:
     expect_log: tuple[LogCheck, ...] = ()
     #: Metrics this case publishes as extra table columns, beyond `SUMMARY_COLUMNS`, as
     #: `(metric, heading)`. A number a case is *about* belongs in its table even when it is
-    #: meaningless in every other one — the ports a port-range client dialled, say.
+    #: meaningless in every other one, the ports a port-range client dialled, say.
     extra_columns: tuple[tuple[str, str], ...] = ()
 
     def runs_pair(self, code: str) -> bool:
@@ -242,7 +242,7 @@ class Case:
 #: arriving clears the flag and lets the session live, so where the death falls inside that
 #: 30 s window decides the answer: immediately after a tick gives ~60 s, immediately before it
 #: gives ~30 s. 09.3 measured 64.89 s (the top of the band) and corrected the plan, which had
-#: said 30 s and had named the client's `re-connecting:` loop as the mechanism — it is not:
+#: said 30 s and had named the client's `re-connecting:` loop as the mechanism, it is not:
 #: that loop runs only when `createConn()` fails, and dialling UDP does not fail. Recovery then
 #: costs one more accepted connection, which finds `IsClosed()` and dials anew.
 #:
@@ -276,7 +276,7 @@ CASES: tuple[Case, ...] = (
                          "is dialled (client/main.go:473)"),
             LogCheck("cli", "re-connecting:", absent=True,
                      why="the plan's bullet named this and 09.3 corrected it: that loop runs "
-                         "only when `createConn()` fails, and dialling UDP does not fail — so "
+                         "only when `createConn()` fails, and dialling UDP does not fail, so "
                          "the line a restart is supposed to produce must not be there"),
         ),
     ),
@@ -343,7 +343,7 @@ CASES: tuple[Case, ...] = (
         client_flags={"autoexpire": 30, "scavengettl": 15},
         expect=(
             Check("reconnects", 1, None,
-                  why="the scavenger closes the expired session, which ends the stream on it — "
+                  why="the scavenger closes the expired session, which ends the stream on it: "
                       "kcptun rotates by closing, there is no stream migration"),
             Check("max_gap_s", 0, 15,
                   why="a rotation costs one reconnect, not an outage"),
@@ -357,7 +357,7 @@ CASES: tuple[Case, ...] = (
         ),
         expect_log=(
             LogCheck("cli", "scavenger: session closed due to ttl:", 1,
-                     why="reference/kcptun/client/main.go:587 — the TTL path, not the "
+                     why="reference/kcptun/client/main.go:587: the TTL path, not the "
                          "normally-closed one. THIS is what says a rotation happened"),
         ),
     ),
@@ -394,7 +394,7 @@ CASES: tuple[Case, ...] = (
         ),
         expect_log=(
             LogCheck("cli", "scavenger: session closed due to ttl:", 1,
-                     why="reference/kcptun/client/main.go:587 — the rotation this case hops "
+                     why="reference/kcptun/client/main.go:587: the rotation this case hops "
                          "across the range with"),
         ),
     ),
@@ -460,7 +460,7 @@ CASES: tuple[Case, ...] = (
         expect=(
             Check("requests", 0, 0, why="nothing can be echoed: there is no target"),
             Check("errors", 20, None,
-                  why="every attempt fails, and fails fast — an RST is not a timeout"),
+                  why="every attempt fails, and fails fast: an RST is not a timeout"),
             Check("median_error_interval_s", 0, 2,
                   why="a refused dial returns immediately; the 250 ms reconnect pause is the "
                       "only delay"),
@@ -504,7 +504,7 @@ class CaseRun:
         self.runid = f"f-{case.name}-{self.pair}-{stamp}"
         #: Every process this run has started, newest last. Restarting an end starts a *new*
         #: name rather than reusing the old one: `lab-start.sh` truncates `logs/<name>.log`, so
-        #: reusing it would throw away the log of everything before the fault — which is the
+        #: reusing it would throw away the log of everything before the fault, which is the
         #: half that says how the tunnel behaved while it was healthy.
         self.names: list[str] = []
         self.generation = {"srv": 0, "cli": 0}
@@ -530,7 +530,7 @@ class CaseRun:
         `-snmplog snmp-20060102.csv` rotates daily (reference/kcptun/std/snmp.go:56, and
         crates/std/src/snmp.rs faithfully). A digit in that name is therefore not a digit: on
         2026-09-25 a run asking for `snmp-srv1.csv` got `snmp-srv9.csv` (layout `1` = month) and
-        one asking for `snmp-srv2.csv` got `snmp-srv25.csv` (layout `2` = day) — two files whose
+        one asking for `snmp-srv2.csv` got `snmp-srv25.csv` (layout `2` = day): two files whose
         alphabetical order is the reverse of their generation order. Letters carry no layout
         meaning, so `a`, `b`, `c` survive the formatting unchanged.
         """
@@ -640,12 +640,12 @@ class CaseRun:
             raise LabError(f"case {self.case.name}: unknown action {event.action!r}")
 
     def stop_everything(self) -> None:
-        """Stops every process this run started, in any state — the Ctrl-C path too."""
+        """Stops every process this run started, in any state: the Ctrl-C path too."""
         self.runner.stop([*reversed(self.names), self.target_name])
         self.restore_environment()
 
     def restore_environment(self) -> None:
-        """Puts the namespaces back the way the next run — or the operator — expects them.
+        """Puts the namespaces back the way the next run (or the operator) expects them.
 
         Stopping the processes is not enough: a `blackhole` case interrupted inside its fault
         window would otherwise leave both namespaces at `loss 100%`, which is self-healing on
@@ -668,7 +668,7 @@ class CaseRun:
         server_stamp = provenance.require(runner, self.server_impl, "server")
         # `kr-labsample` is deliberately NOT required: no failure case starts a sampler, and
         # `lab.artefact_path` hashes it separately from `kr-pingpong` even though the two share
-        # one BUILD.txt — so requiring it would refuse a run over a binary the run never
+        # one BUILD.txt, so requiring it would refuse a run over a binary the run never
         # executes. `kr-pingpong` (the `target` stamp) is required, because it is both the echo
         # target and the workload, and every number here is arithmetic over its CSV.
         target_stamp = provenance.require(runner, "lab", "target")
@@ -702,11 +702,11 @@ class CaseRun:
                 "label": event.label,
             })
             print(f"    t+{event.at:>3}s  {event.label}"
-                  f"{'  — ' + event.note if event.note else ''}")
+                  f"{' : ' + event.note if event.note else ''}")
 
         # The ssh that waits must outlast the wait itself: `Runner.lab` defaults to a
         # two-minute ssh timeout, which is shorter than every recovery case here, and a timeout
-        # there raises rather than returning — it aborted a 16-run campaign at the first case.
+        # there raises rather than returning: it aborted a 16-run campaign at the first case.
         wait_seconds = case.duration + 90
         finished = runner.lab("wait", "--timeout", str(wait_seconds), self.workload_name,
                               check=False, timeout=wait_seconds + 120)
@@ -780,8 +780,8 @@ def samples(directory: Path) -> list[Sample]:
     """The workload CSV as a series of per-interval deltas.
 
     The CSV's `requests`, `errors` and `reconnects` are cumulative (they are the worker's
-    running totals, not the interval's), so every question this file asks — when did traffic
-    stop, when did it come back, how long was the longest gap — is a question about the
+    running totals, not the interval's), so every question this file asks: when did traffic
+    stop, when did it come back, how long was the longest gap: is a question about the
     differences between consecutive rows.
     """
     header, rows = lab.read_csv(directory / "ping-lat.csv")
@@ -883,7 +883,7 @@ def log_lines(directory: Path, state: dict[str, Any], side: str) -> list[str]:
     return lines
 
 
-#: `smux version: 2 on connection: <local> -> <remote>` — the client naming the peer of the
+#: `smux version: 2 on connection: <local> -> <remote>`, the client naming the peer of the
 #: session it has just dialled (reference/kcptun/client/main.go:473). It is the only record a
 #: run keeps of *which* port of a `-r` range a session went to, and `createConn()` picks that
 #: port afresh per dial (reference/kcptun/client/dial.go:56-63).
@@ -1043,7 +1043,7 @@ def verdict(case: Case, state: dict[str, Any], values: dict[str, Any],
 
 def fmt(value: Any) -> str:
     if value is None:
-        return "—"
+        return "-"
     if isinstance(value, float):
         return f"{value:.1f}" if abs(value) >= 0.1 or value == 0 else f"{value:.2f}"
     return str(value)
@@ -1067,7 +1067,7 @@ SUMMARY_COLUMNS = (
 
 def report(states: Sequence[dict[str, Any]], directories: Sequence[Path]) -> str:
     """One Markdown document for a whole campaign: a table per case, Go beside Rust."""
-    lines: list[str] = ["# Step 11.5 — failure-mode behaviour, Go vs Rust", ""]
+    lines: list[str] = ["# Step 11.5, failure-mode behaviour, Go vs Rust", ""]
     if states:
         first = states[0]
         # Every distinct artefact the session used, not the first run's two: a campaign that
@@ -1126,7 +1126,7 @@ def report(states: Sequence[dict[str, Any]], directories: Sequence[Path]) -> str
                 want = Check(check["metric"], check["low"], check["high"]).bounds
                 details.append(f"- `{state['pair'].upper()}` {check['metric']} = "
                                f"{fmt(check['value'])} (want {want}) {mark}"
-                               + (f" — {check['why']}" if check["why"] else ""))
+                               + (f": {check['why']}" if check["why"] else ""))
             for note in answer["errors"]:
                 details.append(f"- `{state['pair'].upper()}` log marker: {note}")
         lines += ["", *details, ""]
@@ -1198,7 +1198,7 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
                     LISTEN_PORT, PINGPONG_PORT})
     checks = lab.preflight(runner, max_load=args.max_load, wait_seconds=args.wait_load,
                            force=args.force, ports=ports)
-    print(f"lab: preflight — {checks}")
+    print(f"lab: preflight, {checks}")
     if not runner.dry_run:
         session.mkdir(parents=True, exist_ok=True)
 
@@ -1209,7 +1209,7 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
             if case.runs_pair(code):
                 plan.append((case, pair))
             else:
-                print(f"lab: skipping {case.name}/{code} — {case.skip_reason}")
+                print(f"lab: skipping {case.name}/{code}, {case.skip_reason}")
     print(f"lab: {len(plan)} run(s) over {len(cases)} case(s) -> {session}")
 
     states: list[dict[str, Any]] = []
@@ -1218,7 +1218,7 @@ def cmd_run(runner: Runner, args: argparse.Namespace) -> int:
 
     def emergency_stop(*_ignored: Any) -> None:
         if current is not None:
-            print("\nlab: interrupted — stopping this run's processes", file=sys.stderr)
+            print("\nlab: interrupted, stopping this run's processes", file=sys.stderr)
             current.stop_everything()
         raise SystemExit(130)
 

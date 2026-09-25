@@ -215,10 +215,10 @@ impl HalfCloseWrite for SmuxStream {
     const FRAME_SOURCE: bool = true;
 
     /// Hands over the next received frame whole, with the same token accounting and version-2
-    /// window updates [`poll_read`](AsyncRead::poll_read) performs — it is the same
+    /// window updates [`poll_read`](AsyncRead::poll_read) performs: it is the same
     /// [`read_chunk`](kcptun_smux::Stream::read_chunk), without the copy into the caller's
     /// buffer.
-    // Go: smux@v1.5.55 stream.go:stream.WriteTo() — the read half of its loop
+    // Go: smux@v1.5.55 stream.go:stream.WriteTo(), the read half of its loop
     fn poll_read_frame(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,

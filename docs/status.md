@@ -18,16 +18,16 @@ What is finished and tested:
 What is **not** finished:
 
 * **`-tcp` (fake TCP) is wired up but not yet verified.** The transport and both binaries' `-tcp`
-  paths are complete — the client dials through it, the server adds a fake-TCP listener next to its
+  paths are complete: the client dials through it, the server adds a fake-TCP listener next to its
   UDP one, and the `filter/OUTPUT` rules are removed on every exit path but `SIGKILL` (which no
-  process can catch; Go leaves the rules behind there too, and after a panic as well) — but the
+  process can catch; Go leaves the rules behind there too, and after a panic as well), but the
   privileged Linux tests (raw sockets, `iptables`, Go interop in `-tcp` mode) have not been run
   yet, so treat it as unverified.
   Off Linux nothing changes: Go's fake TCP is Linux-only and this port reports its `os not
   supported` in the same places. If you depend on `-tcp` in production, stay on Go for now.
 * **Failure-mode testing.** The network-impairment matrix, the WAN runs and a six-hour soak are
-  done ([lab results](lab-results/)); the deliberate failure-mode suite — peer restarts,
-  half-open paths, clock jumps — is not.
+  done ([lab results](lab-results/)); the deliberate failure-mode suite: peer restarts,
+  half-open paths, clock jumps: is not.
 * **The performance programme is partial, and knowing which parts is the point.** The measurements
   are real and end to end, but three of seven metric families, two of four configurations and 16 of
   28 impairment cells were never run, and idle CPU cost, startup time and the QPP scenario have no

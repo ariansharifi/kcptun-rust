@@ -37,7 +37,7 @@ const STREAMS: usize = 8;
 
 /// Bytes per stream. Small enough that all `STREAMS` echoes fit in the session's token bucket
 /// and in one stream's version-2 window, so the peer can finish and send its FIN while nothing
-/// has been read yet — the state V11 is about.
+/// has been read yet: the state V11 is about.
 const BYTES: usize = 128 * 1024;
 
 /// kcptun's own smux settings (`-smuxbuf 4194304 -streambuf 2097152 -framesize 8192`), which is

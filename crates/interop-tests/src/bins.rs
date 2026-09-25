@@ -92,7 +92,7 @@ impl fmt::Display for BinNotFound {
             ),
             (Impl::Rust, false) => write!(
                 f,
-                "Build it with `cargo build --release -p kcptun-{name}` (or a debug build) — or, \
+                "Build it with `cargo build --release -p kcptun-{name}` (or a debug build), or, \
                  for a binary that belongs to another crate, \
                  `cargo build --release -p <crate> --bin kcptun-{name}` (`kcptun-smuxecho` lives \
                  in `kcptun-interop-tests`). You can also point {env} at a directory that holds \

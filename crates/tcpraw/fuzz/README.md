@@ -5,7 +5,7 @@ cargo-fuzz crate for `kcptun-tcpraw` (plan step 10.1). It is not a member of the
 
 | Target | What it fuzzes |
 |---|---|
-| `tcp_segment` | The segment codec on arbitrary bytes, as a raw socket would deliver them. One selector byte picks whether the read came from an `AF_INET` socket (so the IPv4 header is stripped first, like Go's `ReadFromIP`), which pseudo-header the checksum uses, and whether the parsed segment is serialised again and re-parsed — which drives the write path with an option list the input chose. Nothing may panic, and the parser may never report options or a payload outside the buffer it was given. |
+| `tcp_segment` | The segment codec on arbitrary bytes, as a raw socket would deliver them. One selector byte picks whether the read came from an `AF_INET` socket (so the IPv4 header is stripped first, like Go's `ReadFromIP`), which pseudo-header the checksum uses, and whether the parsed segment is serialised again and re-parsed, which drives the write path with an option list the input chose. Nothing may panic, and the parser may never report options or a payload outside the buffer it was given. |
 
 This is the one parser in the crate that a peer reaches with no handshake at all: a raw socket
 sees every TCP segment on the host, and `captureFlow` parses each one before the port filter has

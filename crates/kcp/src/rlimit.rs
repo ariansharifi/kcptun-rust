@@ -1,4 +1,4 @@
-//! The open-file limit, which **the Go runtime raises by itself** — so Go kcptun gets it for
+//! The open-file limit, which **the Go runtime raises by itself**, so Go kcptun gets it for
 //! free and this port has to ask.
 //!
 //! Go source: `syscall/rlimit.go`, an `init()` that runs before `main`,
@@ -17,12 +17,12 @@
 //! ```
 //!
 //! **D34, and it was a production incident before it was a decision.** A container started with
-//! the common Docker `nofile` default — soft 1024, hard 1048576 — gives a Go kcptun 1048576
+//! the common Docker `nofile` default (soft 1024, hard 1048576) gives a Go kcptun 1048576
 //! descriptors and gave this port 1024, because nothing here asked. A busy server reaches that
 //! ceiling: `-closewait` (30 s on the server, Go's default too) holds every finished connection
 //! for thirty seconds, so a few tens of connections per second is a steady state of hundreds of
 //! descriptors, and past the ceiling `accept` fails with `EMFILE` and the tunnel flaps. Nothing
-//! about the port's own behaviour differed from Go's — only the limit it ran under.
+//! about the port's own behaviour differed from Go's, only the limit it ran under.
 //!
 //! This is a *restoration* of Go's behaviour, not a deviation from it, so it has no V-number and
 //! no flag: Go does it unconditionally and silently, and so does this. Errors are swallowed the
@@ -33,7 +33,7 @@
 use std::mem;
 
 /// What [`raise_nofile`] did. Go's initialiser returns nothing and nothing here acts on this
-/// value either — it exists so the behaviour can be tested and, if a caller ever wants it,
+/// value either: it exists so the behaviour can be tested and, if a caller ever wants it,
 /// reported.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Nofile {
@@ -49,7 +49,7 @@ pub enum Nofile {
 
 /// Raises the open-file soft limit to the hard limit, as the Go runtime does before `main`.
 ///
-/// Call it before anything opens a descriptor — the binaries call it first thing in `main`,
+/// Call it before anything opens a descriptor: the binaries call it first thing in `main`,
 /// ahead of building the tokio runtime, which opens several of its own.
 // Go: syscall/rlimit.go:init()
 pub fn raise_nofile() -> Nofile {

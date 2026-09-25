@@ -16,11 +16,11 @@
 //! Coverage:
 //!
 //! - **crypt sweep**: all 15 `-crypt` methods at kcptun's defaults (FEC 10/3, MTU 1350, windows
-//!   128/512, mode fast), both directions — 30 runs;
+//!   128/512, mode fast), both directions: 30 runs;
 //! - **pairwise matrix**: FEC `{10/3, 0/0, 3/2}` × ack-nodelay `{off, on}` × MTU
 //!   `{1350, 1400, 500}` × windows `{128/512, 1024/1024, 8192/8192}` × crypt
 //!   `{aes, aes-128-gcm, salsa20}`, expanded with [`pairwise_indices`] so every pair of values of
-//!   any two dimensions appears — 10 cases, both directions;
+//!   any two dimensions appears: 10 cases, both directions;
 //! - **lossy relay**: `aes` + FEC 10/3 and `xor` without FEC, through a testkit
 //!   [`Relay`](kcptun_testkit::relay::Relay) at 1 % and 5 % loss with reordering, both directions;
 //!   FEC recovery and KCP retransmission are asserted through `DEFAULT_SNMP`.
@@ -384,7 +384,7 @@ fn snapshot() -> SnmpSnapshot {
 
 /// A closed session's read loop, tx pipeline and updater can still be one iteration behind, and a
 /// straggler that decodes one more FEC packet moves the process-global `DEFAULT_SNMP`. Landing
-/// between a `before` and an `after` it would corrupt that window's deltas — exactly what
+/// between a `before` and an `after` it would corrupt that window's deltas, exactly what
 /// `kcptun_kcp::session::go_tests::SETTLE` documents. Waited before every `snapshot()` that opens
 /// a window, so `assert_eq!(recovered, 0)` in the no-FEC cases cannot see the previous run's tail.
 const SETTLE: Duration = Duration::from_millis(250);

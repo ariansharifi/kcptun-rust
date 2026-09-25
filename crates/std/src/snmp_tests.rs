@@ -100,7 +100,7 @@ fn test_write_snmp_record_writes_the_header_once() {
 }
 
 /// Only the file part of the path goes through the layout formatter, and a new name starts with
-/// a new header — that is all the "rotation" `-snmplog` has.
+/// a new header: that is all the "rotation" `-snmplog` has.
 #[test]
 fn test_write_snmp_record_rotates_by_file_name() {
     let dir = tempfile::tempdir().unwrap();
@@ -199,7 +199,7 @@ async fn test_snmp_logger_is_a_noop_when_disabled() {
 /// One record per period, starting one period in (Go's ticker, not tokio's immediate first tick).
 ///
 /// The real `std.SnmpLogger(path, 1)` was run for 2.5 s against the pinned Go sources and wrote a
-/// header plus **two** rows, which is what this port does for the same 2.5 s — see
+/// header plus **two** rows, which is what this port does for the same 2.5 s, see
 /// `test_snmp_logger_reports_errors_and_continues`, which counts two attempts over the same span.
 #[tokio::test(start_paused = true)]
 async fn test_snmp_logger_writes_one_record_per_period() {

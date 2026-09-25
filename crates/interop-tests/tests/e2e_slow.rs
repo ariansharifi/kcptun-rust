@@ -1,6 +1,6 @@
 //! The heavy Rust↔Rust end-to-end cases (plan step 09.3). The quick ones are in `e2e.rs`; these
 //! are split off because they move hundreds of megabytes, open a thousand sockets, or spend a
-//! minute waiting for a timeout — not what a normal run wants.
+//! minute waiting for a timeout, not what a normal run wants.
 //!
 //! | Test | What it pins |
 //! |---|---|
@@ -16,7 +16,7 @@
 //! ```
 //!
 //! As in `e2e.rs`, every case holds [`serial_guard`] and is bounded by a timeout, and both
-//! binaries are killed and reaped when the [`Tunnel`] is dropped — including when a case panics
+//! binaries are killed and reaped when the [`Tunnel`] is dropped, including when a case panics
 //! or times out.
 
 use std::time::{Duration, Instant};
@@ -126,7 +126,7 @@ async fn e2e_slow_bulk_200mb_each_way() {
 ///
 /// **Ephemeral ports.** Every stream costs one: the application's TCP connection to
 /// `kcptun-client`. The target is a *unix* socket rather than testkit's TCP [`EchoServer`]
-/// precisely so the server's 1000 dials cost none — a TCP target would double the bill to ~2000,
+/// precisely so the server's 1000 dials cost none: a TCP target would double the bill to ~2000,
 /// and a `kcptun-server` that cannot dial its target has no way to retry. Even at 1000 the run is
 /// a large share of macOS's 16384-port range (`net.inet.ip.portrange.first`), each held for a 30 s
 /// `TIME_WAIT` (`net.inet.tcp.msl`), so back-to-back runs inside that window can still run the
@@ -142,7 +142,7 @@ async fn e2e_slow_one_thousand_short_streams() {
         /// How many run at once. The plan asks for 1000 concurrent streams; the cap keeps the
         /// case inside a 1024 file-descriptor limit (the Linux default, and this runs on
         /// lab-arm64 too) on all four processes involved, and keeps a laptop out of scheduler
-        /// noise. The stream *count* is what the case is about — and it is also what the
+        /// noise. The stream *count* is what the case is about, and it is also what the
         /// ephemeral-port cost in the doc comment scales with, which the cap does not change.
         const IN_FLIGHT: usize = 250;
         const LEN: u64 = 4096;
@@ -184,7 +184,7 @@ async fn e2e_slow_one_thousand_short_streams() {
         assert_eq!(echo.bytes(), STREAMS as u64 * LEN, "bytes echoed");
 
         // `echo_round_trip` returns on the last echoed byte, but the client only logs
-        // `stream closed` once its pipe has joined — which additionally needs the smux FIN and the
+        // `stream closed` once its pipe has joined, which additionally needs the smux FIN and the
         // half-close of the application socket. Poll until both counts are in rather than sampling
         // a log the client is still writing.
         let client_log = poll_for(Duration::from_secs(30), || {
@@ -234,7 +234,7 @@ async fn e2e_slow_one_thousand_short_streams() {
 ///
 /// That takes about a minute, not 30 seconds: `KeepAliveTimeout` is smux's default of 30 s
 /// (`-keepalive` sets only the *interval*, `std/smuxcfg.go`) and the keepalive goroutine closes
-/// the session on the first 30 s tick that finds `dataReady` still clear — so a session that was
+/// the session on the first 30 s tick that finds `dataReady` still clear, so a session that was
 /// carrying traffic when the peer died survives one tick and dies on the next. Measured: 65 s,
 /// including the scavenger's 5 s reporting tick.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

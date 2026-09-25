@@ -332,7 +332,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn bounded_work_yields_to_the_stop_flag_and_to_its_own_limit() {
-        // A dial that never completes — the shape of `connect` to a blackholed path. The stop
+        // A dial that never completes: the shape of `connect` to a blackholed path. The stop
         // flag has to win, or the worker outlives the run.
         let (tx, mut rx) = stop_channel();
         let waiter = tokio::spawn(async move {

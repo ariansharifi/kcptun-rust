@@ -1,5 +1,5 @@
 /*
- * callocprobe — how much of a `calloc` is resident before anything reads it.
+ * callocprobe: how much of a `calloc` is resident before anything reads it.
  *
  * This is the probe behind the allocator-residency tables in docs/benchmarks/memory.md §7, the
  * measurement that turns "the receive batch is resident on an idle session" into "calloc memsets

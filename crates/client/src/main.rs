@@ -44,15 +44,15 @@ mod listen;
 use listen::{LocalConn, LocalListener};
 
 /// How often the scavenger walks its list of expiring sessions.
-// Go: kcptun/client/main.go:53 — `scavengePeriod = 5`
+// Go: kcptun/client/main.go:53, `scavengePeriod = 5`
 const SCAVENGE_PERIOD: Duration = Duration::from_secs(5);
 
 /// How many expiring sessions the accept loop may hand the scavenger before it has to wait.
-// Go: kcptun/client/main.go:404 — `make(chan timedSession, 128)`
+// Go: kcptun/client/main.go:404, `make(chan timedSession, 128)`
 const SCAVENGER_BACKLOG: usize = 128;
 
 /// How long `wait_conn` waits before dialling again.
-// Go: kcptun/client/main.go:506 — `time.Sleep(time.Second)`
+// Go: kcptun/client/main.go:506, `time.Sleep(time.Second)`
 const RECONNECT_DELAY: Duration = Duration::from_secs(1);
 
 // ---------------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ async fn run() {
         // (Go's `signal.Notify` cannot fail, so this line has no Go counterpart at all.)
         logln!("signal:", config::go_error_text(&err));
     }
-    // Go: kcptun/std/atexit_linux.go:postProcess() — tcpraw's iptables rules are undone on
+    // Go: kcptun/std/atexit_linux.go:postProcess(), tcpraw's iptables rules are undone on
     // SIGINT/SIGTERM. Go compiles the call in unconditionally (and to an empty body off Linux),
     // so it is registered here whether or not `--tcp` is on; with no fake-TCP connection it
     // finds nothing to do. `run()` and the `log` fatal paths below run the same hooks, so a
@@ -93,7 +93,7 @@ async fn run() {
     // run anything: the panic *hook*, which this installs, is the last thing that runs before
     // the abort. Go has the same hole and does not fill it (step 10.4).
     signal::run_exit_hooks_on_panic();
-    // Go: kcp-go/v5@v5.6.66 kcp.go:refTime — set at package init, so `currentMs()` counts from
+    // Go: kcp-go/v5@v5.6.66 kcp.go:refTime, set at package init, so `currentMs()` counts from
     // process start rather than from the first KCP session.
     kcptun_kcp::clock::init_ref_time();
 
@@ -212,7 +212,7 @@ async fn action(c: &Context) {
     // configure: it only acts on a process that has moved bytes and then stopped.
     tokio::spawn(kcptun_kcp::memory::trim_when_idle_default());
 
-    // `numconn := uint16(config.Conn)`, with the truncation to zero refused — see `conn_u16`.
+    // `numconn := uint16(config.Conn)`, with the truncation to zero refused, see `conn_u16`.
     // Go's cast is at client/main.go:410, *above* the `qpp.NewQPP` call at 417-420, so with both
     // `-conn 65536` and `-QPPCount 65536` it is the `-conn` guard that speaks first.
     let numconn = match conn_u16(config.conn) {
@@ -246,7 +246,7 @@ fn log_version() {
 
 /// The startup block, in Go's order and wording.
 ///
-/// `listen_addr` is `listener.Addr()`, the address the socket really bound — `[::]:12948` for
+/// `listen_addr` is `listener.Addr()`, the address the socket really bound: `[::]:12948` for
 /// `-l :12948`, not the flag text.
 // Go: kcptun/client/main.go:334-360
 fn log_startup(config: &ClientConfig, listen_addr: &str) {
@@ -311,12 +311,12 @@ fn scavenge_warnings(config: &ClientConfig) -> &'static [&'static str] {
 /// The `numconn := uint16(config.Conn)` cast, with the value that divides by zero refused.
 ///
 /// **Deviation V19.** Go narrows `-conn` to a `uint16` and then indexes with
-/// `rr % numconn`, so a multiple of 65536 — which passes the `config.Conn <= 0` check — makes
+/// `rr % numconn`, so a multiple of 65536 (which passes the `config.Conn <= 0` check) makes
 /// `numconn` **0** and panics with `integer divide by zero` at the *first accepted connection*
 /// (reproduced with `reference/bin/client_darwin_arm64 -conn 65536`, which prints the whole
 /// startup block and then a runtime panic once a client connects). The cast is kept otherwise
 /// bit-exact: `-conn 65537` runs one tunnel here exactly as it does in Go.
-// Go: kcptun/client/main.go:410 — `numconn := uint16(config.Conn)`
+// Go: kcptun/client/main.go:410, `numconn := uint16(config.Conn)`
 fn conn_u16(conn: i64) -> Result<u16, String> {
     let numconn = conn as u16;
     if numconn == 0 {
@@ -350,7 +350,7 @@ fn listen_local(local_addr: &str) -> Result<LocalListener, String> {
 // ---------------------------------------------------------------------------------------
 
 /// One smux session with the moment it stops being handed new streams.
-// Go: kcptun/client/main.go:560 — `type timedSession struct`
+// Go: kcptun/client/main.go:560, `type timedSession struct`
 struct TimedSession<C: SmuxConn> {
     session: Arc<Session<C>>,
     expiry_date: Instant,
@@ -370,8 +370,8 @@ impl<C: SmuxConn> Clone for TimedSession<C> {
 ///
 /// Go creates `chScavenger` unconditionally and starts the goroutine only when `autoexpire > 0`;
 /// nothing is ever sent on the channel otherwise, which is what `None` means here. Neither the
-/// channel nor the goroutine writes a log line, so building them here — inside the function the
-/// connection type monomorphises — keeps Go's observable order.
+/// channel nor the goroutine writes a log line, so building them here: inside the function the
+/// connection type monomorphises: keeps Go's observable order.
 // Go: kcptun/client/main.go:404-444
 async fn serve<C, F>(
     listener: LocalListener,
@@ -392,7 +392,7 @@ async fn serve<C, F>(
         None
     };
 
-    // Go: `muxes := make([]timedSession, numconn)` — the zero value has a nil session, which is
+    // Go: `muxes := make([]timedSession, numconn)`, the zero value has a nil session, which is
     // `None` here.
     let mut muxes: Vec<Option<TimedSession<C>>> = (0..numconn).map(|_| None).collect();
     // rr tracks which pre-established session should carry the next client so short-lived TCP
@@ -425,7 +425,7 @@ async fn serve<C, F>(
             // only track TTL when auto-expiration is enabled
             if let Some(tx) = &scavenger_tx {
                 // Go blocks here once 128 sessions are queued; so does this. A send error means
-                // the scavenger returned, which it never does while the channel is open — and Go
+                // the scavenger returned, which it never does while the channel is open, and Go
                 // has no log line for it, so nothing is printed.
                 let _ = tx.send(mux).await;
             }
@@ -544,8 +544,8 @@ async fn scavenger<C: SmuxConn>(
 ///
 /// Go keeps `multiPort`, `multiPortParseError` and `multiPortOnce` as package-level variables of
 /// `client/dial.go`, so the address is parsed on the first dial and reused for the life of the
-/// process. There is exactly one `Dialer` per process for the same reason — `action` builds it
-/// and the accept loop holds it — but scoping the `sync.Once` to the value instead of to the
+/// process. There is exactly one `Dialer` per process for the same reason: `action` builds it
+/// and the accept loop holds it, but scoping the `sync.Once` to the value instead of to the
 /// program keeps the tests independent (a `static` would make every case after the first dial
 /// the first case's address).
 // Go: kcptun/client/dial.go:38-42
@@ -624,7 +624,7 @@ impl Dialer {
     /// packet whose `addr.(*net.UDPAddr)` assertion fails is counted as `InErrs` and dropped
     /// (`readloop.go:73-78`). A tcpraw connection reports its peers as `*net.TCPAddr`
     /// (`tcp_linux.go:189-191`), and `dial.go` hands `NewConn4` the `*net.UDPAddr` resolved
-    /// here — so the pinned Go client receives **nothing** over `--tcp`, in v5.6.66 and in the
+    /// here, so the pinned Go client receives **nothing** over `--tcp`, in v5.6.66 and in the
     /// current upstream alike (older kcp-go compared `addr.String()`, which works). Measured against the
     /// vendored v5.6.66 with a UDP socket that reports its peers as `*net.TCPAddr`: `read=""
     /// err=timeout`, `InErrs 0 -> 9`, where the same socket unwrapped echoes `hello` with no
@@ -682,7 +682,7 @@ impl Dialer {
         let convid = u32::from_le_bytes(bytes);
 
         // Go: `kcp.NewConn4(convid, udpaddr, block, config.DataShard, config.ParityShard, true,
-        // conn)` — `true` is `ownConn`, so the session owns the fake-TCP connection.
+        // conn)`: `true` is `ownConn`, so the session owns the fake-TCP connection.
         match UdpSession::new_conn(
             convid,
             remote,
@@ -741,7 +741,7 @@ impl Dialer {
         kcpconn.set_window_size(base.snd_wnd as isize, base.rcv_wnd as isize);
         kcpconn.set_mtu(base.mtu as isize);
         kcpconn.set_ack_no_delay(base.ack_nodelay);
-        // Go: kcpconn.SetRateLimit(uint32(config.RateLimit)) — the same low 32 bits.
+        // Go: kcpconn.SetRateLimit(uint32(config.RateLimit)), the same low 32 bits.
         kcpconn.set_rate_limit(base.rate_limit as u32);
 
         // Go passes `config.SockBuf` (an int) straight to `SetReadBuffer`; `usize` cannot carry a
@@ -749,7 +749,7 @@ impl Dialer {
         // (see the same note in the server), so the log line is the same either way.
         let sock_buf = usize::try_from(base.sock_buf).unwrap_or(0);
         // Go's `*net.OpError.Net` is the network the socket was created with, and
-        // `kcp.DialWithOptions` uses `net.ListenUDP("udp4", nil)` for an IPv4 remote — so the
+        // `kcp.DialWithOptions` uses `net.ListenUDP("udp4", nil)` for an IPv4 remote, so the
         // client says `set udp4 0.0.0.0:…` where the server says `set udp …`. The session's
         // remote is stored in the family of that socket (`dial_with_options`), so `is_ipv4()`
         // answers the same question `kcptun_kcp::addr::dial_network` does.
@@ -884,7 +884,7 @@ async fn handle_client<P1, C>(
     if !quiet {
         for err in [err1, err2] {
             if let Err(err) = err {
-                // D30: `err` is a read/write failure on one of the two halves — the inbound
+                // D30: `err` is a read/write failure on one of the two halves, the inbound
                 // TCP socket (`p1`), or the smux stream over KCP, whose errno the
                 // `kcptun_smux::Error` -> `io::Error` conversion carries across. Either way
                 // the errno is spelled from Go's table. Go's is a `*net.OpError` and still

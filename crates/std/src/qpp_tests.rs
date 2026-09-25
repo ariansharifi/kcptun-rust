@@ -101,7 +101,7 @@ fn validate_warns_when_the_count_shares_a_factor_with_eight() {
             "QPP Warning: QPPCount 64, choose a prime number for security".to_string()
         ])
     );
-    // 2 is prime but still shares the factor 2 with 8 — Go warns anyway.
+    // 2 is prime but still shares the factor 2 with 8: Go warns anyway.
     assert_eq!(
         validate_qpp_params(2, &long_key()),
         Ok(vec![
@@ -530,7 +530,7 @@ impl HalfCloseWrite for DuplexEnd {
 /// Regression: a `poll_write` may never report bytes the connection has not taken.
 ///
 /// `pipe` goes straight back to reading its source after a `Ready(Ok(n))`, and returns `Pending`
-/// when the source has nothing — it never polls the destination again by itself. So if this
+/// when the source has nothing: it never polls the destination again by itself. So if this
 /// wrapper answered `Ok(buf.len())` while the ciphertext was still in `obuf`, the last chunk of a
 /// transfer would sit there for as long as the source stayed quiet, which for a proxied request
 /// is forever.
@@ -575,7 +575,7 @@ async fn the_pipe_delivers_the_last_chunk_when_the_source_goes_quiet() {
 // The Go test
 // ---------------------------------------------------------------------------------------
 
-/// Go: kcptun/std/qpp_test.go:TestQPPPortRoundTrip — `net.Pipe()` becomes
+/// Go: kcptun/std/qpp_test.go:TestQPPPortRoundTrip, `net.Pipe()` becomes
 /// [`tokio::io::duplex`]. The pad seed and the PRNG seed differ on purpose, which pins that
 /// [`QppStream::new`] seeds the two [`Rand`]s from its `seed` argument and not from the pad.
 #[tokio::test]

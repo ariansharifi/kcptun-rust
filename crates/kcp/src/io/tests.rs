@@ -107,7 +107,7 @@ async fn round_trip_1000_datagrams_per_packet() {
     round_trip(false).await;
 }
 
-/// Datagrams already queued on the socket come back in one batch — one `recvmmsg` on Linux, one
+/// Datagrams already queued on the socket come back in one batch: one `recvmmsg` on Linux, one
 /// drain of the receive queue elsewhere.
 async fn batched_receive(batch_io: bool) {
     const QUEUED: usize = 200;

@@ -125,7 +125,7 @@ func runServer(args []string) int {
 		log.Printf("ListenWithOptions: %v", err)
 		return 1
 	}
-	// Go: kcptun server/main.go:serveListener() — listener options first.
+	// Go: kcptun server/main.go:serveListener(), listener options first.
 	if err := lis.SetDSCP(k.dscp); err != nil {
 		log.Println("SetDSCP:", err)
 	}
@@ -145,7 +145,7 @@ func runServer(args []string) int {
 			return 1
 		}
 		log.Println("remote address:", conn.RemoteAddr())
-		// Go: kcptun server/main.go:serveListener() — per-session options, same order.
+		// Go: kcptun server/main.go:serveListener(), per-session options, same order.
 		conn.SetStreamMode(k.stream)
 		conn.SetWriteDelay(k.writedelay)
 		conn.SetNoDelay(k.nodelay, k.interval, k.resend, k.nc)
@@ -229,7 +229,7 @@ func runClient(args []string) int {
 		return 1
 	}
 	defer sess.Close()
-	// Go: kcptun client/main.go:createConn() — same order.
+	// Go: kcptun client/main.go:createConn(), same order.
 	sess.SetStreamMode(k.stream)
 	sess.SetWriteDelay(k.writedelay)
 	sess.SetNoDelay(k.nodelay, k.interval, k.resend, k.nc)

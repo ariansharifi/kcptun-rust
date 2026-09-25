@@ -17,14 +17,14 @@
 //!   1400-byte packet (what a kcp-go receiver's flush packs). `in_order`: each packet carries
 //!   the receiver's cumulative `una` (the normal case), which retires the acknowledged segments
 //!   before `parse_ack` ever sees them. `sack`: the first segment was lost, so `una` stays at 0
-//!   and every ACK is selective (each packet also triggers a fast retransmit flush) — the case
+//!   and every ACK is selective (each packet also triggers a fast retransmit flush): the case
 //!   plan 12.2d addresses. Throughput is in ACKs.
 //! - `kcp/input_ack/{in_order_oracle,sack_oracle}/<w>`: the same two scenarios with the Decision
 //!   D29 and D31 fast paths turned off, which is the naive line-by-line port and the permanent
 //!   oracle of DECISIONS D25. `sack_oracle` is the "before" of the 12.2d measurement and
 //!   `in_order_oracle` the "before" of 12.2c's effect on the *ordinary* ACK path; both stay
-//!   comparable with Go's `BenchmarkInputAck` for ever. `in_order` is untouched by D31 — the
-//!   cumulative `una` retires a segment before `parse_ack` can see it — but it is **not**
+//!   comparable with Go's `BenchmarkInputAck` for ever. `in_order` is untouched by D31: the
+//!   cumulative `una` retires a segment before `parse_ack` can see it, but it is **not**
 //!   untouched by D29: `Kcp::input` flushes (`IKCP_FLUSH_FULL`) every time the send window
 //!   slides, so every one of these packets costs a flush, which is what plan 12.2e found on the
 //!   Neoverse-N1 (`docs/benchmarks/kcp.md` § 12.2e).

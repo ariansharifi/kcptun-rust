@@ -2,10 +2,10 @@
 //! presets and the post-parse validation.
 //!
 //! Go sources:
-//! - `kcptun/std/config.go` — `BaseConfig`, `ModeParams`, `PredefinedModes`, `ApplyMode`,
+//! - `kcptun/std/config.go`: `BaseConfig`, `ModeParams`, `PredefinedModes`, `ApplyMode`,
 //!   `ParseJSONConfig`
-//! - `kcptun/client/config.go`, `kcptun/server/config.go` — the two `Config` structs
-//! - `kcptun/client/main.go`, `kcptun/server/main.go` — the flag tables, the assignment of the
+//! - `kcptun/client/config.go`, `kcptun/server/config.go`: the two `Config` structs
+//! - `kcptun/client/main.go`, `kcptun/server/main.go`: the flag tables, the assignment of the
 //!   parsed flags to the configuration, and the checks that follow
 //!
 //! The order of operations Go uses, which the types here preserve, is:
@@ -69,7 +69,7 @@ pub struct BaseConfig {
     /// `-nocomp`, `"nocomp"`: disables snappy compression.
     pub no_comp: bool,
     /// `-strictsource`, `"strictsource"`: restores Go's rule that every datagram must come from
-    /// the address we send to. Off by default — Deviation V23; Go has no such flag.
+    /// the address we send to. Off by default: Deviation V23; Go has no such flag.
     pub strict_source: bool,
     /// `-acknodelay`, `"acknodelay"` (hidden flag).
     pub ack_nodelay: bool,
@@ -369,7 +369,7 @@ impl JsonStruct for ServerConfig {
 /// Why a `-c` configuration file could not be applied.
 ///
 /// Go passes every one of these to `checkError`, which prints `%+v` and exits with
-/// `os.Exit(-1)` — status **255** on unix.
+/// `os.Exit(-1)`: status **255** on unix.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ConfigFileError {
     /// `os.Open` failed: `open /etc/kcptun.json: no such file or directory`.
@@ -407,7 +407,7 @@ pub fn parse_json_config<C: JsonStruct>(
             });
         }
     };
-    // Go: encoding/json Decoder.refill — the decoder reads in chunks (512 bytes to start with,
+    // Go: encoding/json Decoder.refill, the decoder reads in chunks (512 bytes to start with,
     // doubling afterwards) and tries to decode after each one, so it stops at the end of the
     // first complete value instead of draining the file. Reading everything up front would hang
     // on an endless source: `-c /dev/zero` must report `invalid character '\x00' …` the way Go
@@ -429,7 +429,7 @@ pub fn parse_json_config<C: JsonStruct>(
         data.truncate(filled + n);
         match gojson::parse(&data) {
             Ok(value) => return Ok(gojson::decode_struct(config, &value)?),
-            // More input may still complete the value — unless the source is exhausted, in
+            // More input may still complete the value, unless the source is exhausted, in
             // which case Go reports the same truncation error (`unexpected end of JSON input`,
             // or `EOF` for an empty file).
             Err(e) => {
@@ -461,7 +461,7 @@ pub fn parse_json_bytes<C: JsonStruct>(config: &mut C, data: &[u8]) -> Result<()
 /// `open x.json: no such file or directory` exactly like Go.
 ///
 /// **DECISIONS D30:** the text comes from Go's own errno table
-/// ([`kcptun_kcp::goerrno`]), not from the C library — a static musl build spells
+/// ([`kcptun_kcp::goerrno`]), not from the C library: a static musl build spells
 /// `EADDRINUSE` differently from glibc, and Go, and this contract is not allowed to depend on
 /// the target's libc. An error that carries no errno keeps the platform's own text with a
 /// lower-case first letter and without Rust's ` (os error N)` suffix, as before.
@@ -478,7 +478,7 @@ pub fn go_error_text(err: &std::io::Error) -> String {
 ///
 /// Go returns the underlying connection's error unchanged from those calls
 /// (`session.go:socketReadError`), so a session that died on a socket failure logs a bare
-/// `syscall.Errno` — which **DECISIONS D30** spells from Go's own table, not the C library's.
+/// `syscall.Errno`, which **DECISIONS D30** spells from Go's own table, not the C library's.
 /// Every other variant already carries smux's own Go text (`invalid protocol`,
 /// `io: read/write on closed pipe`, …) and is returned verbatim: lower-casing or rewriting those
 /// would move them away from Go, not towards it.

@@ -1,5 +1,5 @@
 //! The `smux_recv` fuzz harness (plan step 06.5): an arbitrary byte string is fed to a live
-//! session as if it came from the peer. Nothing may panic — a protocol error, a socket error or
+//! session as if it came from the peer. Nothing may panic: a protocol error, a socket error or
 //! the end of the stream are all fine outcomes.
 //!
 //! The cargo-fuzz target (`crates/smux/fuzz/fuzz_targets/smux_recv.rs`) only calls
@@ -14,7 +14,7 @@
 //!   - bit 1: the session is a server (0) or a client (1), which decides which stream ids it
 //!     accepts as new;
 //!   - bit 2: keepalive off (0) or on with a one-second interval and a two-second timeout (1);
-//!   - bits 3–4: `max_receive_buffer`, an index into [`BUCKETS`] — the small values make the
+//!   - bits 3–4: `max_receive_buffer`, an index into [`BUCKETS`], the small values make the
 //!     receive loop wait for tokens;
 //!   - bits 5–6: `max_frame_size`, an index into [`FRAME_SIZES`];
 //!   - bit 7: accepted streams are drained (0) or echoed (1), which also exercises the write

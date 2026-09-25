@@ -35,11 +35,11 @@ use kcptun_std::{crypt, goaddr, log, logf, logln, multiport, pprof, runtime, sig
 use tokio::net::TcpStream;
 
 /// How long `handleMux` waits for the target connection before giving up.
-// Go: kcptun/server/main.go:493 — `const dialTimeout = 10 * time.Second`
+// Go: kcptun/server/main.go:493, `const dialTimeout = 10 * time.Second`
 const DIAL_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Whether the target is a TCP address or a unix socket path.
-// Go: kcptun/server/main.go:56-59 — `const ( TGT_UNIX = iota; TGT_TCP )`
+// Go: kcptun/server/main.go:56-59, `const ( TGT_UNIX = iota; TGT_TCP )`
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum TargetType {
     Unix,
@@ -74,7 +74,7 @@ async fn run() {
         // (Go's `signal.Notify` cannot fail, so this line has no Go counterpart at all.)
         logln!("signal:", config::go_error_text(&err));
     }
-    // Go: kcptun/std/atexit_linux.go:postProcess() — tcpraw's iptables rules are undone on
+    // Go: kcptun/std/atexit_linux.go:postProcess(), tcpraw's iptables rules are undone on
     // SIGINT/SIGTERM. Go compiles the call in unconditionally (and to an empty body off Linux),
     // so it is registered here whether or not `--tcp` is on; with no fake-TCP connection it
     // finds nothing to do. `run()` and the `log` fatal paths below run the same hooks, so a
@@ -84,7 +84,7 @@ async fn run() {
     // run anything: the panic *hook*, which this installs, is the last thing that runs before
     // the abort. Go has the same hole and does not fill it (step 10.4).
     signal::run_exit_hooks_on_panic();
-    // Go: kcp-go/v5@v5.6.66 kcp.go:refTime — set at package init, so `currentMs()` counts from
+    // Go: kcp-go/v5@v5.6.66 kcp.go:refTime, set at package init, so `currentMs()` counts from
     // process start rather than from the first KCP session.
     kcptun_kcp::clock::init_ref_time();
 
@@ -196,7 +196,7 @@ async fn action(c: &Context) {
     let mp = match multiport::parse(&config.listen) {
         Ok(mp) => mp,
         Err(err) => {
-            // Go: `log.Println(err); return err` — the action's error, which main ignores.
+            // Go: `log.Println(err); return err`, the action's error, which main ignores.
             logln!(err);
             return;
         }
@@ -309,13 +309,13 @@ fn log_startup(config: &ServerConfig) {
 /// The tcpraw listener `--tcp` asks for: a fake-TCP transport alongside the UDP one.
 ///
 /// Go calls `tcpraw.Listen("tcp", listenAddr)` and, when it fails, logs the error and carries on
-/// with UDP only — a failure here is never fatal. Off Linux the call cannot succeed: Go builds a
+/// with UDP only: a failure here is never fatal. Off Linux the call cannot succeed: Go builds a
 /// stub whose `Listen` returns `os not supported`, and so does `kcptun_tcpraw`, so `--tcp` logs
 /// that one line there and the UDP listener still comes up.
 ///
 /// On Linux it needs `CAP_NET_RAW` for the raw sockets; the `filter/OUTPUT` rules are best
 /// effort (see `kcptun_tcpraw::listen`), and closing the connection removes them.
-// Go: kcptun/server/main.go:370-379 — `if conn, err := tcpraw.Listen("tcp", listenAddr); err == nil`
+// Go: kcptun/server/main.go:370-379, `if conn, err := tcpraw.Listen("tcp", listenAddr); err == nil`
 async fn tcpraw_listen(listen_addr: &str) -> io::Result<Arc<dyn PacketConn>> {
     let conn = kcptun_tcpraw::listen("tcp", listen_addr).await?;
     Ok(Arc::new(conn))
@@ -326,7 +326,7 @@ async fn tcpraw_listen(listen_addr: &str) -> io::Result<Arc<dyn PacketConn>> {
 /// Go's `ListenWithOptions` does two things that can fail. `net.ResolveUDPAddr` returns a
 /// `*net.AddrError` or `*net.DNSError` whose text (`address x: missing port in address`,
 /// `lookup x: no such host`) `kcptun_kcp::addr` already reproduces verbatim, so it is passed
-/// through. `net.ListenUDP` returns a `*net.OpError` — `listen udp <addr>: bind: <errno>` — built
+/// through. `net.ListenUDP` returns a `*net.OpError` (`listen udp <addr>: bind: <errno>`) built
 /// from the **resolved** `*net.UDPAddr`, not from the flag text, which is why the address is
 /// resolved again here (only on this fatal path; `-l localhost:29900` prints `127.0.0.1:29900`
 /// the way Go does). Only the syscall failure carries an errno, which is what tells the two
@@ -408,7 +408,7 @@ async fn serve_listener(lis: Arc<Listener>, qpp: Option<Arc<QppPad>>, config: Ar
         conn.set_mtu(config.base.mtu as isize);
         conn.set_window_size(config.base.snd_wnd as isize, config.base.rcv_wnd as isize);
         conn.set_ack_no_delay(config.base.ack_nodelay);
-        // Go: conn.SetRateLimit(uint32(config.RateLimit)) — the same low 32 bits.
+        // Go: conn.SetRateLimit(uint32(config.RateLimit)), the same low 32 bits.
         conn.set_rate_limit(config.base.rate_limit as u32);
 
         let conn = KcpConn::new(conn);
@@ -508,7 +508,7 @@ async fn serve_stream(
                 // Go turns Nagle off on every TCP connection it dials; tokio does not, and
                 // Nagle on the target socket would add delay the Go server never has. The
                 // error is dropped there too.
-                // Go: net/tcpsock_posix.go:newTCPConn() — `setNoDelay(fd, true)`
+                // Go: net/tcpsock_posix.go:newTCPConn(), `setNoDelay(fd, true)`
                 let _ = p2.set_nodelay(true);
                 let addr = p2
                     .peer_addr()
@@ -547,7 +547,7 @@ async fn serve_stream(
 /// A resolver failure is a `*net.OpError` with a `nil` `Addr` wrapping a `*net.DNSError`, which
 /// `OpError.Error()` prints as `dial tcp: lookup <host>: …`. `std` cannot tell the resolver's
 /// failure modes apart, so the text after `lookup <host>: ` is the platform's message rather than
-/// Go's `no such host`/`server misbehaving` — the only part of this that is not Go's exactly.
+/// Go's `no such host`/`server misbehaving`: the only part of this that is not Go's exactly.
 // Go: go1.27.1 net/dial.go:DialTimeout(), net/dial.go:dialSerial(), net/net.go:(*OpError).Error()
 async fn dial_tcp(target: &str) -> Result<TcpStream, String> {
     let addrs = match tokio::net::lookup_host(target).await {
@@ -572,7 +572,7 @@ async fn dial_tcp(target: &str) -> Result<TcpStream, String> {
             }
         }
     }
-    // Go: `dialSerial` with an empty address list — unreachable, the resolver errors instead.
+    // Go: `dialSerial` with an empty address list, unreachable, the resolver errors instead.
     Err(first.unwrap_or_else(|| "dial tcp: missing address".to_string()))
 }
 
@@ -585,11 +585,11 @@ async fn fail_stream(p1: Stream, err: &str) {
 
 /// The text Go's `net.DialTimeout` failure carries into `log.Println(err)`.
 ///
-/// Go hands back a `*net.OpError`, whose `Error()` is `dial <net> <addr>: <op>: <errno>` — or
+/// Go hands back a `*net.OpError`, whose `Error()` is `dial <net> <addr>: <op>: <errno>`, or
 /// `dial <net> <addr>: i/o timeout` when the deadline ran out (`err = None` here). The errno is
 /// spelled Go's way by [`config::go_error_text`]. `address` is the address Go's `OpError` holds:
 /// the resolved one from [`dial_tcp`], or the target as typed on the timeout path (where Go's is
-/// resolved too, so a hostname target reads differently — a DNS-plus-10s case 09.5 skips).
+/// resolved too, so a hostname target reads differently: a DNS-plus-10s case 09.5 skips).
 // Go: net/net.go:OpError.Error(), reached from kcptun/server/main.go:505
 fn dial_error(network: &str, address: &str, err: Option<&io::Error>) -> String {
     match err {
@@ -636,7 +636,7 @@ async fn handle_client<P2>(
     if !quiet {
         for err in [err1, err2] {
             if let Err(err) = err {
-                // D30: `err` is a read/write failure on one of the two halves — the outbound
+                // D30: `err` is a read/write failure on one of the two halves, the outbound
                 // TCP socket to `-t` (`p2`), or the smux stream over KCP, whose errno the
                 // `kcptun_smux::Error` -> `io::Error` conversion carries across. Either way
                 // the errno is spelled from Go's table. Go's is a `*net.OpError` and still

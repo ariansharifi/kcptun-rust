@@ -2,11 +2,11 @@
 //! from the path of a unix socket.
 //!
 //! Go sources:
-//! - Go standard library `net/ipsock.go:SplitHostPort` (Go 1.27.1) — the algorithm and all five
+//! - Go standard library `net/ipsock.go:SplitHostPort` (Go 1.27.1): the algorithm and all five
 //!   error texts;
-//! - `net/net.go:AddrError` — the `address <addr>: <why>` wrapping, which omits the prefix when
+//! - `net/net.go:AddrError`: the `address <addr>: <why>` wrapping, which omits the prefix when
 //!   the address is empty;
-//! - `kcptun/client/main.go:319` and `kcptun/server/main.go:449` — the only call sites:
+//! - `kcptun/client/main.go:319` and `kcptun/server/main.go:449`: the only call sites:
 //!   ```go
 //!   // client/main.go:319 (startup, for -l):
 //!   if _, _, err := net.SplitHostPort(config.LocalAddr); err != nil {

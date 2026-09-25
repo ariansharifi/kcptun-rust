@@ -77,7 +77,7 @@ clip_csv() {
 }
 
 # Everything else (iperf3 -J output): not line-oriented, so any clip makes it unparseable.
-# Leave it whole and flag it instead — an oversized one of these means a scenario went wrong.
+# Leave it whole and flag it instead: an oversized one of these means a scenario went wrong.
 flag_oversize() {
   local file="$1" base size
   base="$(basename "$file")"

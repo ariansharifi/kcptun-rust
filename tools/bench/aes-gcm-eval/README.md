@@ -20,7 +20,7 @@ cargo bench -- --noplot --warm-up-time 0.5 --measurement-time 2 1350
 
 **No CI job and no workspace command ever builds this crate**, so its tests cannot fail the gate:
 they are hand-run, and `Cargo.lock` is checked in and pinned on purpose so the 12.2b measurement
-stays reproducible. If the lock is ever refreshed — or `ring`, `aws-lc-rs` or `aes-gcm` move on —
+stays reproducible. If the lock is ever refreshed, or `ring`, `aws-lc-rs` or `aes-gcm` move on,
 re-run `cargo test --release` here by hand, because it is the only thing that keeps the four
 backends byte-identical.
 
@@ -40,18 +40,18 @@ Every DECISIONS D22 target was tried with `ring` and `aws-lc-sys` in the graph.
 `x86_64-unknown-linux-{musl,gnu}`, `armv7-unknown-linux-{musleabihf,gnueabihf}`,
 `i686-unknown-linux-{musl,gnu}`, `x86_64-pc-windows-gnu` and `x86_64-unknown-freebsd`;
 `x86_64-apple-darwin` builds with plain `cargo build` on the macOS host, and `aarch64-apple-darwin`
-is the host. Windows needs the `prebuilt-nasm` feature — without it `aws-lc-sys` looks for a local
+is the host. Windows needs the `prebuilt-nasm` feature, without it `aws-lc-sys` looks for a local
 NASM and the build fails.
 
 The exceptions are the two ARMv6 tiers, `arm-unknown-linux-{musleabi,gnueabi}`, and they are **this
 crate's** problem, not the crypto's: `cargo zigbuild --release --lib --target <t>` succeeds for
 both (so `ring` and `aws-lc-sys` do build for ARMv6), while `--benches` fails to link with
-`undefined symbol: fmaximum_num` / `fminimum_num` from `criterion::plot::gnuplot_backend` — C23
+`undefined symbol: fmaximum_num` / `fminimum_num` from `criterion::plot::gnuplot_backend`, C23
 libm entry points that zig's bundled libc does not provide for the ARMv6 sub-target. MIPS (tier 3,
 `-Zbuild-std`) was not attempted.
 
 Interleave the rounds with the Go binary (`tools/govectors`, cross-built with
-`GOOS=linux GOARCH=arm64 go test -c`) and report medians — a single pass on a shared box is worth
+`GOOS=linux GOARCH=arm64 go test -c`) and report medians: a single pass on a shared box is worth
 ±5%, and criterion's own numbers move by 10–15% with code layout alone, so never compare two
 different builds of this crate against each other.
 
@@ -68,7 +68,7 @@ and single-bit tampering and short-packet rejection.
 
 ## Result
 
-Rejected — see docs/benchmarks/crypto.md, section "12.2b". In short: `aws-lc-rs` wins on the M5
+Rejected, see docs/benchmarks/crypto.md, section "12.2b". In short: `aws-lc-rs` wins on the M5
 and `ring` wins on the Neoverse-N1, neither wins on both, and the fused safe-Rust backend beats
 Go only where the `aes` and `polyval` hardware backends are compile-time features (Apple
 silicon). `crates/kcp` keeps RustCrypto `aes-gcm`.

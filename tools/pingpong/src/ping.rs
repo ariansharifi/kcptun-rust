@@ -1,4 +1,4 @@
-//! `pingpong ping` — request/response latency through the tunnel.
+//! `pingpong ping`: request/response latency through the tunnel.
 //!
 //! One connection (or `--conns` of them) sends `ECHO <size>` and waits for the same bytes back,
 //! over and over, and the round-trip times go into a [`Histogram`]. This is the latency half of
@@ -61,7 +61,7 @@ const HEADER: &[&str] = &[
 /// `ECHO` is lock-step: [`net::request`] writes all N bytes and only then starts reading, while
 /// the target echoes as it reads. Once the return path fills the socket buffers and the smux
 /// window, the target blocks in `write_all`, stops reading, and the client blocks in `write_all`
-/// too — a deadlock that `ping` (which has no per-request timeout, by design: a stalled RTT is
+/// too: a deadlock that `ping` (which has no per-request timeout, by design: a stalled RTT is
 /// data) would show only as a run that ends with no samples. 1 MiB is comfortably under the
 /// smallest in-flight window in the 11.2 matrix (S2's `streambuf 2097152`); anything larger is
 /// what `bulk` is for.
@@ -88,7 +88,7 @@ pub fn main(args: &Args) -> Result<()> {
     if size > MAX_PING_SIZE {
         return Err(format!(
             "--size {size} is above the {MAX_PING_SIZE}-byte limit: ECHO is lock-step, so a size \
-             above the tunnel's in-flight window deadlocks — use `bulk` for large transfers"
+             above the tunnel's in-flight window deadlocks: use `bulk` for large transfers"
         )
         .into());
     }

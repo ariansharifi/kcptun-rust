@@ -5,7 +5,7 @@ message and were taken as medians of **three** runs on a machine that was also c
 is the same benchmark taken as medians of **five**, Rust and Go alternating run by run, with the
 method and the caveats written down.
 
-What it measures: one **echo of the whole payload over a loopback KCP session** — the client writes a
+What it measures: one **echo of the whole payload over a loopback KCP session**, the client writes a
 deterministic stream in `chunk`-sized `Write`s, the server writes back everything it reads, and the
 client verifies every byte. Both sides are the peers the interop suite already drives, so a number
 here describes the port rather than a benchmark written for the occasion.
@@ -31,7 +31,7 @@ KCPTUN_BENCH_REPEAT=5 cargo test -p kcptun-interop-tests --release \
 | Go | 1.27.1; `kcpecho` from `reference/bin/kcpecho_darwin_arm64`, kcp-go v5.6.66 |
 | Tree | `75fd8d8` (the merge of `main` into `step/12-bench`); no tracked file modified |
 | Runs | 5 per (implementation, profile, payload, message size), Rust and Go alternating |
-| Payloads | 8 MiB and 32 MiB, echoed — the link carries each twice |
+| Payloads | 8 MiB and 32 MiB, echoed: the link carries each twice |
 | Message sizes | 4 KiB, 64 KiB, 512 KiB (kcp-go's `BenchmarkEchoSpeed4K/64K/512K` family) |
 | Host load | load average **1.14 / 1.68 / 1.62** at the end of the run, on 10 cores: the laptop was also driving the 12.1 lab campaign over ssh (an idle ssh client) and the benchmark itself is one busy core. Not a quiet machine, but a *consistently* un-quiet one, and the arms alternate |
 
@@ -58,8 +58,8 @@ Four things count *against* Rust here and are left that way rather than correcte
 
 * the Rust timing window starts before key derivation (PBKDF2, 4096 rounds), the socket bind and the
   option setters; Go's starts after them;
-* the CPU figure is both endpoints together, and the harness work — generating the stream, verifying
-  and hashing the echo — is inside it on both sides;
+* the CPU figure is both endpoints together, and the harness work: generating the stream, verifying
+  and hashing the echo: is inside it on both sides;
 * Rust's two endpoints share one runtime and one address space, Go's are two processes with a
   runtime each, so Go pays two runtime start-ups while Rust may win a little on locality;
 * loopback has no loss and no RTT, so this says what the implementations *cost*, not what a link
@@ -116,8 +116,8 @@ Rust is faster; for CPU per GB, below 1.00× means Rust is cheaper.
 
 Spread below means `(max − min) / min` of the five runs. The Rust spreads are tight on the metric
 this page is judged on: **nine of the twelve cells are within 4 % on CPU per GB, five of them
-within 3 %**. The three loose ones — `default 8 MiB / 4 KiB` (12.7 %), `default 8 MiB / 512 KiB`
-(18.7 %) and `production 8 MiB / 512 KiB` (10.8 %) — are all 8 MiB payloads, where the fixed
+within 3 %**. The three loose ones: `default 8 MiB / 4 KiB` (12.7 %), `default 8 MiB / 512 KiB`
+(18.7 %) and `production 8 MiB / 512 KiB` (10.8 %): are all 8 MiB payloads, where the fixed
 set-up cost is divided across the least data. Wall-clock MiB/s is looser than CPU per GB
 throughout, exactly as the caveat above says it would be.
 
@@ -140,7 +140,7 @@ column for the same cell varies by 3 %.
   those, read [`2026-09-24-lab-arm64-netns-clean.md`](2026-09-24-lab-arm64-netns-clean.md) and
   [`2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md`](2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md).
 * **It is one machine and one architecture.** The 12.2a commit measured the same sweep on
-  lab-arm64's Neoverse-N1 (2 vCPU) at medians of three and got a much narrower Rust lead — 32 MiB
+  lab-arm64's Neoverse-N1 (2 vCPU) at medians of three and got a much narrower Rust lead: 32 MiB
   production at 1.02–1.38× Go and 0.68–0.86× CPU per GB. A 10-core laptop echoing over loopback is
   the friendliest case there is; the 2-vCPU Linux box is the honest one. The aarch64 half of *this*
   table is not re-measured here and remains at medians of three.
@@ -154,10 +154,10 @@ table is `rs/go` throughput for 4 KiB / 64 KiB / 512 KiB messages:
 
 | payload | host | 05.9 (drop, 2048) | 05.10 (drop, 8192) | 12.2a (backpressure, 2048) | 12.1 (this page) |
 |---|---|---|---|---|---|
-| 8 MiB | M5 | 0.25× / 0.19× / — | 1.88× / 1.56× / 1.53× | 1.82× / 1.69× / 1.70× | **2.14× / 1.63× / 1.63×** |
-| 32 MiB | M5 | 1.53× / 1.20× / — | 2.33× / 2.36× / 2.42× | 2.74× / 2.83× / 2.63× | **3.09× / 2.83× / 2.58×** |
-| 8 MiB | lab-arm64 aarch64 | 0.34× / 0.26× / — | 1.17× / 1.17× / 0.96× | 1.32× / 1.10× / 1.03× | not re-measured |
-| 32 MiB | lab-arm64 aarch64 | 0.70× / 0.63× / — | 0.77× / 0.77× / 0.70× | 1.12× / 1.38× / 1.02× | not re-measured |
+| 8 MiB | M5 | 0.25× / 0.19× /: | 1.88× / 1.56× / 1.53× | 1.82× / 1.69× / 1.70× | **2.14× / 1.63× / 1.63×** |
+| 32 MiB | M5 | 1.53× / 1.20× /: | 2.33× / 2.36× / 2.42× | 2.74× / 2.83× / 2.63× | **3.09× / 2.83× / 2.58×** |
+| 8 MiB | lab-arm64 aarch64 | 0.34× / 0.26× /: | 1.17× / 1.17× / 0.96× | 1.32× / 1.10× / 1.03× | not re-measured |
+| 32 MiB | lab-arm64 aarch64 | 0.70× / 0.63× /: | 0.77× / 0.77× / 0.70× | 1.12× / 1.38× / 1.02× | not re-measured |
 
 The earlier M5 rows are medians of three on a busier laptop (load average 1.5–2.9) and this row is
 medians of five, so the 12.2a → 12.1 movement is **not** evidence of a change: nothing in the tree

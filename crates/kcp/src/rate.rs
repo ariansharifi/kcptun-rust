@@ -327,7 +327,7 @@ mod tests {
 
     /// The burst cap is Go's comparison, not `f64::min`.
     ///
-    /// Two things are pinned here. The ordinary cases have to agree with `f64::min` — anything
+    /// Two things are pinned here. The ordinary cases have to agree with `f64::min`: anything
     /// else would change the pacing. The NaN case has to agree with **Go**, which keeps the NaN
     /// (`NaN > burst` is false) where `f64::min` would hand back `burst`. Keeping the comparison
     /// is also what lets `arm-unknown-linux-musleabi` link at all: `f64::min` lowers to the C23

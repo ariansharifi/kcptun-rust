@@ -1,11 +1,11 @@
 //! Port of Go's reference-layout time formatting, `time.Time.Format`.
 //!
 //! Go sources (Go 1.27.1):
-//! - `time/format.go:nextStdChunk` — the layout scanner, token by token and quirk by quirk;
+//! - `time/format.go:nextStdChunk`: the layout scanner, token by token and quirk by quirk;
 //! - `time/format.go:(Time).appendFormat`, `appendInt`, `appendNano`, `stdFracSecond`,
 //!   `digitsLen`, `separator`, `startsWithLowerCase`, `isDigit`;
-//! - `time/time.go:longMonthNames`, `longDayNames` — the English month and weekday names;
-//! - `kcptun/std/snmp.go:56` — kcptun's only use of a user-supplied layout:
+//! - `time/time.go:longMonthNames`, `longDayNames`: the English month and weekday names;
+//! - `kcptun/std/snmp.go:56`: kcptun's only use of a user-supplied layout:
 //!   `os.OpenFile(logdir+time.Now().Format(logfile), ...)`, the `-snmplog` file name.
 //!
 //! Every reference-layout token Go knows is implemented; none is left out. The scanner's
@@ -16,7 +16,7 @@
 //!
 //! What a [`Time`] carries is Go's `time.Time` reduced to what `Format` reads: the instant, the
 //! zone offset and the zone's abbreviation. See [`Time::now`] for the one thing the port cannot
-//! reproduce — the abbreviation of the machine's local zone.
+//! reproduce: the abbreviation of the machine's local zone.
 
 use chrono::{Datelike as _, Local, Offset as _, Timelike as _};
 

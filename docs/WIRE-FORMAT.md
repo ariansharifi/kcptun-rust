@@ -27,7 +27,7 @@ Defaults:
 | smuxver / smuxbuf / streambuf / framesize | 2 / 4194304 / 2097152 / 8192 | same |
 | sockbuf / keepalive | 4194304 / 10 s | same |
 | closewait | **0** | **30** |
-| conn / autoexpire / scavengettl | 1 / 0 / 600 | — |
+| conn / autoexpire / scavengettl | 1 / 0 / 600 | - |
 | QPPCount / snmpperiod | 61 / 60 | same |
 | hidden: nodelay / interval / resend / nc | 0 / 50 / 0 / 0 | same |
 
@@ -48,7 +48,7 @@ pass = PBKDF2-HMAC-SHA1(password = UTF-8 bytes of -key, salt = "kcp-go", iter = 
 | `aes` (default) and **any unknown name** | AES-256 | `pass[0:32]` | 16 | nonce 16 + crc 4 |
 | `aes-128` | AES-128 | `pass[0:16]` | 16 | nonce 16 + crc 4 |
 | `aes-192` | AES-192 | `pass[0:24]` | 16 | nonce 16 + crc 4 |
-| `aes-128-gcm` | AES-128-GCM (AEAD) | `pass[0:16]` | — | nonce 12, plus 16-byte tag at the end |
+| `aes-128-gcm` | AES-128-GCM (AEAD) | `pass[0:16]` | - | nonce 12, plus 16-byte tag at the end |
 | `salsa20` | Salsa20/20, nonce = packet bytes `[0:8]` | `pass` (32) | stream | nonce 16 + crc 4 |
 | `blowfish` | Blowfish | `pass` (32 bytes) | 8 | nonce 16 + crc 4 |
 | `twofish` | Twofish-256 | `pass` (32) | 16 | nonce 16 + crc 4 |
@@ -57,9 +57,9 @@ pass = PBKDF2-HMAC-SHA1(password = UTF-8 bytes of -key, salt = "kcp-go", iter = 
 | `tea` | TEA, **16 rounds** (`tea.NewCipherWithRounds(key,16)`), big-endian | `pass[0:16]` | 8 | nonce 16 + crc 4 |
 | `xtea` | XTEA (x/crypto default, 64 rounds), big-endian | `pass[0:16]` | 8 | nonce 16 + crc 4 |
 | `sm4` | SM4 | `pass[0:16]` | 16 | nonce 16 + crc 4 |
-| `xor` | XOR with pad `PBKDF2-HMAC-SHA1(pass, "sH3CIVoF#rWLtJo6", 32, 1500)` over `min(len,1500)` bytes | — | — | nonce 16 + crc 4 |
-| `none` | identity (no encryption) | — | — | nonce 16 + crc 4 (plaintext) |
-| `null` | **no crypto layer at all** | — | — | **none** |
+| `xor` | XOR with pad `PBKDF2-HMAC-SHA1(pass, "sH3CIVoF#rWLtJo6", 32, 1500)` over `min(len,1500)` bytes | - | - | nonce 16 + crc 4 |
+| `none` | identity (no encryption) | - | - | nonce 16 + crc 4 (plaintext) |
+| `null` | **no crypto layer at all** | - | - | **none** |
 
 - If a constructor errors, Go logs `crypt: failed to create %s cipher: %v, falling back to aes` and uses
   AES-256 with the full `pass`.
@@ -283,7 +283,7 @@ cmd: 0 SYN, 1 FIN, 2 PSH, 3 NOP, 4 UPD (v2 only; payload = consumed u32 LE | win
 
 ---
 
-## 9. QPP — Quantum Permutation Pad (`xtaci/qpp` v1.1.25, **GPL-3.0**)
+## 9. QPP: Quantum Permutation Pad (`xtaci/qpp` v1.1.25, **GPL-3.0**)
 
 Applied **per smux stream** to the stream payload bytes (after smux on send, before smux on receive). Seed
 = raw `-key` bytes. `numPads = -QPPCount`. Each stream gets fresh `wprng = CreatePRNG(seed)` and

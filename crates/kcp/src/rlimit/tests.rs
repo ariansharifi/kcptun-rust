@@ -1,6 +1,6 @@
 //! Tests of the open-file limit (D34).
 //!
-//! The pure decision — [`nofile_target`] — is tested exhaustively; the syscall half is tested
+//! The pure decision ([`nofile_target`]) is tested exhaustively; the syscall half is tested
 //! once, for the property that actually matters in production: after the call the soft limit is
 //! not below what it was, and on a host whose hard limit is higher it has reached it.
 
@@ -24,7 +24,7 @@ fn the_docker_default_is_raised_to_the_hard_limit() {
 }
 
 /// macOS's hard limit is `RLIM_INFINITY`, which `setrlimit` refuses; Go clamps to
-/// `kern.maxfilesperproc`, and the clamp is a ceiling only — a hard limit below it is taken as
+/// `kern.maxfilesperproc`, and the clamp is a ceiling only: a hard limit below it is taken as
 /// it stands.
 // Go: syscall/rlimit_darwin.go:adjustFileLimit()
 #[test]

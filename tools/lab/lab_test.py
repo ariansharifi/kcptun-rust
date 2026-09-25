@@ -3,13 +3,13 @@
 
 The cargo gate cannot cover a python script, and a scenario runner that is only ever exercised
 by running a six-hour soak is not covered at all. These tests substitute a fake `Runner` for
-ssh, so the whole flow — preflight, netns, start order, waiting, SIGUSR1, stop, collect, report
-— is checked without a lab host, and the parts that turn collected files into a report are
+ssh, so the whole flow: preflight, netns, start order, waiting, SIGUSR1, stop, collect, report,
+is checked without a lab host, and the parts that turn collected files into a report are
 checked against files written by hand.
 
 `DeployTests` goes one step further and runs the real `deploy.sh` against stub `ssh`, `scp` and
 `cargo` commands in a throwaway root, because the architecture it picks is only observable at
-the moment a binary refuses to start on the host — hours into a run.
+the moment a binary refuses to start on the host: hours into a run.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ MINIMAL = {
 
 #: `finish_run` waits a real second for the SIGUSR1 SNMP dump to reach the process log. Most of
 #: this file drives a non-dry `FakeRunner` through it, so the suite used to pay that second per
-#: test — ~25 s of wall clock inside `cargo test --workspace`, the slowest target in the gate.
+#: test, ~25 s of wall clock inside `cargo test --workspace`, the slowest target in the gate.
 #: Zeroed for the whole module and restored afterwards; the shipped value is asserted below so
 #: that zeroing it here cannot quietly become zeroing it in a real run.
 _REAL_SNMP_SETTLE = lab.SNMP_SETTLE_SECONDS
@@ -111,7 +111,7 @@ class FakeRunner(lab.Runner):
         self.next_pid = 1000
         self.fetched: list[tuple[str, Path]] = []
         self.netns_status = ""
-        #: The fakes handed out by `peer()`, by host — how a two-host WAN run is observed.
+        #: The fakes handed out by `peer()`, by host, how a two-host WAN run is observed.
         self.peers: dict[str, "FakeRunner"] = {}
         #: What `cat bin/<family>/BUILD.txt` answers, per family, and what `sha256sum` reports
         #: for each deployed binary. A test makes a host unprovenanced by emptying or
@@ -155,7 +155,7 @@ class FakeRunner(lab.Runner):
             return lab.Result([], 0, f"{digest}  {name}\n" if digest else "", "")
         if ".pid" in command:
             # One "<name> <pid> <exe>" line per requested PID file. The names are read out of
-            # the paths the command cats, because that is what `Runner.pids` actually builds —
+            # the paths the command cats, because that is what `Runner.pids` actually builds,
             # reading them out of shell quoting instead silently matched nothing, and every
             # sampler command line in these tests then had no `--pid` at all to assert on.
             lines = []
@@ -303,7 +303,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(scenario.snmp_period, 60)
         self.assertGreaterEqual(scenario.total_duration, 6 * 3600)
         # DECISIONS D28: the soak runs the PRODUCTION closewait default (server 30 s), because
-        # that linger is the mechanism most likely to accumulate descriptors — `closewait 0`
+        # that linger is the mechanism most likely to accumulate descriptors: `closewait 0`
         # would remove the thing being measured. The headroom comes from lab-start.sh's
         # `ulimit -n 65536` instead. (This assertion used to demand `closewait 0`; it was left
         # behind when D28 changed the scenario, and lab_test.py is not in the cargo gate.)
@@ -469,7 +469,7 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual(lab.remote_quote("$HOME/kcptun-lab/x"), '"$HOME/kcptun-lab/x"')
         self.assertEqual(lab.remote_quote("a b"), "'a b'")
         self.assertEqual(lab.remote_quote("-l"), "-l")
-        # `label=path` values (`--log cli=$HOME/...`) expand too — see the sampler test.
+        # `label=path` values (`--log cli=$HOME/...`) expand too, see the sampler test.
         self.assertEqual(lab.remote_quote("cli=$HOME/kcptun-lab/x"), 'cli="$HOME/kcptun-lab/x"')
         # …but only for a plain label; anything else is quoted whole so the shell cannot see it.
         self.assertEqual(lab.remote_quote("a;b=$HOME/x"), "'a;b=$HOME/x'")
@@ -502,7 +502,7 @@ class RunFlowTests(unittest.TestCase):
     def test_a_dry_run_writes_nothing_on_the_laptop(self):
         # `--dry-run` previews commands. It used to still create the run directory and its
         # state.json, and (with reports on) drop an empty, fabricated report into the
-        # git-tracked docs/lab-results/ — a file `git status` then offers to commit.
+        # git-tracked docs/lab-results/: a file `git status` then offers to commit.
         runs = self.root / "runs"
         report = self.root / "report.md"
         runner = FakeRunner()
@@ -658,7 +658,7 @@ class ProvenanceTests(unittest.TestCase):
 
     11.3 ran 27 WAN runs whose `server_build` was the empty string, because the stamp lived one
     directory above the binaries and the far host's `kr-server` had none beside it. Nothing
-    failed and nothing shouted, so a whole campaign — including its headline 0.75x — cannot be
+    failed and nothing shouted, so a whole campaign (including its headline 0.75x) cannot be
     attributed to any revision. Every test here is that failure, refused.
     """
 
@@ -711,13 +711,13 @@ class ProvenanceTests(unittest.TestCase):
         message = self.refused(runner)
         # The wrapper, not `deploy.sh`: the script has no `--host` (it exits 2 with "unknown
         # argument"), and dropping the flag to make it run would deploy to $KCPTUN_LAB_HOST,
-        # whose default is lab-arm64 — the production box, not the one that was refused.
+        # whose default is lab-arm64: the production box, not the one that was refused.
         self.assertIn("tools/lab/lab.py --host fake-host deploy --rust", message)
         self.assertNotIn("deploy.sh --host", message)
 
     def test_the_remedy_is_a_command_line_the_wrapper_actually_accepts(self):
         # Parsed back with lab.py's own parser: a refusal's one actionable line is worth
-        # nothing if pasting it is an argparse error — or, worse, a deployment to a host
+        # nothing if pasting it is an argparse error, or, worse, a deployment to a host
         # nobody named.
         runner = FakeRunner()
         runner.stamps["rust"] = ""
@@ -748,7 +748,7 @@ class ProvenanceTests(unittest.TestCase):
     def test_an_unstamped_glibc_host_is_not_redeployed_as_musl(self):
         # The case this gate actually fires on: no per-family stamp at all, which is every host
         # deployed before 12.0. The stamp's own `libc` is empty there, so a remedy built from
-        # it alone omits `--gnu` — and `deploy.sh` defaults to static musl, whose allocator
+        # it alone omits `--gnu`, and `deploy.sh` defaults to static musl, whose allocator
         # returns 4.9% of a burst where glibc returns 95.6% (DECISIONS D07). Following the
         # refusal's own instruction would therefore change what Step 12 is measuring. The
         # pre-12.0 aggregate line is not provenance, but it does say `glibc 2.17`, and that is
@@ -932,7 +932,7 @@ class ProvenanceTests(unittest.TestCase):
     def test_an_unprovenanced_pingpong_reaches_the_report_it_takes_the_numbers_for(self):
         # The gate demanded a stamp for `kr-pingpong` but recorded only the four keys in
         # BUILD_DETAIL_KEYS, so a swapped target beside an intact `kr-labsample` produced a
-        # report with no banner at all — `--allow-unprovenanced` promising a marker and then
+        # report with no banner at all: `--allow-unprovenanced` promising a marker and then
         # printing a clean document. That is 11.3's failure shape inside 11.3's own fix, for
         # the instrument that emits every latency percentile.
         report = self.root / "report.md"
@@ -953,7 +953,7 @@ class ProvenanceTests(unittest.TestCase):
 
     def test_a_clean_report_names_the_pingpong_that_produced_its_percentiles(self):
         # The other half: with everything provenanced the report must still say *which*
-        # `kr-pingpong` — it is both the echo target and the workload — or the latency rows
+        # `kr-pingpong` (it is both the echo target and the workload) or the latency rows
         # are quotable but not checkable, which is what 12.0 exists to stop.
         report = self.root / "report.md"
         self.run_ok(no_report=False, report=str(report))
@@ -971,7 +971,7 @@ class ProvenanceTests(unittest.TestCase):
 
     def test_an_iperf3_target_records_no_pingpong_artefact_at_all(self):
         # `iperf3` is the host's own package and carries no stamp of ours, so the two target
-        # keys are simply absent — and `artefact_lines` must stay silent rather than claim the
+        # keys are simply absent, and `artefact_lines` must stay silent rather than claim the
         # run predates 12.0.
         self.scenario_path.write_text(json.dumps({
             "name": "unit", "settle": 0, "sample_interval": 5, "snmp_period": 5,
@@ -1007,7 +1007,7 @@ class ProvenanceTests(unittest.TestCase):
         self.assertIn("predates the 12.0 build stamp", text)
 
     def test_the_comparison_table_is_marked_unprovenanced_too(self):
-        # `lab.py compare --report` is what a WAN rung is actually quoted from — 11.3's 0.75x
+        # `lab.py compare --report` is what a WAN rung is actually quoted from: 11.3's 0.75x
         # reached a document through this command, not through `markdown_report`. A session it
         # cannot attribute must not produce a table that reads as a clean measurement.
         import argparse
@@ -1224,7 +1224,7 @@ class WanRunFlowTests(unittest.TestCase):
     def test_the_measuring_end_of_a_latency_run_is_hashed_on_the_client_host(self):
         # `kr-pingpong` runs on *both* hosts in a WAN run: the echo target on the server, and
         # the workload that emits every percentile on the client. Only the server's copy used
-        # to be hashed, so a stale client binary beside a fresh stamp — the exact 11.3 shape —
+        # to be hashed, so a stale client binary beside a fresh stamp: the exact 11.3 shape,
         # produced numbers from an unidentified instrument and the run was accepted.
         runner = FakeRunner("cli-host")
         runner.hashes["kr-pingpong"] = "99" * 32
@@ -1279,7 +1279,7 @@ class WanRunFlowTests(unittest.TestCase):
         # 11.2 found the kernel's `rmem_max` capable of inverting a cell's conclusion, and the
         # committed 11.3 results were measured on hosts whose ceiling was never read. A WAN
         # path cannot be re-run afterwards under a raised ceiling, so the warning has to be at
-        # preflight — and on *both* ends, because each host clamps its own half of `-sockbuf`.
+        # preflight, and on *both* ends, because each host clamps its own half of `-sockbuf`.
         errors = io.StringIO()
         with contextlib.redirect_stderr(errors):
             self.do_run()
@@ -1374,7 +1374,7 @@ class WanRunFlowTests(unittest.TestCase):
 
     def test_promoting_a_netem_scenario_to_a_real_path_is_refused(self):
         # `parse_scenario` refuses `mode: wan` + netem, but `cmd_run` sets the mode *after*
-        # parsing, on --server-host/--server-addr — which is how every rung in the runbook is
+        # parsing, on --server-host/--server-addr, which is how every rung in the runbook is
         # started. Checked only at parse time, this ran the whole campaign with no impairment
         # applied and no error at all, from a scenario whose own name says `wan50`.
         self.scenario_path.write_text(json.dumps(
@@ -1390,7 +1390,7 @@ class WanRunFlowTests(unittest.TestCase):
         self.assertEqual(runner.peers, {})
 
     def test_a_failed_collect_still_stops_the_server_host(self):
-        # `cmd_collect` — the only way to finish a detached WAN run — has no `finally`. With the
+        # `cmd_collect` (the only way to finish a detached WAN run) has no `finally`. With the
         # server stopped after the client's collect and tar download, a raising collect (or a
         # Ctrl-C mid-download) left `<runid>-srv` and `<runid>-tgt` up for ever on the other
         # machine: `lab-start.sh` nohups them with no timeout, and only the sampler and the
@@ -1420,7 +1420,7 @@ class WanRunFlowTests(unittest.TestCase):
     def test_an_interrupt_while_a_run_is_starting_still_stops_both_ends(self):
         # The window that actually bit: SIGINT arrived between the server host's first
         # `lab-start.sh` and `start_run` returning, so the laptop held no state for the run and
-        # stopped nothing — a kcptun server, its target and a client left up on two machines.
+        # stopped nothing: a kcptun server, its target and a client left up on two machines.
         class InterruptOnServerStart(FakeRunner):
             def lab(self, script, *args, check=True, timeout=120.0):
                 result = super().lab(script, *args, check=check, timeout=timeout)
@@ -1480,7 +1480,7 @@ class WanRunFlowTests(unittest.TestCase):
         # state, so collecting a WAN run without naming its client host addressed the default
         # machine instead: `stop` found no pid files there, `collect`/`fetch_dir` then failed on
         # a log directory that does not exist, and the real `<runid>-cli` on the host that does
-        # have it was left running — `lab-start.sh` nohups it with no timeout. `start_run`
+        # have it was left running: `lab-start.sh` nohups it with no timeout. `start_run`
         # records `host`, so the mismatch is detectable before anything is touched.
         self.do_run(detach=True)
         state = json.loads(next((self.root / "runs").glob("*/*/state.json")).read_text())
@@ -1604,7 +1604,7 @@ class ResultTests(unittest.TestCase):
         self.assertAlmostEqual(metrics["rss_slope_kb_h"], 0.0, places=6)
         self.assertAlmostEqual(metrics["fd_slope_h"], 0.0, places=6)
         # 311 samples a minute apart is a 5 h 11 m run, so a tenth of it (1860 s) is the
-        # cutoff rather than the ten-minute floor — and the plateau starts well before that.
+        # cutoff rather than the ten-minute floor, and the plateau starts well before that.
         self.assertEqual(metrics["slope_from_s"], 1860.0)
 
     def test_a_steady_climb_is_reported_as_kilobytes_per_hour(self):
@@ -1619,7 +1619,7 @@ class ResultTests(unittest.TestCase):
         self.assertIsNone(metrics["rss_slope_kb_h"])
         self.assertIsNone(metrics["fd_slope_h"])
         self.assertEqual(metrics["slope_samples"], 0)
-        self.assertEqual(lab.format_slope(None), "—")
+        self.assertEqual(lab.format_slope(None), "-")
 
     def test_a_missing_fd_column_loses_the_fd_slope_and_not_the_rss_one(self):
         metrics = lab.process_metrics(self._proc_csv([(5000, None)] * 60))["cli"]
@@ -1798,7 +1798,7 @@ class ResultTests(unittest.TestCase):
             '"errors":0,"timeouts":0,"long_lived_ok":120}\n'
         )
         text = lab.markdown_report([state], [self.dir])
-        self.assertIn("# Lab results — unit", text)
+        self.assertIn("# Lab results: unit", text)
         self.assertIn("## unit-rr-r1-STAMP", text)
         self.assertIn("p50 1.50 ms", text)
         self.assertIn("800/800 streams", text)
@@ -1811,8 +1811,8 @@ class ResultTests(unittest.TestCase):
         self.assertIn("Too few samples after warm-up", text)
 
     def test_the_report_prints_the_command_that_produced_each_number(self):
-        # 11.3's caveat 4 — "if a future rung reports a flat 400.0, the cap has become the
-        # measurement" — could only be checked by opening state.json, because the report
+        # 11.3's caveat 4: "if a future rung reports a flat 400.0, the cap has become the
+        # measurement": could only be checked by opening state.json, because the report
         # printed the tunnel's argv and never the workload's. A number and the command that
         # produced it belong on the same page.
         state = {
@@ -1831,7 +1831,7 @@ class ResultTests(unittest.TestCase):
         self.assertIn("`iperf3 -c 127.0.0.1 -t 60 -b 900M`", text)
 
     def test_the_report_prints_the_socket_buffer_ceilings_every_number_depends_on(self):
-        # D32 makes the ceiling a validity precondition — an S1 run (`-sockbuf 8388608`) on a
+        # D32 makes the ceiling a validity precondition: an S1 run (`-sockbuf 8388608`) on a
         # host whose `net.core.rmem_max` is the stock 212992 measures the ceiling and must be
         # discarded. `matrix_report` printed it and `markdown_report` did not, so the three
         # 11.3b WAN detail pages carried numbers whose precondition was checkable only from a
@@ -1912,7 +1912,7 @@ class ResultTests(unittest.TestCase):
         server_dir = self.dir / lab.SERVER_SUBDIR
         server_dir.mkdir()
         # Each machine samples only its own processes, so the client's file holds `cli` and the
-        # server's holds `srv` — and both are called proc.csv.
+        # server's holds `srv`, and both are called proc.csv.
         rows = PROC_CSV.splitlines()
         header, body = rows[0], rows[1:]
         (self.dir / "proc.csv").write_text(
@@ -1988,7 +1988,7 @@ class ResultTests(unittest.TestCase):
         self.assertIn("| GG | RG |", text)
         self.assertNotIn("| RR |", text)
         # With no RR column there is no ratio to print.
-        self.assertIn("| — |", text)
+        self.assertIn("| - |", text)
 
     def test_the_snmp_counters_a_wan_rung_is_read_from_are_in_the_table(self):
         text, _, _ = self.compare_session({"GG": [100.0], "RR": [100.0]})
@@ -2025,7 +2025,7 @@ class ResultTests(unittest.TestCase):
             lab.find_session(args, "nothing-like-this")
 
     def test_two_proc_files_that_do_overlap_are_both_kept(self):
-        # Never expected — the label sets are disjoint by construction — but silently dropping
+        # Never expected (the label sets are disjoint by construction) but silently dropping
         # one machine's samples would be the worst possible way to find out otherwise.
         server_dir = self.dir / lab.SERVER_SUBDIR
         server_dir.mkdir()
@@ -2070,7 +2070,7 @@ class ResultTests(unittest.TestCase):
         self.assertIn("collected before warm-up ended", text)
         self.assertIn("1140 s of samples against an intended 21600 s", text)
         # The table is still printed, with an empty slope column rather than a wrong one.
-        self.assertRegex(text, r"\| cli \|.*\| — \|")
+        self.assertRegex(text, r"\| cli \|.*\| - \|")
         # Which host and which artefact, so two runs reported together can be told apart.
         self.assertIn("host `lab-x86-2`", text)
         self.assertIn("x86_64-unknown-linux-gnu (glibc 2.17)", text)
@@ -2130,7 +2130,7 @@ class DeployTests(unittest.TestCase):
         shutil.copy2(DEPLOY_SH, self.root / "tools" / "lab" / "deploy.sh")
         self.refbin = self.root / "reference" / "bin"
         self.refbin.mkdir(parents=True)
-        # What tools/fetch-reference.sh leaves beside them. This — not this repository's HEAD —
+        # What tools/fetch-reference.sh leaves beside them. This, not this repository's HEAD,
         # is what identifies a Go reference binary: reference/ is a gitignored symlink to a
         # checkout shared between worktrees, and fetching a new one changes nothing in git.
         self.versions = self.root / "reference" / "VERSIONS.txt"
@@ -2147,7 +2147,7 @@ class DeployTests(unittest.TestCase):
         self.stub.mkdir()
         self.log = self.tmp / "calls.log"
         #: Everything deploy.sh wrote to a BUILD.txt, each block headed by the ssh command line
-        #: that carried it — the stamps a later run's provenance check will read.
+        #: that carried it, the stamps a later run's provenance check will read.
         self.stamps = self.tmp / "stamps.log"
 
     def _exe(self, path: Path, text: str) -> None:
@@ -2157,8 +2157,8 @@ class DeployTests(unittest.TestCase):
     def _stubs(self, uname: str) -> None:
         """ssh answers `uname -m` with `uname`; scp and cargo just record what they were given.
 
-        A `BUILD.txt` write is the one ssh invocation with something on stdin, so that branch —
-        and only that branch — reads it: an unconditional `cat` would block on the test
+        A `BUILD.txt` write is the one ssh invocation with something on stdin, so that branch,
+        and only that branch: reads it: an unconditional `cat` would block on the test
         runner's own stdin for the `uname -m` round trip.
         """
         self._exe(self.stub / "ssh", f'''#!/bin/sh
@@ -2276,7 +2276,7 @@ for b in kcptun-client kcptun-server pingpong labsample; do : > "$dir/$b"; done
         """The fields of the stamp written to `~/kcptun-lab/<remote_dir>/BUILD.txt`.
 
         Parsed with `lab.parse_build_stamp`, so what `deploy.sh` writes is read here by exactly
-        the code that refuses a run — the two halves of 12.0 cannot drift apart silently.
+        the code that refuses a run: the two halves of 12.0 cannot drift apart silently.
         """
         text = self.stamps.read_text() if self.stamps.exists() else ""
         blocks: dict[str, list[str]] = {}
@@ -2296,7 +2296,7 @@ for b in kcptun-client kcptun-server pingpong labsample; do : > "$dir/$b"; done
     def test_every_directory_that_receives_a_binary_is_stamped_beside_it(self):
         # 11.3's server host had one stamp a directory above a kr-server that no deployment had
         # replaced, and `server_build` was empty in all 27 runs. The stamp now lives with the
-        # binaries it describes — and there is one per family, not one per deployment.
+        # binaries it describes, and there is one per family, not one per deployment.
         self._deploy("--go", "--rust", "--tools", uname="x86_64")
         self.assertEqual(self._stamp("bin/rust")["kind"], "rust")
         self.assertEqual(self._stamp("bin/go")["kind"], "go")
@@ -2536,7 +2536,7 @@ class MatrixTests(unittest.TestCase):
         row = [line for line in self.report().splitlines()
                if line.startswith("| S1 | burst | bulk-iperf3 | up |")][0]
         self.assertNotIn("×", row)
-        self.assertIn("| — | — |", row)
+        self.assertIn("| - | - |", row)
 
     def test_the_matrix_reports_tunnel_cpu_per_delivered_bit(self):
         # PROC_CSV: cli 0.65 s + srv 0.90 s of CPU = 1.55 s, over 100 Mbit/s x 30 s = 3000
@@ -2553,7 +2553,7 @@ class MatrixTests(unittest.TestCase):
 
     def test_the_retransmission_figures_are_attributed_per_side_and_per_pair(self):
         # SNMP_CSV's last record: OutSegs 80, RetransSegs 5 (2 of them fast), LostSegs 1,
-        # RepeatSegs 0 — so 6.25 % retransmitted and 40 % of that fast.
+        # RepeatSegs 0, so 6.25 % retransmitted and 40 % of that fast.
         self.cell("s1", "wan50", {"GG": [10.0], "RR": [10.0]})
         text = self.report()
         self.assertIn("### Retransmission attribution", text)
@@ -2653,7 +2653,7 @@ class MatrixTests(unittest.TestCase):
 
     def test_two_socket_buffer_ceilings_are_kept_apart_rather_than_averaged(self):
         # The campaign and the controlled re-run of three of its cells were the same host, the
-        # same scenario file, the same config and the same profiles on the same day — every
+        # same scenario file, the same config and the same profiles on the same day: every
         # component of the cell key, and every component of the session-name prefix `lab.py
         # matrix` selects on. Only the kernel's `rmem_max` differed, and it is what the whole
         # 11.2 result turned on: a median across the two is a number no experiment produced.
@@ -2674,18 +2674,18 @@ class MatrixTests(unittest.TestCase):
     def test_a_share_with_no_retransmissions_behind_it_is_not_reported_as_zero(self):
         # "0 % of the retransmissions were fast" and "there were no retransmissions" are
         # opposite readings of the same cell, and the second one is what an empty denominator
-        # means. format_number's contract: None is "—", never 0.
+        # means. format_number's contract: None is "-", never 0.
         quiet = SNMP_CSV.replace(",5,2,0,1,0,0,7,0", ",0,0,0,0,0,0,7,0")
         self.cell("s1", "clean", {"GG": [100.0], "RR": [100.0]}, snmp=quiet)
         text = self.report()
         self.assertIn("| S1 | clean | bulk-iperf3 | client | retrans % | 0 | 0 |", text)
-        self.assertIn("| S1 | clean | bulk-iperf3 | client | fast % of retrans | — | — |", text)
+        self.assertIn("| S1 | clean | bulk-iperf3 | client | fast % of retrans | - | - |", text)
 
     def test_the_session_counters_are_in_the_table_that_evidences_no_stuck_sessions(self):
         # "No stuck sessions" is one of step 11.2's four acceptance criteria and the only
         # one with no artefact behind it: lab-runs/ is gitignored, so a claim about CurrEstab
         # that no committed table carries cannot be checked by anyone afterwards.
-        # SNMP_CSV: MaxConn 4, CurrEstab 1 then 3 — so peak 3 and end 3.
+        # SNMP_CSV: MaxConn 4, CurrEstab 1 then 3, so peak 3 and end 3.
         self.cell("s1", "clean", {"GG": [100.0], "RR": [100.0]})
         text = self.report()
         self.assertIn("| S1 | clean | bulk-iperf3 | client | MaxConn | 4 | 4 |", text)
@@ -2780,7 +2780,7 @@ class BitrateOverrideTests(unittest.TestCase):
     """`run --bitrate`: the iperf3 guard rail belongs to the path, not to the scenario file.
 
     400M never binds on 11.3's 131 ms rung and binds hard on the 95 ms one (a Go client alone
-    drives 631 Mbit/s there), and a cap that binds makes every implementation report the cap —
+    drives 631 Mbit/s there), and a cap that binds makes every implementation report the cap,
     which is how 11.3's first attempt produced four pairs all reporting exactly 60.0 Mbit/s.
     """
 
@@ -2926,7 +2926,7 @@ class ClampedSockbufWarningTests(unittest.TestCase):
 
     `warn_clamped_sockbuf` used to read `merged_flags(...)["sockbuf"]` and skip the side when
     the flag was absent. S2/S3/S4 name no `-sockbuf`, so on a stock host they were clamped
-    twentyfold and `lab.py` — the tool every 11.x campaign, soak and matrix runs through — said
+    twentyfold and `lab.py` (the tool every 11.x campaign, soak and matrix runs through) said
     nothing about it. That silence is what produced a withdrawn benchmark page.
     """
 
@@ -3003,7 +3003,7 @@ class MatrixScenarioTests(unittest.TestCase):
         self.assertEqual(scenario.target, "pingpong")
 
     def test_the_capped_bulk_control_differs_from_the_uncapped_one_only_in_the_cap(self):
-        # It is a control, so anything else that differs makes the pair uncomparable — and the
+        # It is a control, so anything else that differs makes the pair uncomparable, and the
         # whole point of it is that `clean` on a one-vCPU host otherwise measures the core.
         free = self.scenario("bulk-iperf3")
         capped = self.scenario("bulk-capped")

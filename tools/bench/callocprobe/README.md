@@ -1,7 +1,7 @@
 # callocprobe (plan 12.3c)
 
 `calloc` does not always memset. This 120-line C probe measures when it does, and it is the
-evidence behind the allocator-residency tables in `docs/benchmarks/memory.md` §7 — the measurement
+evidence behind the allocator-residency tables in `docs/benchmarks/memory.md` §7: the measurement
 that turned *"the receive batch is resident on a session that has never received a datagram"* into
 *"`calloc` memsets small blocks, and Go's allocator does not"*.
 
@@ -30,7 +30,7 @@ tools/lab/README.md requires. The probe opens no socket and runs in milliseconds
 
 ## The invocations behind §7
 
-All three shapes allocate the same 6 144 000 bytes — 16 whole `BATCH_SIZE` batches — so only the
+All three shapes allocate the same 6 144 000 bytes (16 whole `BATCH_SIZE` batches) so only the
 block size differs:
 
 ```sh

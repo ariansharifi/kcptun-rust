@@ -7,7 +7,7 @@
 //!
 //! One socket, one monitor task and a map of sessions keyed by the peer address: that is the
 //! whole server side of kcp-go. [`Listener::packet_input`] is the demux, and it follows
-//! `docs/WIRE-FORMAT.md` §5 exactly — decrypt, pull `conv`/`sn` out of whatever framing the
+//! `docs/WIRE-FORMAT.md` §5 exactly: decrypt, pull `conv`/`sn` out of whatever framing the
 //! packet uses, route it to the session that owns the address, and only let an unknown
 //! conversation create a session when the accept backlog has room.
 //!
@@ -16,7 +16,7 @@
 //!
 //! - they **share the listener's socket** for transmission (`Arc<dyn PacketConn>`, `ownConn =
 //!   false`), so closing one must not close the socket;
-//! - they have **no read loop** — this monitor is the only reader of that socket, and a second
+//! - they have **no read loop**: this monitor is the only reader of that socket, and a second
 //!   one would steal its datagrams. [`UdpSession::start`] arranges that by looking at
 //!   `SessionConfig::listener`;
 //! - their [`close`](UdpSession::close) takes them out of [`Listener`]'s map through
@@ -41,7 +41,7 @@
 //!   capacity [`ACCEPT_BACKLOG`]. It is multi-consumer like Go's channel (several tasks may sit
 //!   in [`accept`](Listener::accept)), and `notify_one` stores a permit exactly as a buffered
 //!   channel does. Where Go's `select` picks at random between a queued session and any of its
-//!   other arms, [`accept`](Listener::accept) always hands out the queued session first — it is
+//!   other arms, [`accept`](Listener::accept) always hands out the queued session first: it is
 //!   preferred over the closed `die` token *and* over a recorded socket read error, that is over
 //!   every other arm of Go's `select`.
 #![forbid(unsafe_code)]
@@ -327,7 +327,7 @@ impl<C: Clock + Clone> Listener<C> {
                 //
                 // `MIN_PACKET_SIZE` is `fecHeaderSizePlus2 + convSize`, so the id is always
                 // there. Go leaves `sn` at 0 here, which makes an OOB packet with a mismatched
-                // conv a reset — reproduced, quirk included.
+                // conv a reset: reproduced, quirk included.
                 debug_assert!(data.len() >= FEC_HEADER_SIZE_PLUS2 + CONV_SIZE);
                 has_conv = true;
                 conv = le_u32(data, FEC_HEADER_SIZE_PLUS2);
@@ -345,7 +345,7 @@ impl<C: Clock + Clone> Listener<C> {
 
         // Deviation V23: an address we have never seen may still belong to a session we already
         // hold, the peer having simply answered from somewhere else. The conv decides, and only
-        // after `decrypt` has passed — so with any cipher but `-crypt null` a forged packet has
+        // after `decrypt` has passed, so with any cipher but `-crypt null` a forged packet has
         // to survive a CRC32 or an AEAD tag before it can reach a session this way.
         //
         // The session's own remote is left untouched, so replies keep going where they always
@@ -405,7 +405,7 @@ impl<C: Clock + Clone> Listener<C> {
             die: CancellationToken::new(),
         });
         // Go's `newUDPSession` cannot fail; both failure modes are unreachable here (the default
-        // MTU always fits, and a shard count no codec can serve — Deviation V07 — is rejected by
+        // MTU always fits, and a shard count no codec can serve (Deviation V07) is rejected by
         // `Listener::new`). Dropping the packet is the no-panic substitution.
         let Ok(session) = session else {
             return;
@@ -466,7 +466,7 @@ impl<C: Clock + Clone> Listener<C> {
     /// Stops listening on the UDP address, and closes the socket if the listener owns it.
     ///
     /// The second and later calls return [`closed_pipe`], as Go's `dieOnce` makes them. The
-    /// sessions already accepted are **not** closed — Go does not close them either — but they
+    /// sessions already accepted are **not** closed (Go does not close them either) but they
     /// stop receiving, and on an owned socket they are handed the same
     /// `use of closed network connection` error Go's monitor propagates when its `ReadFrom`
     /// fails (see the module header).
@@ -523,7 +523,7 @@ impl<C: Clock + Clone> Listener<C> {
     fn remove_session(&self, remote: SocketAddr) -> bool {
         let removed = self.sessions_mut().remove(&remote);
         // Deviation V23: drop the conv alias with it, but only while it still points at *this*
-        // session — after a collision the alias belongs to the session that won it, and must
+        // session, after a collision the alias belongs to the session that won it, and must
         // outlive the one that did not.
         if let Some(session) = removed.as_ref() {
             let conv = session.get_conv();
@@ -623,7 +623,7 @@ impl<C: Clock + Clone> Listener<C> {
     ///
     /// A conv is four bytes from the OS RNG, so two live sessions sharing one is an accident of
     /// about one in 2^32 rather than a case to design around. When it does happen the first
-    /// session keeps the alias and the second stays reachable by address alone — which is all
+    /// session keeps the alias and the second stays reachable by address alone, which is all
     /// either of them gets under Go's rules anyway.
     fn register_conv(&self, session: &Arc<UdpSession<C>>) {
         self.by_conv_mut()
@@ -678,7 +678,7 @@ impl<C: Clock + Clone> SessionOwner for Listener<C> {
 /// It receives a batch of datagrams and hands each one, with its sender, to
 /// [`Listener::packet_input`], which decrypts it in place in the receive slot. Like
 /// [`crate::session::ReadLoop`] it holds a [`Weak`] reference, so that the task cannot be what
-/// keeps a listener (and its socket) alive, and it leaves on the `die` token — see the module
+/// keeps a listener (and its socket) alive, and it leaves on the `die` token, see the module
 /// header for how that maps onto Go's "the socket close fails `ReadFrom`".
 pub struct Monitor<C = SystemClock> {
     /// The listener to feed, weakly (see above).

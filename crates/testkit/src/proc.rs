@@ -10,7 +10,7 @@
 //! `KCPTUN_TEST_KEEP_LOGS=1` to keep the log files after the test.
 //!
 //! [`ProcBuilder::split_output`] captures the two streams into two files instead, for a test that
-//! has to tell them apart — kcptun writes its log to stderr but its help, usage errors and the
+//! has to tell them apart: kcptun writes its log to stderr but its help, usage errors and the
 //! coloured QPP warnings to stdout, and step 09.5's CLI differential compares the two separately.
 //!
 //! macOS caveat: a child can inherit sockets that other test threads create at the moment of
@@ -369,7 +369,7 @@ impl Proc {
     /// and `SIGTERM` end the process).
     ///
     /// `std` offers no safe `kill(2)` and this crate denies `unsafe` outside
-    /// [`cpu`](crate::cpu) (docs/porting-guide.md §5), so the signal is sent by `kill(1)` — the
+    /// [`cpu`](crate::cpu) (docs/porting-guide.md §5), so the signal is sent by `kill(1)`: the
     /// same route `kcptun_std::signal`'s own tests take. Sending to a process that has already
     /// been reaped is refused instead of risking a recycled pid.
     #[cfg(unix)]

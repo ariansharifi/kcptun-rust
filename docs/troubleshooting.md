@@ -26,7 +26,7 @@ Both processes log normally, a client application connects, and nothing comes ba
 | Server logs `remote address:` and `smux version:`, then `invalid protocol` | The smux layer received something it cannot parse: `-smuxver` differs, or `-nocomp` / `-QPP` / `-QPPCount` differ, so the stream bytes are garbage to the receiver. |
 | Client logs `stream opened` but the server logs nothing | The packets are not arriving at all: UDP firewall, NAT, wrong port, or a `-l`/`-r` port-range mismatch. |
 
-`InCsumErrors` on a key mismatch is not a corrupted link — it is the CRC over a packet that was
+`InCsumErrors` on a key mismatch is not a corrupted link: it is the CRC over a packet that was
 decrypted with the wrong key.
 
 ## The client repeats `re-connecting: …`
@@ -44,8 +44,8 @@ the underlying error, with Go's own wording. Common ones:
 | `dial(): lookup …: no such host` | DNS failure for the remote host. |
 | `dial(): tcpraw.Dial(): dial ip:tcp <remote ip>: socket: operation not permitted` (Linux) | `-tcp` needs `CAP_NET_RAW` for its raw socket (and `iptables`, i.e. `CAP_NET_ADMIN`, to suppress the kernel's own segments). Run the client as root or give the binary `setcap cap_net_raw,cap_net_admin+ep`. Identical in Go. |
 | `dial(): tcpraw.Dial(): os not supported` (not Linux) | Go's fake TCP is Linux-only and this port says the same thing everywhere else. See [Status](status.md). |
-| `-tcp` tunnel carries nothing, and the **Go** client's `SIGUSR1` dump shows `InErrs` climbing with `InPkts:0` | Not fixable from this side: kcp-go's read loop demands a `*net.UDPAddr` and tcpraw hands it a `*net.TCPAddr`, so a Go `-tcp` client drops every inbound packet — against a Go server too ([V22](differences.md#full-list)). Use this port's client for `-tcp`. |
-| A `-A OUTPUT … -m ttl --ttl-eq 1 … -j DROP` rule is left behind | The process was `SIGKILL`ed (or the machine lost power): no process can catch that signal, so nothing removed the rule. Go behaves identically. Remove it with the `-D` form of the same rule, e.g. `iptables -D OUTPUT -s <local> -d <remote> -p tcp -m ttl --ttl-eq 1 -m tcp --sport <port> --dport <port> -j DROP` (`--sport <port>` alone for a server's rule); `iptables -S OUTPUT` lists them. Every other exit path — `SIGINT`, `SIGTERM`, a normal close — removes them. |
+| `-tcp` tunnel carries nothing, and the **Go** client's `SIGUSR1` dump shows `InErrs` climbing with `InPkts:0` | Not fixable from this side: kcp-go's read loop demands a `*net.UDPAddr` and tcpraw hands it a `*net.TCPAddr`, so a Go `-tcp` client drops every inbound packet, against a Go server too ([V22](differences.md#full-list)). Use this port's client for `-tcp`. |
+| A `-A OUTPUT … -m ttl --ttl-eq 1 … -j DROP` rule is left behind | The process was `SIGKILL`ed (or the machine lost power): no process can catch that signal, so nothing removed the rule. Go behaves identically. Remove it with the `-D` form of the same rule, e.g. `iptables -D OUTPUT -s <local> -d <remote> -p tcp -m ttl --ttl-eq 1 -m tcp --sport <port> --dport <port> -j DROP` (`--sport <port>` alone for a server's rule); `iptables -S OUTPUT` lists them. Every other exit path, `SIGINT`, `SIGTERM`, a normal close, removes them. |
 | `BuildSmuxConfig(): keep-alive interval must be positive` | `-keepalive` is negative. Go would instead pass validation and panic when the session opens ([V12](differences.md#full-list)). |
 | `BuildSmuxConfig(): keep-alive timeout must be larger than keep-alive interval` | `-keepalive` is greater than 30. smux's keep-alive *timeout* is fixed at 30 s and kcptun never changes it, so no session can be built and the client retries forever. Identical in Go. |
 
@@ -66,11 +66,11 @@ QPP: not available in this build
 listen udp :29900: bind: address already in use
 ```
 
-The first three are configurations Go accepts and then breaks on — a silently undecodable erasure
+The first three are configurations Go accepts and then breaks on: a silently undecodable erasure
 code, or a division by zero at the first connection ([V07](differences.md#full-list),
 [V19](differences.md#full-list), [V15](differences.md#full-list)). Fix the value; no configuration that
 works under Go is refused here, with one exception: a `-QPPCount` above 65535 that does not truncate
-to zero (`65537` and friends) becomes a single pad in Go, with no warning at all, and runs —
+to zero (`65537` and friends) becomes a single pad in Go, with no warning at all, and runs,
 insecurely. It is refused here ([V15](differences.md#full-list)).
 
 `QPP: not available in this build` means the binary was built with `--no-default-features`, without
@@ -89,7 +89,7 @@ bash: ./kcptun-client: No such file or directory      # the file *is* there
 Both mean the same thing: you are running the **glibc** archive,
 `kcptun-rust-linux-<arch>-gnu-<version>.tar.gz`, which is dynamically linked against glibc 2.17 or
 newer, and this host's glibc is older, or it has no glibc at all (Alpine and other musl
-distributions — there the dynamic loader named in the executable is missing, which the kernel
+distributions: there the dynamic loader named in the executable is missing, which the kernel
 reports as the misleading `No such file or directory`).
 
 Take the default archive instead: `kcptun-rust-linux-<arch>-<version>.tar.gz` is statically linked
@@ -104,7 +104,7 @@ restarts ([README](benchmarks/REPORT.md#memory)).
 SetWriteBuffer: set udp [::]:29900: setsockopt: invalid argument
 ```
 
-`-sockbuf` was rejected by the kernel — usually a negative or absurd value. Note that the kernel
+`-sockbuf` was rejected by the kernel, usually a negative or absurd value. Note that the kernel
 also silently *caps* acceptable values at `net.core.rmem_max` / `wmem_max`, so a large `-sockbuf`
 can be accepted and then not take effect; raise those sysctls too (see
 [the tuning guide](tuning.md#before-you-tune)).
@@ -123,7 +123,7 @@ Rising `RetransSegs` with a flat `FECRecovered` means real loss that parity is n
 
 ## A connection hangs for about 30 seconds when it finishes
 
-The server's `-closewait` default is **30 seconds** — the delay before it tears a connection down —
+The server's `-closewait` default is **30 seconds**: the delay before it tears a connection down,
 and it applies once per direction, so a request/response round trip against the defaults can take a
 minute to close. This is Go's default and Go's behaviour. Set `-closewait 0` if your workload
 half-closes and you want teardown to be immediate.
@@ -135,7 +135,7 @@ smux's keepalive times out; the timeout is 30 seconds and a session that carried
 one tick and dies on the next, so recovery takes roughly 30–65 seconds, after which the next
 accepted connection dials a fresh session. `-keepalive` does **not** change this: it only sets the
 interval between NOP pings. The detection window is smux's `KeepAliveTimeout`, which
-`smux.DefaultConfig()` fixes at 30 seconds and which kcptun does not expose — and setting
+`smux.DefaultConfig()` fixes at 30 seconds and which kcptun does not expose, and setting
 `-keepalive` above 30 does not lengthen it either, it just makes every session fail to build (see
 the `re-connecting:` table above).
 
@@ -150,7 +150,7 @@ completes the half-close. It is reproducible with Go on both ends, and it is fix
 client ([V11](differences.md#full-list), [V04](differences.md#full-list) with `-QPP`). The interop
 matrix records exactly this: a Rust client is held to a complete response, a Go client is not.
 
-If the truncation happens with a **Rust client**, that is a bug — please report it with the flags
+If the truncation happens with a **Rust client**, that is a bug: please report it with the flags
 and, if possible, a packet capture.
 
 ## A flag seems to be ignored, or takes a strange value
@@ -177,12 +177,12 @@ line keeps working either way ([V21](differences.md#full-list)).
 
 ## Signals
 
-* `SIGUSR1` — dump the SNMP counters to the log.
-* `SIGTERM` / `SIGINT` — the process restores the default disposition and re-raises the signal, as
+* `SIGUSR1`: dump the SNMP counters to the log.
+* `SIGTERM` / `SIGINT`: the process restores the default disposition and re-raises the signal, as
   Go's does, so a supervisor sees a signal death rather than `exit 0`.
 
 ## Reporting a problem
 
 Include: both command lines, `-v` output from both binaries, the log from both sides (without
 `-quiet`), a `SIGUSR1` SNMP dump from both, and whether the peer was a Go or a Rust binary. If the
-same configuration works with Go on both ends, say so — that is the most useful fact in the report.
+same configuration works with Go on both ends, say so: that is the most useful fact in the report.

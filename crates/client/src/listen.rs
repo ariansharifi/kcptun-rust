@@ -1,7 +1,7 @@
 //! The client's local listener: Go's `net.ListenTCP` / `net.ListenUnix` block.
 //!
 //! Go picks between the two by asking `net.SplitHostPort` whether `-localaddr` is a `host:port`
-//! (`client/main.go:317-332`), resolves it, binds, and prints `listener.Addr()` — the address the
+//! (`client/main.go:317-332`), resolves it, binds, and prints `listener.Addr()`: the address the
 //! socket really got, so `-l :12948` logs `[::]:12948` while a failing bind names the *resolved*
 //! address, `listen tcp :12948: bind: address already in use`. Both are reproduced here.
 //!
@@ -37,7 +37,7 @@ const ACCEPT_SYSCALL: &str = "accept4";
 const ACCEPT_SYSCALL: &str = "accept";
 
 /// The listener `-localaddr` asks for.
-// Go: kcptun/client/main.go:317 — `var listener net.Listener`
+// Go: kcptun/client/main.go:317, `var listener net.Listener`
 #[derive(Debug)]
 pub enum LocalListener {
     /// `net.ListenTCP("tcp", addr)`, with `listener.Addr()` pre-rendered.
@@ -72,7 +72,7 @@ impl LocalListener {
     /// Go's `listener.Accept()`, with the peer address already rendered as `%v`.
     ///
     /// Go's `fd.accept` retries `EINTR` and `ECONNABORTED` itself and only hands real failures to
-    /// `Accept`; tokio surfaces them, so they are retried here instead — without that, a peer
+    /// `Accept`; tokio surfaces them, so they are retried here instead, without that, a peer
     /// that resets between the SYN and the `accept` would take the whole client down through
     /// `log.Fatalf`.
     // Go: kcptun/client/main.go:425, go1.27.1 net/fd_unix.go:(*netFD).accept()
@@ -83,7 +83,7 @@ impl LocalListener {
                     Ok((stream, peer)) => {
                         // Go turns Nagle off on every accepted TCP connection; tokio does not,
                         // and the error is dropped there too.
-                        // Go: net/tcpsock_posix.go:newTCPConn() — `setNoDelay(fd, true)`
+                        // Go: net/tcpsock_posix.go:newTCPConn(), `setNoDelay(fd, true)`
                         let _ = stream.set_nodelay(true);
                         // A dual-stack listener (`-l :12948`) reports an IPv4 peer as
                         // `::ffff:a.b.c.d`; Go's `net.IP.String()` unmaps it and prints the
@@ -100,7 +100,7 @@ impl LocalListener {
                 #[cfg(unix)]
                 LocalListener::Unix { listener, path } => match listener.accept().await {
                     // Go's `RemoteAddr()` for an accepted unix connection is the peer's name,
-                    // which is empty for the unnamed sockets clients normally use — so the log
+                    // which is empty for the unnamed sockets clients normally use, so the log
                     // line really does read `stream opened in:  out: …`.
                     Ok((stream, peer)) => {
                         let name = peer
@@ -119,7 +119,7 @@ impl LocalListener {
 }
 
 /// Whether Go's own accept loop would have retried instead of returning this error.
-// Go: go1.27.1 net/fd_unix.go:(*netFD).accept() — EINTR and ECONNABORTED continue
+// Go: go1.27.1 net/fd_unix.go:(*netFD).accept(), EINTR and ECONNABORTED continue
 fn is_retryable(err: &io::Error) -> bool {
     matches!(
         err.kind(),
@@ -134,7 +134,7 @@ pub fn listen_tcp(local_addr: &str) -> Result<LocalListener, String> {
     let listener = bind_tcp(&laddr)
         .map_err(|err| op_error("listen", "tcp", Some(&laddr.to_string()), "bind", &err))?;
     // Go has no step here (`net.ListenTCP` hands back a ready listener), so there is no
-    // `*net.OpError` to name — but this text reaches a `log.Fatalf` line, so its errno is
+    // `*net.OpError` to name, but this text reaches a `log.Fatalf` line, so its errno is
     // spelled from Go's table like every other one (D30).
     let listener =
         TcpListener::from_std(listener).map_err(|err| kcptun_std::config::go_error_text(&err))?;
@@ -155,7 +155,7 @@ pub fn listen_tcp(local_addr: &str) -> Result<LocalListener, String> {
 #[cfg(unix)]
 pub fn listen_unix(local_addr: &str) -> Result<LocalListener, String> {
     let listener = UnixListener::bind(local_addr).map_err(|err| {
-        // Go: go1.27.1 syscall/syscall_unix.go:(*SockaddrUnix).sockaddr() — a path that does not
+        // Go: go1.27.1 syscall/syscall_unix.go:(*SockaddrUnix).sockaddr(), a path that does not
         // fit in `sun_path` is EINVAL, so Go prints `bind: invalid argument`. Rust's `std`
         // pre-checks the same threshold but answers a bare `InvalidInput` with a text of its own
         // (`path must be shorter than SUN_LEN`), so the errno is put back here.
@@ -182,7 +182,7 @@ pub fn listen_unix(local_addr: &str) -> Result<LocalListener, String> {
 ///
 /// The resolver is `kcptun_kcp::addr`'s, which is a port of the same `internetAddrList` Go uses
 /// for both protocols; only the network name differs, and it is visible in exactly one error
-/// text — the one for a port that is not a number, where Go consults `/etc/services` and this
+/// text: the one for a port that is not a number, where Go consults `/etc/services` and this
 /// port does not (see the module docs of `crates/kcp/src/addr.rs`). That text is rewritten here
 /// so `-l host:http` reports Go's `address tcp/http: unknown port` rather than `udp/http`.
 // Go: go1.27.1 net/tcpsock.go:ResolveTCPAddr()
@@ -200,14 +200,14 @@ fn resolve_tcp_addr(address: &str) -> Result<UdpAddr, String> {
 // Go: go1.27.1 net/tcpsock.go:ListenTCP(), net/ipsock_posix.go:favoriteAddrFamily()
 fn bind_tcp(laddr: &UdpAddr) -> io::Result<std::net::TcpListener> {
     if laddr.is_wildcard() {
-        // Go: `if supportsIPv4map() || !supportsIPv4() { return AF_INET6, false }` — the
+        // Go: `if supportsIPv4map() || !supportsIPv4() { return AF_INET6, false }`, the
         // dual-stack socket, with an AF_INET fallback for a kernel that has no IPv6 at all.
         match bind_tcp_family(Domain::IPV6, false, laddr) {
             Err(err) if is_no_ipv6_stack(&err) => bind_tcp_family(Domain::IPV4, false, laddr),
             other => other,
         }
     } else {
-        // Go: `laddr.family()` — the family of the address being bound.
+        // Go: `laddr.family()`, the family of the address being bound.
         let v6 = !laddr.is_ipv4();
         bind_tcp_family(if v6 { Domain::IPV6 } else { Domain::IPV4 }, false, laddr)
     }
@@ -220,12 +220,12 @@ fn bind_tcp_family(
 ) -> io::Result<std::net::TcpListener> {
     let v6 = domain == Domain::IPV6;
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
-    // Go: net/sockopt_linux.go:setDefaultSockopts() — the IPV6_V6ONLY error is dropped ("some
+    // Go: net/sockopt_linux.go:setDefaultSockopts(), the IPV6_V6ONLY error is dropped ("some
     // operating systems never admit this option").
     if v6 {
         let _ = socket.set_only_v6(only_v6);
     }
-    // Go: net/sockopt_posix.go:setDefaultListenerSockopts() — SO_REUSEADDR on every listener.
+    // Go: net/sockopt_posix.go:setDefaultListenerSockopts(), SO_REUSEADDR on every listener.
     socket.set_reuse_address(true)?;
     socket.bind(&laddr.to_socket_addr(v6)?.into())?;
     socket.listen(LISTEN_BACKLOG)?;
@@ -235,7 +235,7 @@ fn bind_tcp_family(
 
 /// Reports whether `err` is what Go's capability probe reads as "this kernel has no usable IPv6
 /// stack", the only reason `favoriteAddrFamily` answers AF_INET for a wildcard listen. Anything
-/// else — the port being taken, a policy denial — is a real error of this bind.
+/// else (the port being taken, a policy denial) is a real error of this bind.
 // Go: go1.27.1 net/ipsock_posix.go:(*ipStackCapabilities).probe()
 fn is_no_ipv6_stack(err: &io::Error) -> bool {
     if err.kind() == io::ErrorKind::AddrNotAvailable {

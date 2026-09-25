@@ -2,7 +2,7 @@
 //!
 //! | Test | Runs |
 //! |---|---|
-//! | `interop_matrix_smoke` | the default case in all four pairings, small workload — checks the harness in about ten seconds |
+//! | `interop_matrix_smoke` | the default case in all four pairings, small workload: checks the harness in about ten seconds |
 //! | `interop_matrix_full` | every case of [`all_cases`] in all four pairings, the plan's workload, and writes the report |
 //!
 //! Both are `#[ignore]`, like the rest of this crate: they need the Go reference binaries **and**
@@ -20,8 +20,8 @@
 //! | Environment variable | Effect |
 //! |---|---|
 //! | `KCPTUN_INTEROP_MATRIX_FILTER` | run only the cases whose id contains this (e.g. `pair/07`, `crypt/sm4`) |
-//! | `KCPTUN_INTEROP_MATRIX_OUT` | write the Markdown report to this path — honoured only by a complete `interop_matrix_full` run at the `full` workload, so a filtered or smoke run cannot overwrite the committed document |
-//! | `KCPTUN_INTEROP_MATRIX_WORKLOAD` | `full` (default) or `smoke` — the lighter one is for lab-arm64, which has 2 shared vCPUs |
+//! | `KCPTUN_INTEROP_MATRIX_OUT` | write the Markdown report to this path: honoured only by a complete `interop_matrix_full` run at the `full` workload, so a filtered or smoke run cannot overwrite the committed document |
+//! | `KCPTUN_INTEROP_MATRIX_WORKLOAD` | `full` (default) or `smoke`: the lighter one is for lab-arm64, which has 2 shared vCPUs |
 //! | `KCPTUN_GO_BIN_DIR` / `KCPTUN_RS_BIN_DIR` | where to find the binaries |
 //!
 //! The whole matrix runs **one tunnel at a time**: the workload is heavy enough that two
@@ -49,7 +49,7 @@ const WORKLOAD_ENV: &str = "KCPTUN_INTEROP_MATRIX_WORKLOAD";
 /// It is [`FULL`] unless `KCPTUN_INTEROP_MATRIX_WORKLOAD=smoke`, which trades traffic for time:
 /// the matrix also runs on lab-arm64, a **2-vCPU box shared with live tunnels**, where 128 runs of
 /// 40 MB plus 100 streams each would saturate it for far longer than `tools/lab/README.md` allows. The
-/// case list, the pairings and every check are identical either way — only the byte counts move.
+/// case list, the pairings and every check are identical either way, only the byte counts move.
 fn workload_from_env() -> &'static Workload {
     match std::env::var(WORKLOAD_ENV).unwrap_or_default().trim() {
         "" | "full" => &FULL,
@@ -175,7 +175,7 @@ fn filtered(cases: Vec<InteropCase>) -> Vec<InteropCase> {
 
 /// A quick check of the harness itself: kcptun's defaults, all four pairings, a small workload.
 ///
-/// Run this first when the full matrix misbehaves — if `go->go` is red here, nothing in
+/// Run this first when the full matrix misbehaves: if `go->go` is red here, nothing in
 /// `crates/` is implicated.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "needs the Go reference binaries and `cargo build --release -p kcptun-client -p kcptun-server`"]
@@ -188,7 +188,7 @@ async fn interop_matrix_smoke() {
 }
 
 /// The plan's matrix: 15 crypt modes at the defaults, the pairwise expansion of every other
-/// dimension, and the fixed production profile — each in all four pairings, with 20 MB each way,
+/// dimension, and the fixed production profile: each in all four pairings, with 20 MB each way,
 /// 100 concurrent streams and the half-close probe.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "the full matrix: needs both implementations' binaries and takes several minutes"]

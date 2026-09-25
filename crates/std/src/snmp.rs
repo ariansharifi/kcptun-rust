@@ -1,12 +1,12 @@
 //! The `-snmplog` CSV logger.
 //!
 //! Go sources:
-//! - `kcptun/std/snmp.go` — `SnmpLogger` (the ticker loop) and `writeSnmpRecord` (one record);
-//! - `kcp-go/v5@v5.6.66 snmp.go` — `DefaultSnmp.Header()` and `ToSlice()`, ported in
+//! - `kcptun/std/snmp.go`: `SnmpLogger` (the ticker loop) and `writeSnmpRecord` (one record);
+//! - `kcp-go/v5@v5.6.66 snmp.go`: `DefaultSnmp.Header()` and `ToSlice()`, ported in
 //!   [`kcptun_kcp::snmp`];
 //! - Go standard library `encoding/csv` (Go 1.27.1) `writer.go:Writer.Write`,
-//!   `fieldNeedsQuotes` — the record encoder, reproduced in `write_csv_record` below;
-//! - Go standard library `path/filepath` `path.go:Split` — the directory/file split that decides
+//!   `fieldNeedsQuotes`: the record encoder, reproduced in `write_csv_record` below;
+//! - Go standard library `path/filepath` `path.go:Split`: the directory/file split that decides
 //!   which part of `-snmplog` goes through [`crate::gotime::format`].
 //!
 //! Both halves of the path matter: `-snmplog /var/log/kcptun/snmp-2006-01-02.log` writes
@@ -38,7 +38,7 @@ pub enum SnmpLogError {
 
 /// Appends an SNMP record to `path` every `interval` seconds, forever.
 ///
-/// A no-op when `path` is empty or `interval <= 0`, like Go — the binaries call it
+/// A no-op when `path` is empty or `interval <= 0`, like Go: the binaries call it
 /// unconditionally (`go std.SnmpLogger(config.SnmpLog, config.SnmpPeriod)`) and it returns at once
 /// when `-snmplog` is unset. Write failures are logged as `snmp logger: <err>` and the loop
 /// continues, so a full disk or a vanished directory never stops the tunnel.
@@ -82,7 +82,7 @@ pub async fn snmp_logger(path: String, interval: i64) {
 /// instead of Go's `snmp-CEST.log`. Every other layout token is exact, and a caller that has the
 /// abbreviation (`gotime::Time::new`) gets Go's output for `MST` too.
 ///
-/// Go reads the clock twice — once for the file name, once for the `Unix` column — so a record
+/// Go reads the clock twice (once for the file name, once for the `Unix` column) so a record
 /// written in the microsecond around midnight can land in yesterday's file with today's
 /// timestamp. Taking one instant for both is the only difference, and it is the sane reading of
 /// what the code means.
@@ -106,7 +106,7 @@ pub fn write_snmp_record(path: &str, now: &gotime::Time, snmp: &Snmp) -> Result<
     })?;
 
     let mut record = String::new();
-    // Go: `if stat, err := f.Stat(); err == nil && stat.Size() == 0` — a failed Stat writes no
+    // Go: `if stat, err := f.Stat(); err == nil && stat.Size() == 0`, a failed Stat writes no
     // header rather than reporting an error.
     if file.metadata().map(|m| m.len() == 0).unwrap_or(false) {
         let mut header = Vec::with_capacity(1 + kcptun_kcp::snmp::SNMP_FIELDS);

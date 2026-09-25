@@ -4,9 +4,9 @@
 //! 512 MB keeps ~100 MB of RSS for at least 600 s with every stream closed, where Go's scavenger
 //! returns most of it. That measurement could not say **why**, because it only had RSS:
 //!
-//! - **(a) the program retains capacity** — pools, grown rings, queues and per-session buffers
+//! - **(a) the program retains capacity**: pools, grown rings, queues and per-session buffers
 //!   that never shrink, so the bytes are still *live* on the heap; or
-//! - **(b) the allocator keeps freed arenas mapped** — the bytes are free as far as the program
+//! - **(b) the allocator keeps freed arenas mapped**: the bytes are free as far as the program
 //!   is concerned, but no page ever goes back to the kernel.
 //!
 //! This binary separates the two by sampling **live heap bytes and RSS at the same instants**:
@@ -26,13 +26,13 @@
 //!
 //! Two modes, because the two questions are different:
 //!
-//! - **default — raw KCP.** The burst runs straight over [`UdpSession`], so what is measured is
+//! - **default: raw KCP.** The burst runs straight over [`UdpSession`], so what is measured is
 //!   the KCP rings, the `rcv_buf` heap, the packet pool and the allocator, with nothing above
 //!   them. This is the mode that sized the 85 % / 15 % split.
-//! - **`--smux` — the shape of the product.** Each session is wrapped in a
+//! - **`--smux`: the shape of the product.** Each session is wrapped in a
 //!   [`KcpConn`] and a `kcptun_smux` session with S1's `-smuxver 2 -smuxbuf 16777216
 //!   -streambuf 16777216 -framesize 8192 -keepalive 10`, so the burst also carries the smux
-//!   token bucket, the shaper and the per-stream receive buffers — **and the keepalive**. That
+//!   token bucket, the shaper and the per-stream receive buffers, **and the keepalive**. That
 //!   last one is not a detail: smux writes an 8-byte `cmdNOP` per session every 10 s for as long
 //!   as the session lives, every one of them goes through `UdpSession::write`, and every one of
 //!   them moves `DEFAULT_SNMP.bytes_sent`. A probe without smux never sees that traffic, so it
@@ -48,7 +48,7 @@
 //! `--idle` replaces the burst with a staircase: it dials `--sessions` client sessions in stages
 //! (1, 2, 4, … up to the requested count) against a UDP sink that reads and discards, and samples
 //! after every stage. No byte is ever transferred, so what the staircase measures is the cost of
-//! *existing* — exactly the slope `docs/benchmarks/memory.md` §3 fitted across two whole processes
+//! *existing*, exactly the slope `docs/benchmarks/memory.md` §3 fitted across two whole processes
 //! (698 kB per client session in Rust against 243 kB in Go), but within one process and with the
 //! live heap beside the RSS.
 //!
@@ -301,7 +301,7 @@ fn production_case() -> KcpCase {
 /// 16777216`, kcptun's default `-framesize 8192` and its default `-keepalive 10`.
 ///
 /// Built through kcptun's own `BuildSmuxConfig`, so the probe cannot drift from what the
-/// binaries do — including `keep_alive_disabled` staying false, which is the whole point of the
+/// binaries do, including `keep_alive_disabled` staying false, which is the whole point of the
 /// `--smux` mode.
 // Go: kcptun/std/smuxcfg.go:BuildSmuxConfig
 fn production_smux_config() -> Result<kcptun_smux::Config, String> {
@@ -334,7 +334,7 @@ fn apply_case(session: &UdpSession, case: &KcpCase) {
 // The `--smux` workload: the shape of the product
 // ---------------------------------------------------------------------------------------------
 
-/// A smux-over-KCP echo server — a kcptun server's `serveListener` → `handleMux` without the TCP
+/// A smux-over-KCP echo server: a kcptun server's `serveListener` → `handleMux` without the TCP
 /// hop to the target, so the smux layer is exercised and the proxy is not.
 ///
 /// Dropping it closes the listener and stops accepting, which releases every accepted session.
@@ -419,7 +419,7 @@ async fn echo_stream(stream: Stream) {
 }
 
 /// Dials one KCP session, wraps it in smux, echoes `bytes` through one stream, closes the
-/// stream and **returns the session still open** — the state a kcptun client is in between
+/// stream and **returns the session still open**: the state a kcptun client is in between
 /// bursts, keepalive and all.
 async fn smux_session_burst(
     addr: SocketAddr,
@@ -501,7 +501,7 @@ async fn smux_session_burst(
 
 /// A UDP socket that reads and discards, so the staircase's sessions have somewhere to point.
 ///
-/// An idle KCP session writes nothing — `flush` has no segments, no acks and no probe to send —
+/// An idle KCP session writes nothing: `flush` has no segments, no acks and no probe to send,
 /// so the sink is there for the one case that is not "nothing": a `sendto` to an *unbound*
 /// loopback port would come back as an ICMP port-unreachable, and the session's socket would then
 /// report `ECONNREFUSED` on a later call and colour the measurement with an error path.
@@ -704,7 +704,7 @@ async fn run(args: &Args) -> Result<(), String> {
     eprintln!("memprobe: into the decay with {held}");
     if args.dump_at_close {
         // Deliberately never dropped: `main` exits the process from here, and the point of the
-        // flag is that dhat's "at t-end" snapshot sees everything the burst left alive — the
+        // flag is that dhat's "at t-end" snapshot sees everything the burst left alive: the
         // smux sessions above all. A leak in the last microsecond of a measurement binary.
         std::mem::forget(held);
         return Ok(());
@@ -786,7 +786,7 @@ async fn kcp_burst(
 }
 
 /// The `--smux` workload: the same burst through smux over KCP, with the streams closed at the
-/// end and the sessions — and their keepalive — kept for the whole decay.
+/// end and the sessions (and their keepalive) kept for the whole decay.
 async fn smux_burst(
     args: &Args,
     case: &KcpCase,

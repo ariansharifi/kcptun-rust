@@ -38,7 +38,7 @@ pub fn snd_buf_mut<O, C>(kcp: &mut Kcp<O, C>) -> &mut RingBuffer<Segment> {
 /// Turns the `snd_buf` optimisations of plan step 12.2 on (the default) or off: `flush`
 /// skipping the part of the ring it has already scanned (Decision D29) and the ACK path
 /// addressing a segment by its sequence number (Decision D31). Off is the naive,
-/// line-by-line port of kcp-go — the permanent oracle of DECISIONS D25 — and the "before"
+/// line-by-line port of kcp-go (the permanent oracle of DECISIONS D25) and the "before"
 /// side of the 12.2c and 12.2d benchmarks.
 pub fn set_fast_path<O, C>(kcp: &mut Kcp<O, C>, enabled: bool) {
     kcp.flush_scan.enabled = enabled;

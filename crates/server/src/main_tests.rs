@@ -5,8 +5,8 @@
 //! header turned off; step 09.5 turns that comparison into a live differential test over ~30
 //! command lines.
 //!
-//! The end-to-end cases drive the real accept path — KCP listener → `UDPSession` →
-//! `CompStream` → smux → target dial → `pipe` — from an in-process KCP client, so a regression
+//! The end-to-end cases drive the real accept path: KCP listener → `UDPSession` →
+//! `CompStream` → smux → target dial → `pipe`, from an in-process KCP client, so a regression
 //! anywhere between the listener and the target socket fails here rather than in step 09.3.
 
 use std::io::Write as _;
@@ -205,7 +205,7 @@ fn dial_errors_read_like_gos_net_operror() {
 /// `reference/bin/server_darwin_arm64 -l 127.0.0.1:24999` against a held port prints
 /// `listen udp 127.0.0.1:24999: bind: address already in use`. (Go's `checkError` uses `%+v`, so
 /// the `errors.WithStack` around it also prints a 14-line Go stack trace afterwards; this port
-/// logs the message line only — a deviation still awaiting its own entry in docs/DECISIONS.md.)
+/// logs the message line only: a deviation still awaiting its own entry in docs/DECISIONS.md.)
 #[test]
 fn listen_failures_read_like_gos_net_operror() {
     let in_use = io::Error::from_raw_os_error(libc::EADDRINUSE);
@@ -307,7 +307,7 @@ async fn the_tcpraw_listener_reports_gos_os_not_supported() {
 }
 
 /// On Linux the listener is real, so this case only checks that a failure is reported rather
-/// than being fatal — with an address that cannot be bound, so that nothing is listened on and
+/// than being fatal, with an address that cannot be bound, so that nothing is listened on and
 /// no iptables rule is touched whatever privileges the test runner happens to have.
 ///
 /// 192.0.2.1 is TEST-NET-1 (RFC 5737) and is not one of this host's addresses: without
@@ -374,7 +374,7 @@ async fn echo_through<C: SmuxConn>(
 /// The half-close is what makes the server side finish: Go's client ends every proxied stream
 /// with `p1.Close()` (`client/main.go:handleClient`'s defer), whose `cmdFIN` is the EOF the
 /// server's `pipe` is waiting for. Dropping the handle instead sends nothing, and a KCP session
-/// that simply stops talking is not noticed until it times out — so without this the server's
+/// that simply stops talking is not noticed until it times out, so without this the server's
 /// `stream closed` line arrives seconds later, when the listener is torn down.
 async fn echo_roundtrip<S>(s: &mut S, payload: &[u8])
 where

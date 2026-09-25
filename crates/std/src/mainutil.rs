@@ -11,8 +11,8 @@
 //!   `*net.OpError` does (`listen udp :29900: bind: address already in use`);
 //! - [`GoAddr`], the `%v` of a possibly-nil `net.Addr`;
 //!
-//! Everything that differs between the two binaries — the flag tables, the startup block, the
-//! listeners and the proxy loops — stays in the binaries.
+//! Everything that differs between the two binaries: the flag tables, the startup block, the
+//! listeners and the proxy loops: stays in the binaries.
 
 use std::io;
 use std::net::SocketAddr;
@@ -25,7 +25,7 @@ use crate::log;
 ///
 /// Without the `qpp` feature the type is uninhabited, so every `Some` arm is statically
 /// impossible and `-QPP` is rejected at startup by [`check_qpp`].
-// Go: kcptun/client/main.go:417, kcptun/server/main.go:342 —
+// Go: kcptun/client/main.go:417, kcptun/server/main.go:342,
 // `var _Q_ *qpp.QuantumPermutationPad`
 #[cfg(feature = "qpp")]
 pub use crate::qpp::QuantumPermutationPad as QppPad;
@@ -46,8 +46,8 @@ pub const QPP_NOT_AVAILABLE: &str = "QPP: not available in this build";
 /// Go's QPP validation block.
 ///
 /// Returns the configured pad count, or `None` when `-QPP` is off. Every failure path ends the
-/// process, as Go's `log.Fatal` does. The count is handed on as Go's `int`: the `uint16` cast —
-/// and deviation V15's rejection of it — lives further down, in [`qpp_pad`], exactly where Go's
+/// process, as Go's `log.Fatal` does. The count is handed on as Go's `int`: the `uint16` cast,
+/// and deviation V15's rejection of it: lives further down, in [`qpp_pad`], exactly where Go's
 /// `qpp.NewQPP` call does.
 // Go: kcptun/client/main.go:362-371, kcptun/server/main.go:327-334
 pub fn check_qpp(base: &BaseConfig) -> Option<i64> {
@@ -85,7 +85,7 @@ pub fn check_qpp(base: &BaseConfig) -> Option<i64> {
 /// checks an `int`) and then makes Go's `NewQPP` divide by zero on the first encrypted byte,
 /// i.e. on the first byte of user traffic. `-QPPCount 65537` truncates to **1**: it passes the
 /// `minPads` and prime-number checks on the pre-cast `int`, prints **no warning at all**, and
-/// then runs with a single pad — the truncation bypasses Go's own safety warnings, which is
+/// then runs with a single pad: the truncation bypasses Go's own safety warnings, which is
 /// exactly what those warnings exist to prevent. Both are configuration mistakes with no working
 /// Go counterpart, so both are rejected at the cast, in [`qpp_pad`], naming the flag.
 ///
@@ -94,10 +94,10 @@ pub fn check_qpp(base: &BaseConfig) -> Option<i64> {
 /// reaches this line only after the `unsupported smux version:` fatal, the key derivation and
 /// the pprof block, so the rejection happens there too and those lines still come first.
 ///
-/// `-conn` has no such property — `-conn 65537` simply runs one tunnel, as it does in Go — which
+/// `-conn` has no such property (`-conn 65537` simply runs one tunnel, as it does in Go) which
 /// is why the client's `conn_u16` (V19) stays narrow and refuses only the divide-by-zero case.
 /// The asymmetry is deliberate; see DECISIONS V15/V19 (the asymmetry was decided in step 09.1).
-// Go: kcptun/client/main.go:419, kcptun/server/main.go:363 —
+// Go: kcptun/client/main.go:419, kcptun/server/main.go:363,
 // `qpp.NewQPP([]byte(config.Key), uint16(config.QPPCount))`
 #[cfg(feature = "qpp")]
 pub fn qpp_count_u16(count: i64) -> Result<u16, String> {
@@ -117,7 +117,7 @@ pub fn qpp_pad(base: &BaseConfig, count: Option<i64>) -> Option<Arc<QppPad>> {
     let count = count?;
     #[cfg(feature = "qpp")]
     {
-        // Go: `uint16(config.QPPCount)` — see `qpp_count_u16` for why a truncating count is
+        // Go: `uint16(config.QPPCount)`, see `qpp_count_u16` for why a truncating count is
         // rejected instead of silently reinterpreted.
         let count = match qpp_count_u16(count) {
             Ok(count) => count,
@@ -180,7 +180,7 @@ pub fn op_error(
 /// entirely by `OpError.Error()`; a bound socket always has one, so `local` of `None` only covers
 /// a `getsockname` that fails.
 ///
-/// `network` is Go's `c.fd.net`, the network name the socket was created with — **not** always
+/// `network` is Go's `c.fd.net`, the network name the socket was created with, **not** always
 /// `"udp"`. The server's listening socket comes from `net.ListenUDP("udp", udpaddr)`, but the
 /// client's comes from `net.ListenUDP(network, nil)` with `network == "udp4"` whenever the remote
 /// is IPv4, so the same failure prints `set udp4 0.0.0.0:56625: …` there (verified against
@@ -193,7 +193,7 @@ pub fn op_error(
 /// failures the way Go's tcpraw spells them (a bare errno for `SetDSCP`, an `*net.OpError` over
 /// `ip` for the buffers) and leaves no errno on them, precisely so that they reach the log
 /// unwrapped. That is what an error with no errno gets here.
-// Go: go1.27.1 net/sockopt_posix.go — &OpError{Op: "set", Net: c.fd.net, Addr: fd.laddr,
+// Go: go1.27.1 net/sockopt_posix.go, &OpError{Op: "set", Net: c.fd.net, Addr: fd.laddr,
 // Err: os.NewSyscallError("setsockopt", errno)}; kcp-go/v5@v5.6.66 sess.go:1251-1297, 1439
 pub fn setsockopt_error(network: &str, local: Option<SocketAddr>, err: &io::Error) -> String {
     if err.raw_os_error().is_none() {
@@ -222,7 +222,7 @@ mod tests {
 
     /// `EADDRINUSE`, spelled out so `crates/std` keeps no `libc` dependency for one constant.
     /// Its text comes from Go's own `syscall` table (`kcptun_kcp::goerrno`, D30), so it reads
-    /// `address already in use` on every target that table is carried for — a static musl
+    /// `address already in use` on every target that table is carried for: a static musl
     /// build's `strerror` disagrees, which is exactly what D30 removed from the contract.
     #[cfg(target_os = "linux")]
     const EADDRINUSE: i32 = 98;
@@ -314,7 +314,7 @@ mod tests {
         );
 
         // `validate_qpp_params` keeps Go's int semantics, so it is this check, and only this
-        // check, that stops a truncating value — for both of them, and with no warning for the
+        // check, that stops a truncating value, for both of them, and with no warning for the
         // one that does not reach zero.
         assert!(crate::qpp::validate_qpp_params(65536, &"k".repeat(211)).is_ok());
         assert_eq!(

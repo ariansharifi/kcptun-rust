@@ -1097,7 +1097,7 @@ async fn recovered_shards_enter_kcp_as_fec_packets() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 05.4 — Read
+// 05.4: Read
 // ---------------------------------------------------------------------------------------------
 
 /// Spawns a `read` into a buffer of `len` bytes, returning what it produced.
@@ -1417,7 +1417,7 @@ async fn read_drains_queued_data_after_close_and_then_fails() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 05.4 — Write
+// 05.4: Write
 // ---------------------------------------------------------------------------------------------
 
 /// `Write` splits its argument into `mss`-sized KCP messages and returns the total length.
@@ -1675,7 +1675,7 @@ async fn write_delay_defers_the_flush() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 05.4 — Close
+// 05.4: Close
 // ---------------------------------------------------------------------------------------------
 
 /// Go's `TestClose`: the second `Close` fails, and so does every write afterwards.
@@ -1846,7 +1846,7 @@ async fn opening_and_closing_moves_the_connection_counters() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 05.4 — Setters and getters
+// 05.4: Setters and getters
 // ---------------------------------------------------------------------------------------------
 
 /// Every setter that only forwards to the KCP state machine.
@@ -2149,7 +2149,7 @@ fn spawn_relay(
 }
 
 // ---------------------------------------------------------------------------------------------
-// 05.5 — The update task
+// 05.5: The update task
 // ---------------------------------------------------------------------------------------------
 
 /// The flush interval `Peer::start_with` configures (kcptun's default `-mode fast`).
@@ -2192,7 +2192,7 @@ async fn update_task_flushes_an_idle_session_at_the_kcp_interval() {
     let before = a.flushes();
     a.start_updater();
     settle().await;
-    // Go: `SystemTimedSched.Put(sess.update, time.Now())` — the first pass is immediate.
+    // Go: `SystemTimedSched.Put(sess.update, time.Now())`, the first pass is immediate.
     assert_eq!(a.flushes(), before + 1, "the first flush is immediate");
 
     // One millisecond short of the interval, nothing has happened yet.

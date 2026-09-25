@@ -59,7 +59,7 @@ pub const MAX_DATAGRAM: usize = 2048;
 /// Without it the relay would be the only socket in the path left at the kernel default
 /// (`net.core.rmem_default` is 64 KiB on Linux, about 40 datagrams of headroom), and it would
 /// drop a large share of a KCP flow *before* [`recv_from`](tokio::net::UdpSocket::recv_from) ever
-/// saw it — loss the impairment model neither chose nor counted.
+/// saw it: loss the impairment model neither chose nor counted.
 pub const SOCK_BUFFER: usize = 4 * 1024 * 1024;
 
 /// Which way a datagram travels.
@@ -355,7 +355,7 @@ impl Drop for Relay {
 }
 
 /// The relay task: receive, impair, forward. Ends when the socket fails (the relay was
-/// dropped) — an error on a single send is counted and the loop continues, as a real router
+/// dropped): an error on a single send is counted and the loop continues, as a real router
 /// would.
 async fn run(
     socket: Arc<UdpSocket>,
@@ -611,7 +611,7 @@ mod tests {
     /// The relay draws once for loss and once for reordering per datagram, in arrival order.
     /// Returns a seed whose first three datagrams are reordered `[yes, no, no]`, i.e. the first
     /// one the relay sees is held back and the next two (the second datagram and the echo of it)
-    /// are not — found here rather than hand-checked, so the test survives a PRNG change.
+    /// are not: found here rather than hand-checked, so the test survives a PRNG change.
     fn seed_reordering_only_the_first(p: f64) -> u64 {
         for seed in 0..10_000 {
             let mut rng = Pcg::new(seed, 0);

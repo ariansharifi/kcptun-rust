@@ -129,7 +129,7 @@ const GO_FIN_RACE: &str = "read: io: read/write on closed pipe";
 /// The Go `smuxecho` client against a Rust smux echo server, over the whole matrix.
 ///
 /// The Go client half-closes only after the whole echo has arrived (its default), because the
-/// other order runs into Go's own data-loss bug on the Go *reader* — which is what deviation
+/// other order runs into Go's own data-loss bug on the Go *reader*, which is what deviation
 /// V11 fixes on the Rust side and cannot be fixed from here.
 #[test]
 #[ignore = "needs reference/bin (tools/fetch-reference.sh)"]
@@ -198,7 +198,7 @@ fn interop_smux_go_client_rust_server() {
 /// Deviation **V11** against the real Go peer: the Rust client sends, half-closes straight
 /// away (kcptun's `std.Pipe` order), and the Go `smuxecho` server echoes and then FINs. The
 /// FIN reaches a Rust stream that has already closed its write side and still holds unread
-/// data — the state where smux v1.5.55 discards it. Every byte must arrive.
+/// data: the state where smux v1.5.55 discards it. Every byte must arrive.
 ///
 /// Direction: this proves the **Rust** reader keeps the data while the **Go** peer behaves
 /// exactly as it does in production. The mirror image (a Go client with `-early-closewrite`

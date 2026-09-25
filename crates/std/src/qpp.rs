@@ -1,7 +1,7 @@
 //! kcptun's Quantum Permutation Pad port: parameter validation and the stream wrapper that
 //! obfuscates one smux stream (plan step 07.3, `docs/WIRE-FORMAT.md` §9).
 //!
-//! Go: `kcptun/std/qpp.go` — `ValidateQPPParams()` and `QPPPort`. The call sites are
+//! Go: `kcptun/std/qpp.go`, `ValidateQPPParams()` and `QPPPort`. The call sites are
 //! `client/main.go:536` and `server/main.go:526`, both `std.NewQPPPort(p, _Q_, []byte(config.Key))`:
 //! the pad and the two PRNG seeds come from the **raw `-key` string**, never from the PBKDF2
 //! `pass` the KCP layer derives (see the pitfalls in step 07).
@@ -19,7 +19,7 @@
 //!
 //! Two things differ from Go and are deliberate:
 //!
-//! 1. **Deviation V04** — Go's `QPPPort` has no `CloseWrite`, so `std.Pipe`'s type assertion
+//! 1. **Deviation V04**: Go's `QPPPort` has no `CloseWrite`, so `std.Pipe`'s type assertion
 //!    fails and it falls back to a full `Close`, which can truncate the reverse direction.
 //!    [`QppStream`] forwards the half-close ([`HalfCloseWrite::poll_close_write`]).
 //! 2. Go encrypts **in the caller's buffer** (`r.pad.EncryptWithPRNG(p, r.wprng)` mutates `p`
@@ -68,7 +68,7 @@ pub fn validate_qpp_params(count: i64, key: &str) -> Result<Vec<String>, String>
 
     let mut warnings = Vec::new();
 
-    // Go: qpp.QPPMinimumSeedLength(qppPower) — 211 bytes for 8 qubits.
+    // Go: qpp.QPPMinimumSeedLength(qppPower), 211 bytes for 8 qubits.
     let min_seed_length = qpp_minimum_seed_length(QPP_POWER);
     if key.len() < min_seed_length {
         warnings.push(format!(
@@ -78,7 +78,7 @@ pub fn validate_qpp_params(count: i64, key: &str) -> Result<Vec<String>, String>
         ));
     }
 
-    // Go: qpp.QPPMinimumPads(qppPower) — 7 pads for 8 qubits.
+    // Go: qpp.QPPMinimumPads(qppPower), 7 pads for 8 qubits.
     let min_pads = qpp_minimum_pads(QPP_POWER);
     if count < min_pads as i64 {
         warnings.push(format!(
@@ -123,7 +123,7 @@ fn gcd(mut a: u64, mut b: u64) -> u64 {
 /// produces, so the encryption of a slice and its delivery are two steps. The contract is the one
 /// [`SmuxStream`](crate::smuxio::SmuxStream) already documents: after
 /// [`poll_write`](AsyncWrite::poll_write) returns `Pending`, the caller must retry with the same
-/// slice — the bytes were encrypted into the wrapper's scratch buffer, and the retry finishes
+/// slice: the bytes were encrypted into the wrapper's scratch buffer, and the retry finishes
 /// delivering that ciphertext instead of encrypting anything new. `write_all`, and therefore
 /// [`pipe`](crate::pipe::pipe), do exactly that. A `Ready(Ok(n))` therefore means the connection
 /// really took the `n` bytes' worth of ciphertext, never that it was merely queued here.
@@ -198,7 +198,7 @@ impl<S: AsyncWrite + Unpin> QppStream<S> {
     }
 }
 
-/// Go: `QPPPort.Read` — read from the connection, then decrypt the bytes that arrived.
+/// Go: `QPPPort.Read`, read from the connection, then decrypt the bytes that arrived.
 ///
 /// Go decrypts `p[:n]`, so a short read decrypts only what was read and the read PRNG advances
 /// by exactly that many stream positions; the same holds here because [`ReadBuf`] reports what
@@ -227,20 +227,20 @@ impl<S: AsyncRead + Unpin> AsyncRead for QppStream<S> {
     }
 }
 
-/// Go: `QPPPort.Write` — encrypt, then write.
+/// Go: `QPPPort.Write`, encrypt, then write.
 impl<S: AsyncWrite + Unpin> AsyncWrite for QppStream<S> {
     /// Encrypts `buf` and hands it to the connection.
     ///
     /// Go can return the connection's short count (`return r.underlying.Write(p)`) because it
     /// encrypted in place: the caller simply re-offers the unwritten tail, already ciphertext.
-    /// This port cannot re-encrypt a tail — that would advance the write PRNG twice over the same
-    /// stream positions — so the ciphertext for the whole slice is staged in `obuf` and this
+    /// This port cannot re-encrypt a tail: that would advance the write PRNG twice over the same
+    /// stream positions, so the ciphertext for the whole slice is staged in `obuf` and this
     /// returns `Ready(Ok(buf.len()))` only once the connection has taken all of it.
     ///
     /// **`Pending` means nothing was consumed and the caller must retry with the same slice**
     /// (see the type's *Buffering* section): the retry resumes draining the staged ciphertext
     /// rather than encrypting again. Reporting bytes that are still in `obuf` would be a lie a
-    /// copy loop cannot recover from — [`pipe`](crate::pipe::pipe) would go back to reading its
+    /// copy loop cannot recover from: [`pipe`](crate::pipe::pipe) would go back to reading its
     /// source, and a source that has gone quiet leaves that ciphertext stranded for good.
     // Go: kcptun/std/qpp.go:QPPPort.Write()
     fn poll_write(
@@ -295,7 +295,7 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for QppStream<S> {
 
 /// Deviation V04: the half-close is **forwarded**, where Go's `QPPPort` does not implement
 /// `closeWriter` at all, so `std.Pipe`'s `if cw, ok := dst.(closeWriter); ok` fails and the
-/// fallback `dst.Close()` tears the whole stream down — which can truncate the direction that is
+/// fallback `dst.Close()` tears the whole stream down, which can truncate the direction that is
 /// still running. Forwarding sends only the smux `cmdFIN`, a frame every Go peer already handles
 /// for non-QPP streams, so this is wire-compatible and strictly less lossy.
 impl<S: HalfCloseWrite + Unpin> HalfCloseWrite for QppStream<S> {
@@ -313,7 +313,7 @@ impl<S: HalfCloseWrite + Unpin> HalfCloseWrite for QppStream<S> {
         Poll::Ready(drained)
     }
 
-    /// Go: `QPPPort.Close()` — closes the underlying stream and nothing else. Ciphertext that a
+    /// Go: `QPPPort.Close()`, closes the underlying stream and nothing else. Ciphertext that a
     /// failed write left in `obuf` is dropped here rather than retried, as Go's `Close` never
     /// writes.
     // Go: kcptun/std/qpp.go:QPPPort.Close()

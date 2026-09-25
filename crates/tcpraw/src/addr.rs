@@ -17,12 +17,12 @@
 //! This duplicates a little of `kcptun-kcp::addr` (the same Go functions, for UDP). The TCP half
 //! was written here while the two crates were independent; `kcptun-tcpraw` now depends on
 //! `kcptun-kcp` for the `PacketConn` trait, so the duplication is no longer forced by the
-//! dependency graph — it is simply not worth the churn of undoing while the module is covered by
+//! dependency graph: it is simply not worth the churn of undoing while the module is covered by
 //! its own tests and its Go counterparts differ in the network prefix.
 //!
-//! TODO: fold the shared helpers back into `kcptun-kcp` —
+//! TODO: fold the shared helpers back into `kcptun-kcp`,
 //! `pub use kcptun_kcp::addr::{split_host_port, canonical, ip_string, is_ipv4, unmap_ip};`,
-//! keeping only `resolve_tcp_addr`/`for_resolve`/`with_zone` here — or generalise
+//! keeping only `resolve_tcp_addr`/`for_resolve`/`with_zone` here, or generalise
 //! `kcptun_kcp::addr::resolve_udp_addr` over the `udp`/`tcp` network prefix and call that.
 #![forbid(unsafe_code)]
 
@@ -270,8 +270,8 @@ fn addr_error(addr: &str, err: &str) -> io::Error {
 /// Go decides between the dual-stack socket and an `AF_INET` one by probing the kernel once
 /// (`supportsIPv4map()`, `supportsIPv4()`); this tries the dual-stack socket and falls back only
 /// on the errors that probe would have seen as "no usable IPv6 stack", which is also how
-/// `kcptun-kcp`'s UDP listener reads them. Every other error — the port being taken, a policy
-/// denial — is returned unchanged.
+/// `kcptun-kcp`'s UDP listener reads them. Every other error: the port being taken, a policy
+/// denial: is returned unchanged.
 ///
 /// The returned listener is non-blocking, ready for `tokio::net::TcpListener::from_std`.
 // Go: go1.27.1 net/tcpsock.go:ListenTCP(), net/ipsock_posix.go:favoriteAddrFamily(),
@@ -289,7 +289,7 @@ pub fn listen_tcp(network: &str, laddr: SocketAddr) -> io::Result<std::net::TcpL
                     other => other,
                 }
             } else {
-                // Go: `laddr.family()` — the family of the address being bound.
+                // Go: `laddr.family()`, the family of the address being bound.
                 bind_tcp(!is_ipv4(laddr.ip()), false, laddr)
             }
         }
@@ -310,12 +310,12 @@ fn bind_tcp(v6: bool, only_v6: bool, laddr: SocketAddr) -> io::Result<std::net::
     let domain = if v6 { Domain::IPV6 } else { Domain::IPV4 };
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     if v6 {
-        // Go: net/sockopt_linux.go:setDefaultSockopts() — the IPV6_V6ONLY error is dropped
+        // Go: net/sockopt_linux.go:setDefaultSockopts(), the IPV6_V6ONLY error is dropped
         // ("some operating systems never admit this option"), so a dual-stack listen degrades to
         // an IPv6-only one rather than failing.
         let _ = socket.set_only_v6(only_v6);
     }
-    // Go: setDefaultListenerSockopts() — "allow reuse of recently-used addresses". This error Go
+    // Go: setDefaultListenerSockopts(), "allow reuse of recently-used addresses". This error Go
     // does return.
     socket.set_reuse_address(true)?;
     socket.bind(&SockAddr::from(bind_addr(v6, laddr)?))?;
@@ -334,7 +334,7 @@ fn bind_addr(v6: bool, laddr: SocketAddr) -> io::Result<SocketAddr> {
     if v6 {
         // Go: "when the IP node supports IPv4-mapped IPv6 address, we allow a listener to listen
         // to the wildcard address of both IP addressing spaces by specifying IPv6 wildcard
-        // address" — `if len(ip) == 0 || ip.Equal(IPv4zero) { ip = IPv6zero }`.
+        // address": `if len(ip) == 0 || ip.Equal(IPv4zero) { ip = IPv6zero }`.
         let ip = match laddr.ip() {
             IpAddr::V4(v4) if v4.is_unspecified() => IpAddr::V6(std::net::Ipv6Addr::UNSPECIFIED),
             IpAddr::V4(v4) => IpAddr::V6(v4.to_ipv6_mapped()),
@@ -377,7 +377,7 @@ fn is_no_ipv6_stack(err: &io::Error) -> bool {
 /// 2^32-1 from 4.1 on, and Go picks between the two by reading the running kernel's version.
 /// This port deliberately applies the pre-4.1 cap of 65535 unconditionally instead of parsing
 /// `uname(2)`: it is the conservative end of Go's own range, a `somaxconn` above 65535 is rare,
-/// and the kernel clamps the backlog to `somaxconn` anyway — so the resulting accept queue
+/// and the kernel clamps the backlog to `somaxconn` anyway, so the resulting accept queue
 /// differs from Go's only on a host tuned above 65535, where 65535 pending connections is
 /// already far more than kcptun's single listener can have outstanding.
 ///
@@ -424,7 +424,7 @@ fn split_zone(host: &str) -> (&str, &str) {
 /// the plain IPv4 address, so that the key a captured segment produces and the key `WriteTo` is
 /// handed are the same one.
 ///
-/// Go needs no such call — its key is `net.Addr.String()`, and `net.IP.String()` already prints
+/// Go needs no such call: its key is `net.Addr.String()`, and `net.IP.String()` already prints
 /// `::ffff:a.b.c.d` as `a.b.c.d`.
 // Go: tcpraw@v1.2.32 tcp_linux.go:(*tcpConn).lockflow() (`key := addr.String()`)
 pub fn canonical(addr: SocketAddr) -> SocketAddr {
@@ -440,14 +440,14 @@ pub fn canonical(addr: SocketAddr) -> SocketAddr {
 /// The `*net.TCPAddr` that `Listen`'s failing `net.ListenTCP` names, printed as Go prints it.
 ///
 /// Go's `net.ListenTCP` builds its `*net.OpError` around `laddr.opAddr()`, the very
-/// `*net.TCPAddr` that `net.ResolveTCPAddr` returned — and that address has a **nil `IP`** when
+/// `*net.TCPAddr` that `net.ResolveTCPAddr` returned, and that address has a **nil `IP`** when
 /// the argument had no host, which `(*TCPAddr).String()` renders as an empty host: `-l :29900`
 /// gives `listen tcp :29900: …`. [`resolve_tcp_addr`] cannot carry a nil IP in a `SocketAddr`
 /// and flattens it to `0.0.0.0`, so the original `address` is consulted here to put the empty
 /// host back.
 ///
 /// Anything else is the resolved address, unmapped the way `net.IP.String()` prints it
-/// (`JoinHostPort` brackets an IPv6 host) — which is what `SocketAddr`'s `Display` does once
+/// (`JoinHostPort` brackets an IPv6 host), which is what `SocketAddr`'s `Display` does once
 /// [`canonical`] has unmapped it. An IPv6 zone prints as the numeric scope id rather than the
 /// interface name Go prints, the same limitation `dial`'s `connect` error has.
 // Go: go1.27.1 net/tcpsock.go:ListenTCP(), (*TCPAddr).String(), net/ipsock.go:JoinHostPort(),
@@ -469,8 +469,8 @@ pub fn listen_addr_string(address: &str, laddr: SocketAddr) -> String {
 ///
 /// `net.ListenTCP` wraps what the kernel refused in
 /// `&net.OpError{Op: "listen", Net: network, Addr: laddr.opAddr(),
-/// Err: os.NewSyscallError("bind", errno)}`, and tcpraw's `Listen` returns that error unchanged
-/// — so a `--tcp` server whose TCP port is already taken logs
+/// Err: os.NewSyscallError("bind", errno)}`, and tcpraw's `Listen` returns that error unchanged,
+/// so a `--tcp` server whose TCP port is already taken logs
 /// `listen tcp :29900: bind: address already in use` in Go and, with this, here too. That is the
 /// one failure a *privileged* `--tcp` server actually hits: the raw sockets succeed and the real
 /// listener is what collides.
@@ -481,7 +481,7 @@ pub fn listen_addr_string(address: &str, laddr: SocketAddr) -> String {
 /// `kcptun-server`'s `listen_error`, makes the same choice for the same reason.
 ///
 /// Only a **syscall** failure is wrapped. The other error [`listen_tcp`] can return is the
-/// `unknown network …` one, which Go builds without a `*os.SyscallError` — and which is in any
+/// `unknown network …` one, which Go builds without a `*os.SyscallError`, and which is in any
 /// case unreachable, because [`resolve_tcp_addr`] has already rejected the same set of networks
 /// with the same text before `Listen` gets here.
 ///
@@ -783,7 +783,7 @@ mod tests {
     }
 
     /// Go's `laddr.opAddr()` is the *resolved* `*net.TCPAddr`, whose nil `IP` prints as an empty
-    /// host — so `-l :29900` keeps its empty host and does not become `0.0.0.0`.
+    /// host, so `-l :29900` keeps its empty host and does not become `0.0.0.0`.
     #[test]
     fn listen_addr_string_restores_gos_nil_ip() {
         let wildcard = resolve_tcp_addr("tcp", ":29900").expect("wildcard");
@@ -817,7 +817,7 @@ mod tests {
     }
 
     /// The failure a privileged `--tcp` server actually hits reads exactly as Go's
-    /// `net.ListenTCP` reports it — the line `kcptun-server` logs beside `Listening on:` when the
+    /// `net.ListenTCP` reports it: the line `kcptun-server` logs beside `Listening on:` when the
     /// raw sockets came up but the TCP port is taken.
     #[test]
     fn a_failed_tcp_bind_reads_like_gos_net_op_error() {

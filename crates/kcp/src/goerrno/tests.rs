@@ -33,7 +33,7 @@ fn cases() -> Vec<ErrnoCase> {
     file.cases.iter().map(|c| c.to::<ErrnoCase>()).collect()
 }
 
-/// Every table in `table.rs` is Go's, for every platform — not only the host's. The tables of
+/// Every table in `table.rs` is Go's, for every platform, not only the host's. The tables of
 /// the targets this host cannot run are the reason this check does not use `cfg!`: a wrong
 /// Linux entry has to fail the macOS gate too, which is exactly how the musl defect of 10.5
 /// escaped in the first place.
@@ -84,7 +84,7 @@ fn eaddrinuse_is_gos_wording_on_every_platform() {
 }
 
 /// `errno_error` is Go's `(Errno).Error()`, numeric fallback included, for every platform's
-/// probe list — replayed against the host's own table, so the host's case is the live one and
+/// probe list: replayed against the host's own table, so the host's case is the live one and
 /// the others only confirm the fallback shape.
 #[test]
 fn vectors_errno_error_matches_go() {
@@ -160,7 +160,7 @@ fn the_selected_table_is_this_targets() {
     }
 }
 
-/// A failed `bind(2)` reads the way Go reads it — the assertion that fails on a static musl
+/// A failed `bind(2)` reads the way Go reads it: the assertion that fails on a static musl
 /// build without D30's table, and the reason this sub-step exists.
 #[test]
 fn a_syscall_error_is_spelled_from_gos_table() {

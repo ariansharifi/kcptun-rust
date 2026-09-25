@@ -19,7 +19,7 @@
 //! | `KCPTUN_BENCH_REPEAT` | 3 | runs per (implementation, profile, payload, size) |
 //!
 //! More than one payload is measured because the production profile used to have a degradation
-//! band — a tx-channel overrun that cost a retransmission timeout per dropped packet, worst at
+//! band: a tx-channel overrun that cost a retransmission timeout per dropped packet, worst at
 //! 8 MiB and, on lab-arm64's 2 vCPU aarch64, still 0.70-0.77x Go at 32 MiB after 05.10 had
 //! widened the channel. Backpressure in `Kcp::flush` (12.2a, Deviation V18) removed it: 32 MiB
 //! now runs at 1.02-1.38x Go there and 2.63-2.83x on macOS. Both payloads stay in the sweep as
@@ -143,7 +143,7 @@ fn interop_kcp_echo_throughput_and_cpu_baseline() {
     );
     println!(
         "payload counted once per direction; the link carries it once each way per run. \
-         Wall time is noisy run to run — read the min-max columns before the medians; \
+         Wall time is noisy run to run: read the min-max columns before the medians; \
          CPU per GB is the stable metric.\n"
     );
 

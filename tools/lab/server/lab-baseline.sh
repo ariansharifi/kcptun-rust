@@ -4,7 +4,7 @@
 #        lab-baseline.sh --ports-only <p>...   (read-only: are these ports free?)
 #
 # The baseline is taken once per session; `--ports-only` is what every *run* calls, because the
-# port check has to happen again each time — a detached run still holding the tunnel port must be
+# port check has to happen again each time: a detached run still holding the tunnel port must be
 # caught here rather than half-way through lab-start.sh.
 set -euo pipefail
 . "$(dirname "$0")/lab-common.sh"

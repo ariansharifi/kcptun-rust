@@ -6,7 +6,7 @@
 ariyansharifi/kcptun-rust
 ```
 
-[hub.docker.com/r/ariyansharifi/kcptun-rust](https://hub.docker.com/r/ariyansharifi/kcptun-rust) —
+[hub.docker.com/r/ariyansharifi/kcptun-rust](https://hub.docker.com/r/ariyansharifi/kcptun-rust),
 `latest`, plus a tag per release (`v0.2.0`, …). Built for `linux/amd64` and `linux/arm64` by the
 release workflow, so `docker pull` picks the right one for the host.
 
@@ -24,20 +24,20 @@ docker run -d --name kcptun-client -p 9000:9000 \
     -r "SERVER_IP:29900" -l ":9000" -mode fast3 -key "YOUR_KEY"
 ```
 
-The image keeps the upstream Go image's contract — binaries at `/bin/client` and `/bin/server`,
-no `ENTRYPOINT`, `EXPOSE 29900/udp 12948` — so `docker run` command lines written for the Go image
+The image keeps the upstream Go image's contract: binaries at `/bin/client` and `/bin/server`,
+no `ENTRYPOINT`, `EXPOSE 29900/udp 12948`, so `docker run` command lines written for the Go image
 work unchanged. That is a tested claim, not a Dockerfile review: `tools/image-interop.sh` pushes
 20 MB of SHA-256-verified data through a real tunnel in all four Go/Rust pairings, for both smux
 versions, on every CI run.
 
 ## Open-file limits
 
-**Nothing to configure — the binaries raise their own limit, as the Go ones do.**
+**Nothing to configure: the binaries raise their own limit, as the Go ones do.**
 
 This is worth knowing because it was an outage before it was a fix. The Go *runtime* raises
 `RLIMIT_NOFILE` from the soft limit to the hard limit before `main` runs, so Go kcptun gets it for
 free; kcptun's own source has no rlimit code at all. A Rust binary gets nothing, so under Docker's
-common default — **soft 1024, hard 1048576** — this port ran with 1024 descriptors beside a Go
+common default (**soft 1024, hard 1048576**) this port ran with 1024 descriptors beside a Go
 kcptun running with 1048576. On a busy server that arrives fast: `-closewait` holds each finished
 connection for 30 s on the server (Go's default too), so tens of connections a second is a steady
 state of hundreds of descriptors, and past the ceiling `accept` fails and the tunnel flaps with
@@ -91,7 +91,7 @@ falling to 13.6 MiB, against musl's 253 MiB peak releasing 0 %. musl's `mallocng
 [`docs/benchmarks/memory.md`](benchmarks/memory.md) §8 has the run; the decision is
 [D07](DECISIONS.md).
 
-Stamp a version the way Go's `-ldflags "-X main.VERSION=…"` does — without it the binaries report
+Stamp a version the way Go's `-ldflags "-X main.VERSION=…"` does, without it the binaries report
 `SELFBUILD`:
 
 ```sh
@@ -100,6 +100,6 @@ docker build --build-arg KCPTUN_VERSION=v0.2.1 -t kcptun-rust .
 
 ## See also
 
-* [`dist/README.md`](../dist/README.md) — systemd units, sysctl drop-ins, example configurations
-* [`docs/tuning.md`](tuning.md) — socket buffers, FEC, ciphers, and the kernel limits that matter
+* [`dist/README.md`](../dist/README.md): systemd units, sysctl drop-ins, example configurations
+* [`docs/tuning.md`](tuning.md): socket buffers, FEC, ciphers, and the kernel limits that matter
   outside a container too

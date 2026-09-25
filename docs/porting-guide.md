@@ -113,14 +113,14 @@ EOF
   and say why in the message. Tests may unwrap.
 - `unsafe` only in: batched UDP I/O (`kcptun-kcp::io`), SIMD kernels (`kcptun-kcp::rs::simd`), raw
   sockets, the `getifaddrs(3)` walk that gives a tcpraw listener its per-interface raw sockets
-  (`kcptun-tcpraw::iface`, added in step 10.3 — `std` exposes no interface list), the `flock(2)`
+  (`kcptun-tcpraw::iface`, added in step 10.3: `std` exposes no interface list), the `flock(2)`
   go-iptables takes on `/var/run/xtables.lock` (`kcptun-tcpraw`), the one call that asks the global
-  allocator to hand its free pages back to the kernel — glibc's `malloc_trim(0)`, in
+  allocator to hand its free pages back to the kernel: glibc's `malloc_trim(0)`, in
   `kcptun-kcp::memory` (added in step 12.3, and the only such call left after 12.3d deleted the
   rejected mimalloc allocator; `libc` exposes no safe wrapper for it, and the one
-  `#[global_allocator]` left in the tree — `dhat`'s, in the `memprobe` test binary — needs no
-  `unsafe` at all), and —
-  test code only, added in step 05.9 — the two `getrusage(2)` calls
+  `#[global_allocator]` left in the tree (`dhat`'s, in the `memprobe` test binary) needs no
+  `unsafe` at all), and,
+  test code only, added in step 05.9: the two `getrusage(2)` calls
   of `kcptun-testkit::cpu`, which the benchmark harnesses need and `std` does not wrap. Every block
   has a `// SAFETY:` comment (`clippy::undocumented_unsafe_blocks`). All other crates
   `#![forbid(unsafe_code)]`; `kcptun-testkit` denies it instead, so that the exception is a single
@@ -152,15 +152,15 @@ EOF
 - **A buffer Go leaves untouched must stay untouched here too.** Go's allocator knows a freshly
   mapped span is already zero and skips the clear, so `make([]byte, n)` costs no resident page until
   something writes to it; `vec![0u8; n]` is `calloc`, and for a *small* `n` every allocator here
-  memsets it and faults the whole thing. Two measured cases: the per-stream copy buffer (06.6 —
+  memsets it and faults the whole thing. Two measured cases: the per-stream copy buffer (06.6,
   a 32 KiB buffer became 35.2 kB of RSS per idle stream, fixed by allocating on demand, D17) and
-  the per-session receive batch (12.3c — 256 × 1500 B faulted 384 kB per *idle* client session,
+  the per-session receive batch (12.3c: 256 × 1500 B faulted 384 kB per *idle* client session,
   fixed by making the batch one contiguous allocation big enough that glibc's and macOS's `calloc`
   serve it from a fresh mapping and skip the memset: `crates/kcp/src/packet_conn.rs`, `RecvBatch`).
   Neither form is free everywhere, and the allocator decides: musl's mallocng memsets at **every**
   size, and glibc stops giving the *replacement* of a freed large block a fresh mapping (its `mmap`
   threshold is dynamic), so a churning process drifts back towards the resident case. On-demand
-  allocation is the only form that works on every allocator — `docs/benchmarks/memory.md` §7 has
+  allocation is the only form that works on every allocator: `docs/benchmarks/memory.md` §7 has
   the measurements.
 - Hot-path choices are driven by benchmarks against Go (`docs/benchmarks/`), not assumptions.
 - Behaviour-preserving optimisations of protocol logic are differential-tested against the naive port
@@ -177,7 +177,7 @@ EOF
 | Interop with Go | `interop_*` | `#[ignore]`; needs `reference/bin` (`KCPTUN_GO_BIN_DIR`) |
 | End-to-end | `e2e_*` | `#[ignore]`; spawns the real binaries (`cargo build --release -p kcptun-client -p kcptun-server`). `crates/interop-tests/tests/e2e.rs`, with the heavy and slow cases split into `e2e_slow.rs`; `signals.rs` (step 09.6: signals, `-snmplog` CSV, exit status) runs the same cases through the Go binaries too and compares |
 | CLI / startup-log differential | `cli_diff_*` | `#[ignore]`; runs one command line through **both** implementations' binaries and compares stdout, stderr and the exit status. `crates/interop-tests/tests/cli_diff.rs` (step 09.5); the allowed differences are a closed list of numbered deviations |
-| Dev-only tool binaries | `tool_*` | **not** `#[ignore]`d: runs a `tools/` binary reached through `CARGO_BIN_EXE_*`, so it needs no release build and no deployment and the gate can afford it (`tools/pingpong/tests/cli.rs`). The trade-off is that `CARGO_BIN_EXE_*` bakes in laptop paths, so these cannot travel to lab-arm64 via `tools/lab/remote-test.sh` — only for binaries that never ship |
+| Dev-only tool binaries | `tool_*` | **not** `#[ignore]`d: runs a `tools/` binary reached through `CARGO_BIN_EXE_*`, so it needs no release build and no deployment and the gate can afford it (`tools/pingpong/tests/cli.rs`). The trade-off is that `CARGO_BIN_EXE_*` bakes in laptop paths, so these cannot travel to lab-arm64 via `tools/lab/remote-test.sh`, only for binaries that never ship |
 | Long / soak | `long_*` | `#[ignore]` |
 | Benchmarks | `benches/*.rs` | criterion; compare with Go and record in `docs/benchmarks/` |
 
@@ -202,7 +202,7 @@ EOF
 1. Read the Go code being ported before writing any Rust.
 2. Implement with tests: unit tests, golden vectors generated from Go, and interop tests against the
    real Go binaries wherever the behaviour is observable on the wire.
-3. Gate — all three must pass before a commit: `cargo fmt --all -- --check`,
+3. Gate: all three must pass before a commit: `cargo fmt --all -- --check`,
    `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`. Long tests are
    `#[ignore]`d and run explicitly.
 4. **One commit per sub-step**: `[NN.M] scope: summary`, with a body naming the Go source
@@ -212,7 +212,7 @@ EOF
 5. At the end of a step: `[NN] complete: …`, then merge the `step/NN-slug` branch into `main` with
    `git merge --no-ff`, so `main` shows one merge per step and the sub-step commits stay
    individually reviewable.
-6. **Review and verification policy.** Each sub-step gets one thorough review pass — fidelity,
+6. **Review and verification policy.** Each sub-step gets one thorough review pass: fidelity,
    correctness and safety, completeness. In-step fuzzing is a short **smoke** run of about two
    minutes; the long campaigns (10 min and up) run in CI. Per-step benchmarking is a quick
    measurement reported in the commit message; the full Go-versus-Rust write-ups live in

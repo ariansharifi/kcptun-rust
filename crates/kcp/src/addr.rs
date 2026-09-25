@@ -250,7 +250,7 @@ pub fn dial_network(raddr: &UdpAddr) -> &'static str {
 /// (`supportsIPv4map()`, `supportsIPv4()`), then lets the real bind error through; this tries the
 /// dual-stack socket and falls back to `0.0.0.0` only when the failure is one the probe would
 /// have seen as "no usable IPv6 stack" ([`is_no_ipv6_stack`]), which gives the same outcome.
-/// Every other error — `address already in use`, `permission denied`, … — is returned unchanged,
+/// Every other error (`address already in use`, `permission denied`, …) is returned unchanged,
 /// so a wildcard listener never silently degrades to IPv4-only.
 ///
 /// The returned socket is non-blocking, ready for [`tokio::net::UdpSocket::from_std`].
@@ -268,7 +268,7 @@ pub fn listen_udp(network: &str, laddr: Option<&UdpAddr>) -> io::Result<std::net
                     other => other,
                 }
             } else {
-                // Go: `laddr.family()` — the family of the address being bound.
+                // Go: `laddr.family()`, the family of the address being bound.
                 let v6 = !laddr.is_some_and(UdpAddr::is_ipv4);
                 bind_udp(if v6 { Domain::IPV6 } else { Domain::IPV4 }, false, laddr)
             }
@@ -283,8 +283,8 @@ pub fn listen_udp(network: &str, laddr: Option<&UdpAddr>) -> io::Result<std::net
 /// Reports whether `err` is what Go's capability probe reads as "this kernel has no usable IPv6
 /// stack", and thus the only reason `favoriteAddrFamily` would answer AF_INET for a wildcard
 /// listen: the AF_INET6 socket cannot be created at all, or binding an IPv6 address on it yields
-/// `EADDRNOTAVAIL` (what `net.ipv6.conf.all.disable_ipv6=1` produces). Anything else — the port
-/// being taken, a policy denial — is a real error of this bind and must reach the caller.
+/// `EADDRNOTAVAIL` (what `net.ipv6.conf.all.disable_ipv6=1` produces). Anything else: the port
+/// being taken, a policy denial: is a real error of this bind and must reach the caller.
 // Go: go1.27.1 net/ipsock_posix.go:(*ipStackCapabilities).probe()
 fn is_no_ipv6_stack(err: &io::Error) -> bool {
     if err.kind() == io::ErrorKind::AddrNotAvailable {
@@ -310,13 +310,13 @@ fn bind_udp(
 ) -> io::Result<std::net::UdpSocket> {
     let v6 = domain == Domain::IPV6;
     let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
-    // Go: go1.27.1 net/sockopt_linux.go:setDefaultSockopts() — the IPV6_V6ONLY error is dropped
+    // Go: go1.27.1 net/sockopt_linux.go:setDefaultSockopts(), the IPV6_V6ONLY error is dropped
     // ("some operating systems never admit this option"), so a dual-stack listen degrades to an
     // IPv6-only one rather than failing.
     if v6 {
         let _ = socket.set_only_v6(only_v6);
     }
-    // Go: go1.27.1 net/sockopt_linux.go:setDefaultSockopts() — every SOCK_DGRAM socket may
+    // Go: go1.27.1 net/sockopt_linux.go:setDefaultSockopts(), every SOCK_DGRAM socket may
     // broadcast; unlike the option above Go does return this error.
     socket.set_broadcast(true)?;
     let bind = match laddr {

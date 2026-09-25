@@ -1,6 +1,6 @@
 //! The `snappy_reader` fuzz harness (plan step 07.1): an arbitrary byte string is fed to a
 //! [`CompStream`](crate::comp::CompStream) as if the peer had sent it through the KCP session.
-//! Nothing may panic — corrupt input, unsupported input and the end of the stream are all fine
+//! Nothing may panic: corrupt input, unsupported input and the end of the stream are all fine
 //! outcomes (porting guide §5: never panic on network input).
 //!
 //! The cargo-fuzz target (`crates/std/fuzz/fuzz_targets/snappy_reader.rs`) only calls

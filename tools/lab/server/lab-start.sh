@@ -38,7 +38,7 @@ fi
 # `>>` (O_APPEND) rather than `>`. That matters for the six-hour soak: kr-labsample truncates a
 # watched log in place once it passes --log-cap-bytes, and a writer WITHOUT O_APPEND keeps its
 # old file offset, so its next write re-extends the file to offset+n with a hole of NUL bytes in
-# front — the file never actually shrinks, the cap fires again every interval, and the collected
+# front: the file never actually shrinks, the cap fires again every interval, and the collected
 # log starts with megabytes of NULs. With O_APPEND each write goes to the current end of file, so
 # an external truncate really does restart the log. Creating it as the login user (rather than
 # letting the `sudo` shell create it as root) is what lets the sampler open it for writing at all.

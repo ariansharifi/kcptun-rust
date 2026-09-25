@@ -1,8 +1,8 @@
 //! The flow table: one entry per peer 5-tuple, holding the TCP state the crafted segments are
 //! built from.
 //!
-//! A flow is created on first sight of a peer — by a captured segment or by a `WriteTo` to an
-//! address not seen yet — and carries:
+//! A flow is created on first sight of a peer, by a captured segment or by a `WriteTo` to an
+//! address not seen yet, and carries:
 //!
 //! - `conn`: the **real** kernel TCP connection of this 5-tuple, if there is one. A flow without
 //!   it is an *orphan*: some other traffic reached the raw socket on our port, so nothing may be
@@ -84,7 +84,7 @@ impl TcpFlow {
     /// Folds a captured segment into the flow and reports whether the flow was an **orphan**,
     /// i.e. had no real TCP connection when the segment arrived.
     ///
-    /// Go decides `orphan` first, then updates, then records the handle — in that order, so a
+    /// Go decides `orphan` first, then updates, then records the handle, in that order, so a
     /// segment that creates the flow is itself never delivered.
     // Go: tcpraw@v1.2.32 tcp_linux.go:(*tcpConn).captureFlow() (the `lockflow` closure)
     pub fn capture_update(&mut self, seg: &Segment<'_>, handle: usize, now: Instant) -> bool {
@@ -97,7 +97,7 @@ impl TcpFlow {
             self.seq = seg.header.ack;
         }
 
-        // Go: "Parse TCP options to get Timestamp" — the first timestamp option wins.
+        // Go: "Parse TCP options to get Timestamp", the first timestamp option wins.
         if let Some(ts) = seg.timestamps() {
             self.ts_ecr = ts.ts_val;
         }
@@ -105,7 +105,7 @@ impl TcpFlow {
         // Go: "Update ACK". `next_seq` counts the payload plus one for SYN and one for FIN.
         let next_seq = seg.next_seq();
         if next_seq != seg.header.seq {
-            // Go: "If we have payload or flags that consume sequence space, update ack" — but
+            // Go: "If we have payload or flags that consume sequence space, update ack", but
             // only from a fresh flow or from the segment that is exactly in order, so a
             // retransmission or a reorder cannot drag the acknowledgement backwards.
             if self.ack == 0 || self.ack == seg.header.seq {
@@ -121,7 +121,7 @@ impl TcpFlow {
     ///
     /// `src_ip` is the local address of the raw socket that will send it (Go's
     /// `e.handle.LocalAddr()`), needed for the checksum's pseudo-header. `fingerprint` is the
-    /// connection's single `fingerPrint` clone, whose timestamp option is rewritten here — Go
+    /// connection's single `fingerPrint` clone, whose timestamp option is rewritten here: Go
     /// keeps one per `tcpConn`, shared by every flow and only ever touched under the flow lock.
     ///
     /// Returns `false` and writes nothing when the local and the remote address are in different
@@ -194,8 +194,8 @@ pub fn sweep(table: &mut HashMap<SocketAddr, TcpFlow>, now: Instant) -> Vec<Arc<
 /// The real kernel TCP connection behind a flow: the socket that owns the 5-tuple and keeps the
 /// kernel's TCP state alive, with its TTL pinned to 1 so that nothing it sends escapes the host.
 ///
-/// Nothing is ever read from it — a task drains and discards whatever arrives, as Go's
-/// `io.Copy(ioutil.Discard, tcpconn)` does — and nothing is ever written to it.
+/// Nothing is ever read from it: a task drains and discards whatever arrives, as Go's
+/// `io.Copy(ioutil.Discard, tcpconn)` does, and nothing is ever written to it.
 // Go: tcpraw@v1.2.32 tcp_linux.go:tcpFlow.conn (`*net.TCPConn`)
 #[derive(Debug)]
 pub struct RealConn {
@@ -233,7 +233,7 @@ impl RealConn {
     /// The socket is shut down rather than closed outright: the file descriptor is owned by this
     /// value and released when the last [`Arc`] to it goes, which is as soon as the flow entry is
     /// gone and the discard task has seen the end of the stream. Both directions are shut down,
-    /// so the peer gets the same FIN Go's `Close` sends — now with TTL 64, so it survives the
+    /// so the peer gets the same FIN Go's `Close` sends: now with TTL 64, so it survives the
     /// iptables rule.
     // Go: tcpraw@v1.2.32 tcp_linux.go:(*tcpConn).cleaner(), (*tcpConn).Close()
     pub fn close(&self) {

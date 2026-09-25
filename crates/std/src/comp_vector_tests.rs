@@ -1,7 +1,7 @@
 //! Go golden snappy vectors (`testdata/vectors/snappy.json`, plan step 07.1; format in
 //! `tools/govectors/README.md`, "Area snappy"): the exact bytes kcptun's `CompStream` wrote for
 //! a scripted sequence of writes, and what `golang/snappy`'s `Reader` made of a set of hand-made
-//! streams — including every way one can be malformed.
+//! streams, including every way one can be malformed.
 //!
 //! The Rust writer must produce those bytes for the same writes, and the Rust reader must
 //! deliver the same prefix and stop with the same error text.

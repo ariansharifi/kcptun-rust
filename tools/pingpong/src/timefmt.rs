@@ -3,7 +3,7 @@
 //! Every CSV carries both the raw unix second (what a plotter wants) and an ISO-8601 UTC string
 //! (what a human reading a six-hour soak wants). `chrono` is in the workspace but with
 //! `default-features = false`, so it has no clock; rather than widen a dependency for a dev
-//! tool, the civil-date conversion is done here — it is twenty lines and it is testable.
+//! tool, the civil-date conversion is done here: it is twenty lines and it is testable.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

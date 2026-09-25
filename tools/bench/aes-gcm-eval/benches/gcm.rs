@@ -11,7 +11,7 @@
 //! Run (lab-arm64), cross-built and copied per tools/lab/README.md:
 //!   cargo zigbuild --release --benches --target aarch64-unknown-linux-musl
 //! then copy `target/aarch64-unknown-linux-musl/release/deps/gcm-*` (not the `.d` file) to the
-//! box as `kr-bench-gcm` — README.md has the exact scp line — and run it there:
+//! box as `kr-bench-gcm` (README.md has the exact scp line) and run it there:
 //!   ./kr-bench-gcm --bench --noplot --warm-up-time 0.5 --measurement-time 2 1350
 //!
 //! Interleave the rounds with the Go binary and take medians; see docs/benchmarks/crypto.md.

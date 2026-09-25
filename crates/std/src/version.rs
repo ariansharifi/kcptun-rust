@@ -1,12 +1,12 @@
 //! The version the binaries report, and the one thing it switches on.
 //!
 //! Go sources:
-//! - `kcptun/client/main.go:56-57`, `kcptun/server/main.go:61-62` — `var VERSION = "SELFBUILD"`,
+//! - `kcptun/client/main.go:56-57`, `kcptun/server/main.go:61-62`: `var VERSION = "SELFBUILD"`,
 //!   replaced at packaging time with `-ldflags "-X main.VERSION=<tag>"`;
-//! - `kcptun/client/main.go:59-64`, `kcptun/server/main.go:64-69` — a self-build adds
+//! - `kcptun/client/main.go:59-64`, `kcptun/server/main.go:64-69`: a self-build adds
 //!   `log.Lshortfile` to the log flags, "to simplify debugging self-built binaries";
-//! - `kcptun/client/main.go:68`, `kcptun/server/main.go:73` — `myApp.Version = VERSION`;
-//! - `urfave/cli@v1.22.17 help.go:65,227-229` — `VersionPrinter = printVersion`, which is
+//! - `kcptun/client/main.go:68`, `kcptun/server/main.go:73`: `myApp.Version = VERSION`;
+//! - `urfave/cli@v1.22.17 help.go:65,227-229`: `VersionPrinter = printVersion`, which is
 //!   `fmt.Fprintf(c.App.Writer, "%v version %v\n", c.App.Name, c.App.Version)`, reached from
 //!   `app.go:241` (`ShowVersion`), so `-v` prints `kcptun version SELFBUILD`.
 //!
@@ -37,7 +37,7 @@ pub const VERSION: &str = match option_env!("KCPTUN_VERSION") {
 
 /// Whether this build is unstamped, which is what makes log lines carry `file:line`
 /// ([`crate::log::default_flags`]).
-// Go: kcptun/client/main.go:60, kcptun/server/main.go:65 — `if VERSION == "SELFBUILD"`
+// Go: kcptun/client/main.go:60, kcptun/server/main.go:65, `if VERSION == "SELFBUILD"`
 pub const fn is_selfbuild() -> bool {
     // `str` equality is not available in a const context; compare the bytes instead.
     let (v, want) = (VERSION.as_bytes(), SELFBUILD.as_bytes());
@@ -59,7 +59,7 @@ pub const fn is_selfbuild() -> bool {
 /// `kcptun version SELFBUILD` for an unstamped build. [`crate::cli::App`] prints the same line
 /// itself when it handles `--version`; this is the copy the binaries use for a plain `-v` fast
 /// path before the flag table exists.
-// Go: urfave/cli@v1.22.17 help.go:65,227-229 — printVersion
+// Go: urfave/cli@v1.22.17 help.go:65,227-229, printVersion
 pub fn version_string() -> String {
     format!("{APP_NAME} version {VERSION}")
 }
@@ -75,7 +75,7 @@ mod tests {
     fn test_version_string() {
         assert_eq!(version_string(), format!("{APP_NAME} version {VERSION}"));
 
-        // An unstamped build — the only one the test suite is ever run on unless the caller sets
+        // An unstamped build: the only one the test suite is ever run on unless the caller sets
         // KCPTUN_VERSION, in which case only the line's shape can be checked.
         if option_env!("KCPTUN_VERSION").is_none() {
             assert_eq!(VERSION, "SELFBUILD");

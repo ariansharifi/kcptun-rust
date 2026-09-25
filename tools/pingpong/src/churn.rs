@@ -1,4 +1,4 @@
-//! `pingpong churn` — the workload the 11.4 soak is built on.
+//! `pingpong churn`: the workload the 11.4 soak is built on.
 //!
 //! Plan 11.4: *"continuous churn (open/close 20 streams/s, each 10 KB–1 MB) + 10 long-lived
 //! streams + periodic bulk bursts"*. Three generators run side by side, all bounded:

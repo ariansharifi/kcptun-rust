@@ -4,8 +4,8 @@
 //! `interface{ WriteBuffers(v [][]byte) (int, error) }` to get scatter-gather writes when the
 //! connection supports them (kcp-go's `UDPSession` does). [`SmuxConn`] is the same contract:
 //! [`write_all_vectored`](SmuxConn::write_all_vectored) has a default implementation that
-//! concatenates into one buffer and calls [`write_all`](SmuxConn::write_all) — Go's non-
-//! `WriteBuffers` path, `copy(buf[headerSize:], data)` followed by a single `Write` — and the
+//! concatenates into one buffer and calls [`write_all`](SmuxConn::write_all): Go's non-
+//! `WriteBuffers` path, `copy(buf[headerSize:], data)` followed by a single `Write`, and the
 //! KCP session (step 09) overrides it with its native `write_buffers`.
 //!
 //! Every method takes `&self` because the receive task, the send task and the keepalive task
@@ -93,7 +93,7 @@ pub trait SmuxConn: Send + Sync + 'static {
 /// Both halves live in an `Option` so that [`close`](SmuxConn::close) can drop them: Go's
 /// `Session.Close()` ends in `s.conn.Close()`, which closes the socket in both directions and
 /// releases the descriptor there and then. Shutting the write half down alone would leave the
-/// read half — and the descriptor — alive until the last `Arc<SplitConn>` was dropped, which for
+/// read half (and the descriptor) alive until the last `Arc<SplitConn>` was dropped, which for
 /// a closed session kept in a map (kcptun's server keeps them) can be much later.
 ///
 /// `close` waits for the read lock, so a task that is reading must be told to stop first. The
@@ -227,7 +227,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Sync + 'static> SmuxConn for SplitConn<S
     }
 
     /// Shuts the write half down and then drops both halves, which closes the underlying stream
-    /// and releases its descriptor — Go's `conn.Close()`, not a half-close. Further reads and
+    /// and releases its descriptor: Go's `conn.Close()`, not a half-close. Further reads and
     /// writes report `net.ErrClosed`.
     async fn close(&self) -> io::Result<()> {
         let result = {

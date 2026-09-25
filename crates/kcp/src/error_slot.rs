@@ -16,7 +16,7 @@
 //!
 //! [`ErrorSlot`] is that `sync.Once` + `atomic.Value` + closed channel in one: the first
 //! [`set`](ErrorSlot::set) wins, later ones are ignored, and [`wait`](ErrorSlot::wait) resolves
-//! immediately once the slot is filled — before or after the fact, so no wake-up can be lost.
+//! immediately once the slot is filled, before or after the fact, so no wake-up can be lost.
 //!
 //! The tx task (05.2) fills the write slot; the read loop and the listener (05.3, 05.6, 05.7)
 //! fill the read slot the same way.

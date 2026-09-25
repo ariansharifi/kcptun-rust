@@ -218,7 +218,7 @@ fn client_cases() -> Vec<CliCase> {
         )
         .runs(),
         // V07 stays narrow: 256 shards is the most klauspost's `New()` still builds the classic
-        // codec for, so it is the last configuration a kcptun peer can decode — and it starts
+        // codec for, so it is the last configuration a kcptun peer can decode, and it starts
         // here exactly as it does in Go. 257 is the deviation, one shard further on.
         client(
             "client_fec_256_shards",
@@ -430,7 +430,7 @@ fn v20_cases() -> Vec<CliCase> {
 }
 
 /// **V21**: `--pprof` in a build without the optional `pprof` feature. The flag is accepted either
-/// way (D23), so the whole difference is one extra line — last on the client, and before
+/// way (D23), so the whole difference is one extra line: last on the client, and before
 /// `Listening on:` on the server, which is why both binaries have a case.
 ///
 /// In a `--features pprof` build there is no difference at all, and the very same command lines
@@ -619,7 +619,7 @@ fn every_allowed_deviation_has_a_case_and_no_other_difference_is_allowed() {
 /// really about.
 ///
 /// Both settings can arrive through the command line **or** through a `-c` config, which is what
-/// [`case_pprof`] and [`case_fec`] read — the arguments *and* [`CliCase::json`], with Go's
+/// [`case_pprof`] and [`case_fec`] read: the arguments *and* [`CliCase::json`], with Go's
 /// defaults underneath. A guard that only scanned the joined argv would miss a JSON config that
 /// said `{"pprof": true}` or `{"datashard": 255, "parityshard": 2}`.
 #[test]
@@ -643,7 +643,7 @@ fn pprof_and_oversized_fec_appear_only_in_the_cases_that_pin_them() {
 }
 
 /// Whether `case` ends up with the profiling server on, from its arguments or its JSON config.
-// Go: kcptun/client/main.go:247-250 — cli.BoolFlag{Name: "pprof"}, default false.
+// Go: kcptun/client/main.go:247-250, cli.BoolFlag{Name: "pprof"}, default false.
 fn case_pprof(case: &CliCase) -> bool {
     let from_args = case.args.iter().any(|arg| {
         let flag = arg.trim_start_matches('-');
@@ -661,7 +661,7 @@ fn case_pprof(case: &CliCase) -> bool {
 
 /// The `datashard`/`parityshard` `case` ends up with: Go's defaults, then its arguments, then its
 /// JSON config, which overrides the command line (`-c ... will override the command from shell`).
-// Go: kcptun/client/main.go:140-150 — cli.IntFlag{Name: "datashard,ds", Value: 10} and
+// Go: kcptun/client/main.go:140-150, cli.IntFlag{Name: "datashard,ds", Value: 10} and
 // {Name: "parityshard,ps", Value: 3}.
 fn case_fec(case: &CliCase) -> (i64, i64) {
     let (mut data, mut parity) = (10, 3);
@@ -694,10 +694,10 @@ fn case_fec(case: &CliCase) -> (i64, i64) {
 }
 
 /// The value `key` has in `case`'s JSON config, matched the way Go matches a struct tag: the exact
-/// name first, then case-insensitively — which is why `client_json_mixed_case` works at all.
+/// name first, then case-insensitively, which is why `client_json_mixed_case` works at all.
 ///
 /// Every case's JSON has to parse, including the ones whose *values* are deliberately wrong.
-// Go: encoding/json decode.go:object() — "prefer an exact match but fall back to a case-insensitive one"
+// Go: encoding/json decode.go:object(), "prefer an exact match but fall back to a case-insensitive one"
 fn json_field(case: &CliCase, key: &str) -> Option<serde_json::Value> {
     let json = case.json.as_ref()?;
     let map: serde_json::Map<String, serde_json::Value> = serde_json::from_str(json)

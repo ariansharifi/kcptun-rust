@@ -45,8 +45,8 @@ func TestVerbatimCopy(t *testing.T) {
 	}
 }
 
-// The two Config structs cannot be whole-file copies — each needs its own package clause and
-// import path — so their `type Config struct { ... }` block is compared instead. That block is
+// The two Config structs cannot be whole-file copies: each needs its own package clause and
+// import path, so their `type Config struct { ... }` block is compared instead. That block is
 // exactly what encoding/json sees: the json tags, the field types and the embedded BaseConfig.
 func TestConfigStructCopy(t *testing.T) {
 	for _, tc := range []struct{ own, ref string }{

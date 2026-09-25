@@ -14,7 +14,7 @@ bytes, a full KCP segment at the default MTU; the FEC header offset is 0, as in 
 
 | Name | What one iteration does |
 |---|---|
-| `fec/encode` | `fecEncoder.encode(pkt, rto=500)` of one 1370-byte packet with a **fixed clock**, so every group counts as continuous (the fixed clock also removes Go's per-packet `time.Now().UnixMilli()`, which the Rust port never pays because `encode` takes `now_ms` from the caller — the Go encode figure is therefore a lower bound on real kcp-go and the ratio is conservative): the packet is sealed and copied into the shard cache, and every tenth call also RS-encodes the group's 3 parity shards and seals them (steady state, parity amortised over 10 packets). |
+| `fec/encode` | `fecEncoder.encode(pkt, rto=500)` of one 1370-byte packet with a **fixed clock**, so every group counts as continuous (the fixed clock also removes Go's per-packet `time.Now().UnixMilli()`, which the Rust port never pays because `encode` takes `now_ms` from the caller: the Go encode figure is therefore a lower bound on real kcp-go and the ratio is conservative): the packet is sealed and copied into the shard cache, and every tenth call also RS-encodes the group's 3 parity shards and seals them (steady state, parity amortised over 10 packets). |
 | `fec/decode/…/loss0` | `fecDecoder.decode(pkt)` of one received packet of a complete group (10 data + 3 parity). The 10th data packet completes a full shard set (no RS work, `FECFullShardSet++`); the 3 parity packets that follow are stored and later discarded. |
 | `fec/decode/…/loss1` | Same, with one data packet lost per group (the lost index rotates through 0..9), so the first parity packet of each group triggers `ReconstructData` of 1 shard: 12 received packets per group, one recovery. |
 | `rs/encode` | `Encode`: all 3 parity shards from the 10 data shards. |
@@ -30,9 +30,9 @@ resliced to length 0 (`defaultBufferPool.Get()[:0]`), and klauspost grows it bac
 over its stale bytes without clearing (the codec overwrites every output byte anyway). The two rows
 per case are:
 
-- `reused` — a shard buffer that keeps its initialised storage and only moves a logical length
+- `reused`: a shard buffer that keeps its initialised storage and only moves a logical length
   (`PoolShard` in `benches/rs.rs`). **This is the like-for-like comparison with Go.**
-- `zeroed` — a plain `Vec<u8>` of length 0, the library's other `ShardBuf` impl and what
+- `zeroed`: a plain `Vec<u8>` of length 0, the library's other `ShardBuf` impl and what
   `fec::FecDecoder` passes today: growing it zero-fills the shard first. The difference between the
   two rows is exactly that memset, which is cheap on macOS and expensive against musl (see
   *Observations*).
@@ -90,7 +90,7 @@ Time per iteration, ns (lower is better); "×Go" = Go time / Rust time.
 | rs/reconstruct missing3 `zeroed` | 1,325 | 747 | 1.78 |
 
 Rust scalar fallback (same machine, for reference): encode 10,040 ns, reconstruct missing1 3,493 ns,
-missing3 9,798 ns — 9.5–16× slower than the NEON kernels.
+missing3 9,798 ns: 9.5–16× slower than the NEON kernels.
 
 ## Results: lab-arm64 (Neoverse-N1)
 
@@ -105,7 +105,7 @@ missing3 9,798 ns — 9.5–16× slower than the NEON kernels.
 | rs/reconstruct missing3 `reused` | 4,335 | 2,763 | **1.57** |
 | rs/reconstruct missing3 `zeroed` | 4,335 | 4,178 | 1.04 |
 
-Rust scalar fallback: encode 28,382 ns, reconstruct missing1 9,747 ns, missing3 27,764 ns — 6.8–11×
+Rust scalar fallback: encode 28,382 ns, reconstruct missing1 9,747 ns, missing3 27,764 ns, 6.8–11×
 slower than NEON.
 
 Per group at the production shape this means, on the N1: a sender spends ~3.4 µs of FEC per 10
@@ -114,13 +114,13 @@ packets sent (Go ~4.1 µs), and a receiver ~4.8 µs per group with one loss reco
 ## Observations
 
 - **A `ReconstructData` call carries ~0.2 µs of fixed overhead.** On the N1, recovering one shard
-  costs 1.44 µs, of which about 0.18 µs is per-call overhead — ~150 ns for the four small `Vec`s
+  costs 1.44 µs, of which about 0.18 µs is per-call overhead: ~150 ns for the four small `Vec`s
   (valid indices, inputs, outputs, matrix rows) and ~30 ns for the SipHash of the 32-byte
-  inversion-cache key, both measured directly — and the rest is the NEON coding of one output from
+  inversion-cache key, both measured directly, and the rest is the NEON coding of one output from
   10 × 1370 input bytes. Go pays the same kind of overhead (`984 B/op, 5 allocs/op`) with a faster
   allocator, which is part of why the ratio drops from 1.9× (M5) to 1.5× (N1).
 - **musl's `memset` is the largest single overhead on Linux.** Zero-filling the 3 recovered shards
-  (4,110 bytes) takes **1.42 µs** on the N1 musl build — more than half of the ~2.6 µs the NEON
+  (4,110 bytes) takes **1.42 µs** on the N1 musl build: more than half of the ~2.6 µs the NEON
   coding of those 3 shards needs, and the whole `reused` → `zeroed` difference (2.76 → 4.18 µs).
   musl's generic `memset` moves about 2.9 GB/s there. The same `reused` → `zeroed` delta on the
   M5 is only ~59 ns for those 4,110 bytes (~70 GB/s, macOS libc; a bare `memset` microbenchmark
@@ -128,7 +128,7 @@ packets sent (Go ~4.1 µs), and a receiver ~4.8 µs per group with one loss reco
   - Go never pays it: its pool buffers are already initialised and klauspost reslices over the stale
     bytes.
   - Rust cannot skip it safely for a `Vec<u8>` that was handed over empty: the spare capacity is
-    uninitialised. The fix is to hand the codec buffers that are already initialised — a buffer pool
+    uninitialised. The fix is to hand the codec buffers that are already initialised: a buffer pool
     whose entries keep their full length, exactly the `PoolShard` shape measured here. That is the
     Step 05 / Step 12 buffer-pool work (D06), and it is worth ~0.45 µs per recovered shard on
     musl/aarch64.

@@ -1,9 +1,9 @@
-//! `pingpong bulk` — a bulk flow through the tunnel, without iperf3.
+//! `pingpong bulk`: a bulk flow through the tunnel, without iperf3.
 //!
 //! `iperf3` remains the authority on goodput (11.2 quotes its JSON), but it cannot share the
 //! tunnel with this tool: a kcptun server forwards to exactly one `-t` target, so a scenario
 //! whose target is `pingpong serve` needs its own way to make a competing bulk flow. That is
-//! what this mode is for — "30 s pingpong (64 B) **with** a competing bulk flow" in 11.2, and
+//! what this mode is for: "30 s pingpong (64 B) **with** a competing bulk flow" in 11.2, and
 //! the periodic bursts of the 11.4 soak.
 
 use std::sync::{Arc, Mutex};

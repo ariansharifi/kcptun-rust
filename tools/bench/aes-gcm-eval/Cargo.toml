@@ -10,7 +10,7 @@
 # `cargo test --workspace`, `cargo clippy --workspace` and `cargo deny` in the repo root never see
 # `ring` or `aws-lc-sys`.
 #
-# The flip side: **nothing builds this crate automatically** — not `cargo fmt --all`, not the gate,
+# The flip side: **nothing builds this crate automatically**, not `cargo fmt --all`, not the gate,
 # and none of the CI jobs in .github/workflows/ci.yml. It is frozen and hand-run. `Cargo.lock` is
 # committed and pinned deliberately so the 12.2b numbers stay reproducible; if it is ever
 # refreshed, re-run `cargo test --release` here by hand, since those tests are the only thing that

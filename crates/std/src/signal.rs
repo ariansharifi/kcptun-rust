@@ -1,9 +1,9 @@
 //! Signal handling and the exit hooks it runs.
 //!
 //! Go sources:
-//! - `kcptun/std/signal.go` (`//go:build linux || darwin || freebsd`) — `init()` starts
+//! - `kcptun/std/signal.go` (`//go:build linux || darwin || freebsd`): `init()` starts
 //!   `sigHandler()`, which serves `SIGUSR1`, `SIGTERM` and `SIGINT` and ignores `SIGPIPE`;
-//! - `kcptun/std/atexit.go` (`!linux`) and `atexit_linux.go` — `postProcess()`, empty except on
+//! - `kcptun/std/atexit.go` (`!linux`) and `atexit_linux.go`: `postProcess()`, empty except on
 //!   Linux, where it calls `tcpraw.IPTablesReset()`.
 //!
 //! What the handler does:
@@ -25,9 +25,9 @@
 //! registration order. [`register_iptables_reset`] puts Go's own `postProcess` body into it, and
 //! the binaries call that at start-up (Step 10.4). Nothing else about the shutdown path changes.
 //!
-//! The hooks also run on the exit paths Go leaves uncovered — [`crate::log::fatal`],
+//! The hooks also run on the exit paths Go leaves uncovered: [`crate::log::fatal`],
 //! [`crate::log::check_error`], a returning `main`, and (through
-//! [`run_exit_hooks_on_panic`]) a panic — because a leftover `iptables` rule outlives the
+//! [`run_exit_hooks_on_panic`]) a panic, because a leftover `iptables` rule outlives the
 //! process that installed it. `SIGKILL` remains the one case nothing can clean up after, in this
 //! port exactly as in Go.
 //!
@@ -45,7 +45,7 @@ pub const EXIT_WAIT: u64 = 5;
 type ExitHook = Box<dyn FnOnce() + Send>;
 
 /// Hooks to run when a termination signal arrives, in registration order.
-// Go: kcptun/std/atexit_linux.go:postProcess() — a fixed body, a registry here.
+// Go: kcptun/std/atexit_linux.go:postProcess(), a fixed body, a registry here.
 static EXIT_HOOKS: Mutex<Vec<ExitHook>> = Mutex::new(Vec::new());
 
 /// Registers a hook to run on `SIGINT`/`SIGTERM`, before the process is terminated.
@@ -62,14 +62,14 @@ pub fn register_exit_hook(hook: impl FnOnce() + Send + 'static) {
 /// `postProcess()`: on `SIGINT`/`SIGTERM` every live fake-TCP connection is closed, and closing
 /// one removes the `filter/OUTPUT` rules it added.
 ///
-/// The client and server call this once at start-up (Step 10.4), whether or not `--tcp` is on —
+/// The client and server call this once at start-up (Step 10.4), whether or not `--tcp` is on,
 /// as in Go, where the call is compiled in unconditionally and finds nothing to do when no
 /// tcpraw connection was ever made. On a platform without raw sockets it is a no-op, like Go's
 /// `atexit.go`.
 ///
 /// **It blocks** while `iptables`/`ip6tables` run, which is what makes the rules gone by the time
 /// the process re-raises `SIGTERM`; Go's `postProcess` blocks its signal goroutine in exactly the
-/// same way. The hook therefore occupies the signal-handling task for that time — acceptable
+/// same way. The hook therefore occupies the signal-handling task for that time: acceptable
 /// precisely because the process is on its way out.
 // Go: kcptun/std/atexit_linux.go:postProcess()
 pub fn register_iptables_reset() {
@@ -83,13 +83,13 @@ pub fn register_iptables_reset() {
 /// that panics keeps its rules. This port runs the hooks on every exit path it controls
 /// (step 10.4), and a panic is one of them.
 ///
-/// The hook that was installed before — the default one, which prints the message and the
-/// backtrace — runs first, so the panic still looks exactly as it did. `panic = "abort"` (D24)
+/// The hook that was installed before: the default one, which prints the message and the
+/// backtrace: runs first, so the panic still looks exactly as it did. `panic = "abort"` (D24)
 /// does not skip it: the panic runtime calls the hook and only then aborts.
 ///
 /// It is **not** a substitute for the signal path, and it does not see a bare `abort(2)`. The one
-/// place this port aborts without panicking — tcpraw's accept loop, when the TTL of an accepted
-/// connection cannot be pinned — therefore runs `iptables_reset` itself. Nothing at all can clean
+/// place this port aborts without panicking: tcpraw's accept loop, when the TTL of an accepted
+/// connection cannot be pinned: therefore runs `iptables_reset` itself. Nothing at all can clean
 /// up after `SIGKILL`, here or in Go.
 pub fn run_exit_hooks_on_panic() {
     let previous = std::panic::take_hook();
@@ -121,7 +121,7 @@ fn hooks() -> std::sync::MutexGuard<'static, Vec<ExitHook>> {
 // body keeps being type-checked on every target.
 #[cfg_attr(not(unix), allow(dead_code))]
 fn on_sigusr1() {
-    // Go: log.Printf("KCP SNMP:%+v", kcp.DefaultSnmp.Copy()) — `%+v` of a *Snmp is
+    // Go: log.Printf("KCP SNMP:%+v", kcp.DefaultSnmp.Copy()), `%+v` of a *Snmp is
     // `&{BytesSent:0 …}`, which is what SnmpSnapshot's Display writes.
     crate::logf!("KCP SNMP:{}", kcptun_kcp::snmp::DEFAULT_SNMP.copy());
 }
@@ -133,7 +133,7 @@ fn on_sigusr1() {
 /// stays compiled everywhere, for the tests' sake.
 #[cfg_attr(not(unix), allow(dead_code))]
 trait ExitActions {
-    /// Go: the `exitOnce` goroutine — `os.Exit(0)` after [`EXIT_WAIT`] seconds.
+    /// Go: the `exitOnce` goroutine, `os.Exit(0)` after [`EXIT_WAIT`] seconds.
     fn schedule_fallback_exit(&self);
     /// Go: `signal.Stop(ch)` followed by `syscall.Kill(syscall.Getpid(), syscall.SIGTERM)`.
     fn reraise_sigterm(&self);
@@ -146,8 +146,8 @@ fn on_terminate(actions: &dyn ExitActions) {
     post_process();
     // Go arms the fallback after the re-raise; it is armed first here because it exists precisely
     // for the case where the re-raise does *not* end the process, and that ordering is the only
-    // one in which the fallback is certain to be armed. When the re-raise works — every normal
-    // shutdown — neither order is observable, since the process is gone before the timer starts.
+    // one in which the fallback is certain to be armed. When the re-raise works: every normal
+    // shutdown: neither order is observable, since the process is gone before the timer starts.
     actions.schedule_fallback_exit();
     actions.reraise_sigterm();
 }
@@ -203,7 +203,7 @@ mod unix {
     /// [`EXIT_WAIT`] seconds if that somehow left the process running.
     struct ProcessExit;
 
-    /// Go: `var exitOnce sync.Once` — the fallback timer is armed once, however many signals
+    /// Go: `var exitOnce sync.Once`, the fallback timer is armed once, however many signals
     /// arrive.
     static EXIT_ONCE: AtomicBool = AtomicBool::new(false);
 
@@ -234,7 +234,7 @@ mod unix {
 
 /// Windows has none of the signals `std/signal.go` serves, and Go excludes the file from the
 /// build there; nothing is installed. [`register_exit_hook`] and [`post_process`] still work.
-// Go: kcptun/std/signal.go — //go:build linux || darwin || freebsd
+// Go: kcptun/std/signal.go, //go:build linux || darwin || freebsd
 #[cfg(not(unix))]
 pub fn install() -> std::io::Result<()> {
     Ok(())

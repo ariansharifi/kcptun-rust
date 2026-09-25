@@ -1,6 +1,6 @@
 # Shared helpers for the lab scripts (they run ON the lab host, under ~/kcptun-lab/scripts;
 # sourced, not executed). Safety rules: tools/lab/README.md. The host is whichever one lab.py --host
-# (or deploy.sh) selected — lab-arm64, lab-x86-1, lab-x86-2 or lab-x86-3 — so nothing here may
+# (or deploy.sh) selected (lab-arm64, lab-x86-1, lab-x86-2 or lab-x86-3) so nothing here may
 # assume lab-arm64's interface names.
 
 LAB="${KCPTUN_LAB:-$HOME/kcptun-lab}"
@@ -11,7 +11,7 @@ NS_CLI=kr-cli
 NS_SRV=kr-srv
 VETH_CLI=kr-veth-c
 VETH_SRV=kr-veth-s
-# The host's own NIC — the one interface these scripts must never touch. Detected from the
+# The host's own NIC: the one interface these scripts must never touch. Detected from the
 # default route so that the lab also runs on the hosts that are not lab-arm64 (lab-x86-3's is
 # `ens3`, not `enp0s6`); override with KCPTUN_LAB_NIC if a host has no default route.
 # The field *after* the `dev` keyword, not a fixed column: a link-scope default route
@@ -54,7 +54,7 @@ ns_exists() { ip netns list 2>/dev/null | grep -qw "$1"; }
 # The host's primary NIC: the interface its default route leaves by.
 #
 # It used to be hard-coded to lab-arm64's `enp0s6`, which made `lab-baseline.sh` fail outright
-# ("Cannot find device enp0s6") on every other lab host — lab-x86-1, lab-x86-2 and lab-x86-3 all
+# ("Cannot find device enp0s6") on every other lab host: lab-x86-1, lab-x86-2 and lab-x86-3 all
 # name theirs differently. The lab never touches this interface; it only records its qdiscs so
 # cleanup can prove that (tools/lab/README.md, safety rule 2).
 primary_nic() {
@@ -65,7 +65,7 @@ primary_nic() {
     # `ip -br link` prints a veth as `name@ifN`, which `tc` cannot use: a baseline taken on a host
     # with no default route (or after lab-netns.sh brought kr-veth-c/kr-veth-s up) would otherwise
     # record e.g. `kr-veth-c@if12` in nic.txt, and lab-cleanup.sh's `tc qdisc show dev` on it fails
-    # inside a `diff -q <(...)` — reported as "qdiscs differ from baseline", a false safety alarm
+    # inside a `diff -q <(...)`: reported as "qdiscs differ from baseline", a false safety alarm
     # at the end of a long session. Strip the peer suffix, and never pick one of our own links.
     dev="$(ip -o -br link show up 2>/dev/null |
            awk '$1 != "lo" && $1 !~ /^kr-/ { print $1; exit }' | cut -d@ -f1)"

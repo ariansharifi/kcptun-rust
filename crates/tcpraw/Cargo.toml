@@ -19,7 +19,7 @@ internals = []
 kcptun-kcp = { workspace = true }
 # The flow table, the raw handles, the rule list and the connection list are `std::sync::Mutex`es
 # (Go's `flowsLock` / `connListMu`), held for a few field assignments and never across an
-# `.await` — the same lock, and the same poison-ignoring helper, as the rest of the workspace.
+# `.await`: the same lock, and the same poison-ignoring helper, as the rest of the workspace.
 # TSval needs a random boot offset (tcpraw@cbf9635 init(), Deviation V10).
 rand = { workspace = true }
 # Raw sockets (`socket(AF_INET, SOCK_RAW, IPPROTO_TCP)`) and the `setsockopt` calls Go makes

@@ -9,7 +9,7 @@
 //! # What it does
 //!
 //! A [`QuantumPermutationPad`] holds `num_pads` permutations of the 256 byte values (and their
-//! inverses). A [`Rand`] — an `xoshiro256**` generator seeded from the same key — selects one
+//! inverses). A [`Rand`] (an `xoshiro256**` generator seeded from the same key) selects one
 //! pad per eight bytes of *stream position* and supplies a one-time-pad byte:
 //!
 //! ```text

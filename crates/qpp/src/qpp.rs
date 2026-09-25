@@ -370,8 +370,8 @@ fn reverse(pad: &Matrix, rpad: &mut Matrix) {
 /// Splits `seed` into the 32-byte chunks the pads are derived from.
 ///
 /// A seed shorter than 32 bytes is PBKDF2-expanded to 32 bytes first. The seed is then read
-/// cyclically — `seedIdx` keeps counting across chunks, so a seed whose length is not a
-/// multiple of 32 gives overlapping chunks — and each chunk is stretched with 1024 PBKDF2
+/// cyclically: `seedIdx` keeps counting across chunks, so a seed whose length is not a
+/// multiple of 32 gives overlapping chunks, and each chunk is stretched with 1024 PBKDF2
 /// rounds.
 pub fn seed_to_chunks(seed: &[u8], qubits: u8) -> Vec<[u8; 32]> {
     // Ensure the seed length is at least 32 bytes

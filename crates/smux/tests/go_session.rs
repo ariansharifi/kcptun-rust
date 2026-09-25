@@ -38,7 +38,7 @@ use tokio::time::{Instant, sleep};
 // Echo round trips
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestEcho` — a hundred short messages, written and read back one at a time.
+/// Go: `TestEcho`, a hundred short messages, written and read back one at a time.
 // Go: reference/latest/smux/session_test.go:TestEcho
 #[tokio::test]
 async fn test_echo() {
@@ -64,7 +64,7 @@ async fn test_echo() {
     }
 }
 
-/// Go: `TestTinyReadBuffer` — the same messages read six bytes at a time, so every frame is
+/// Go: `TestTinyReadBuffer`, the same messages read six bytes at a time, so every frame is
 /// consumed over several reads.
 // Go: reference/latest/smux/session_test.go:TestTinyReadBuffer
 #[tokio::test]
@@ -99,7 +99,7 @@ async fn test_tiny_read_buffer() {
     }
 }
 
-/// Go: `TestServerEcho` — the *server* opens the stream and the client echoes it.
+/// Go: `TestServerEcho`, the *server* opens the stream and the client echoes it.
 // Go: reference/latest/smux/session_test.go:TestServerEcho
 #[tokio::test]
 async fn test_server_echo() {
@@ -136,7 +136,7 @@ async fn test_server_echo() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestSendWithoutRecv` — a hundred writes with nothing read in between; the first read
+/// Go: `TestSendWithoutRecv`, a hundred writes with nothing read in between; the first read
 /// still returns data.
 // Go: reference/latest/smux/session_test.go:TestSendWithoutRecv
 #[tokio::test]
@@ -157,7 +157,7 @@ async fn test_send_without_recv() {
     both_echo_servers!(config(1), body);
 }
 
-/// Go: `TestWriteTo` / `TestWriteToV2` — 1 MiB echoed back through the `WriteTo` fast path; the
+/// Go: `TestWriteTo` / `TestWriteToV2`, 1 MiB echoed back through the `WriteTo` fast path; the
 /// peer closes the stream once it has echoed everything.
 // Go: reference/latest/smux/session_test.go:TestWriteTo / TestWriteToV2
 #[tokio::test]
@@ -223,7 +223,7 @@ async fn test_write_to() {
     }
 }
 
-/// Go: `TestSpeed` — 16 MiB over one stream, written in 8 KiB pieces while a reader drains it.
+/// Go: `TestSpeed`, 16 MiB over one stream, written in 8 KiB pieces while a reader drains it.
 // Go: reference/latest/smux/session_test.go:TestSpeed
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_speed() {
@@ -255,7 +255,7 @@ async fn test_speed() {
     both_echo_servers!(config(1), body);
 }
 
-/// Go: `TestParallel` / `TestParallelV2` — a thousand streams, each doing a hundred round trips.
+/// Go: `TestParallel` / `TestParallelV2`, a thousand streams, each doing a hundred round trips.
 // Go: reference/latest/smux/session_test.go:TestParallel / TestParallelV2
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_parallel() {
@@ -297,7 +297,7 @@ async fn test_parallel() {
 // Opening, accepting and closing
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestSessionOpenAccept` — one side opens, the other accepts.
+/// Go: `TestSessionOpenAccept`, one side opens, the other accepts.
 // Go: reference/latest/smux/session_test.go:TestSessionOpenAccept
 #[tokio::test]
 async fn test_session_open_accept() {
@@ -312,7 +312,7 @@ async fn test_session_open_accept() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestCloseThenOpen` — opening after a close fails.
+/// Go: `TestCloseThenOpen`, opening after a close fails.
 // Go: reference/latest/smux/session_test.go:TestCloseThenOpen
 #[tokio::test]
 async fn test_close_then_open() {
@@ -366,7 +366,7 @@ async fn test_stream_double_close() {
     both_echo_servers!(config(1), body);
 }
 
-/// Go: `TestConcurrentClose` — a hundred streams closed concurrently with the session.
+/// Go: `TestConcurrentClose`, a hundred streams closed concurrently with the session.
 // Go: reference/latest/smux/session_test.go:TestConcurrentClose
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_concurrent_close() {
@@ -455,7 +455,7 @@ async fn test_read_stream_after_session_close() {
     both_echo_servers!(config(1), body);
 }
 
-/// Go: `TestGetDieCh` — closing one end wakes the other end's die channel.
+/// Go: `TestGetDieCh`, closing one end wakes the other end's die channel.
 // Go: reference/latest/smux/session_test.go:TestGetDieCh
 #[tokio::test]
 async fn test_get_die_ch() {
@@ -477,7 +477,7 @@ async fn test_get_die_ch() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestSessionCloseChan` — the close notification fires only after `Close`.
+/// Go: `TestSessionCloseChan`, the close notification fires only after `Close`.
 // Go: reference/latest/smux/session_test.go:TestSessionCloseChan
 #[tokio::test]
 async fn test_session_close_chan() {
@@ -499,7 +499,7 @@ async fn test_session_close_chan() {
 // Addresses, deadlines, errors
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestSessionAddr`, `TestStreamAddr` — a TCP session reports both addresses.
+/// Go: `TestSessionAddr`, `TestStreamAddr`, a TCP session reports both addresses.
 // Go: reference/latest/smux/session_test.go:TestSessionAddr / TestStreamAddr
 #[tokio::test]
 async fn test_session_addr() {
@@ -512,7 +512,7 @@ async fn test_session_addr() {
     srv.close().await.expect("close");
 }
 
-/// Go: `TestSessionAddrNonNetConn`, `TestStreamAddrNonNetConn` — a connection without addresses
+/// Go: `TestSessionAddrNonNetConn`, `TestStreamAddrNonNetConn`, a connection without addresses
 /// reports none (Go's `hiddenConn`; here any non-TCP [`SplitConn`]).
 // Go: reference/latest/smux/session_test.go:TestSessionAddrNonNetConn / TestStreamAddrNonNetConn
 #[tokio::test]
@@ -526,7 +526,7 @@ async fn test_session_addr_non_net_conn() {
     srv.close().await.expect("close");
 }
 
-/// Go: `TestSessionSetDeadline` — an accept deadline in the past ends `Accept` with a timeout.
+/// Go: `TestSessionSetDeadline`, an accept deadline in the past ends `Accept` with a timeout.
 // Go: reference/latest/smux/session_test.go:TestSessionSetDeadline
 #[tokio::test]
 async fn test_session_set_deadline() {
@@ -545,7 +545,7 @@ async fn test_session_set_deadline() {
     both_transports!(config(1), body);
 }
 
-/// Go: `TestStreamSetDeadline`, `TestReadDeadline` — a read deadline in the past fails with
+/// Go: `TestStreamSetDeadline`, `TestReadDeadline`, a read deadline in the past fails with
 /// "timeout".
 // Go: reference/latest/smux/session_test.go:TestReadDeadline / TestStreamSetDeadline
 #[tokio::test]
@@ -571,7 +571,7 @@ async fn test_read_deadline() {
     both_echo_servers!(config(1), body);
 }
 
-/// Go: `TestWriteDeadline` — writing with a deadline in the past eventually fails with
+/// Go: `TestWriteDeadline`, writing with a deadline in the past eventually fails with
 /// "timeout" (the first writes may still succeed, as in Go).
 // Go: reference/latest/smux/session_test.go:TestWriteDeadline
 #[tokio::test]
@@ -597,7 +597,7 @@ async fn test_write_deadline() {
     }
 }
 
-/// Go: `TestTimeoutError` — the timeout error is a timeout, is temporary and prints "timeout".
+/// Go: `TestTimeoutError`, the timeout error is a timeout, is temporary and prints "timeout".
 // Go: reference/latest/smux/session_test.go:TestTimeoutError
 #[test]
 fn test_timeout_error() {
@@ -611,7 +611,7 @@ fn test_timeout_error() {
 // Keepalive
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestKeepAliveTimeout` — a peer that never answers kills the session.
+/// Go: `TestKeepAliveTimeout`, a peer that never answers kills the session.
 // Go: reference/latest/smux/session_test.go:TestKeepAliveTimeout
 #[tokio::test]
 async fn test_keep_alive_timeout() {
@@ -635,7 +635,7 @@ async fn test_keep_alive_timeout() {
     drop(raw);
 }
 
-/// Go: `TestKeepAliveBlockWriteTimeout` — a connection whose writes never complete must still
+/// Go: `TestKeepAliveBlockWriteTimeout`, a connection whose writes never complete must still
 /// time out (in old smux versions the keepalive blocked forever in `writeFrame`).
 // Go: reference/latest/smux/session_test.go:TestKeepAliveBlockWriteTimeout
 #[tokio::test]
@@ -678,7 +678,7 @@ async fn test_keep_alive_block_write_timeout() {
 // Malformed input
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestRandomFrame` — junk, duplicate SYNs, random commands, random versions and a wrong
+/// Go: `TestRandomFrame`, junk, duplicate SYNs, random commands, random versions and a wrong
 /// length field must never panic; the session ends in an error instead.
 // Go: reference/latest/smux/session_test.go:TestRandomFrame
 #[tokio::test]
@@ -778,7 +778,7 @@ async fn test_random_frame() {
 // Configuration (mux_test.go)
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestConfig` — every rejected configuration, and `Server`/`Client` refusing one.
+/// Go: `TestConfig`, every rejected configuration, and `Server`/`Client` refusing one.
 // Go: reference/latest/smux/mux_test.go:TestConfig
 #[tokio::test]
 async fn test_config() {
@@ -856,7 +856,7 @@ async fn test_config() {
     }
 }
 
-/// Go: `TestConfigMaxReceiveBufferUpperBound` — `math.MaxInt32 + 1` is refused.
+/// Go: `TestConfigMaxReceiveBufferUpperBound`, `math.MaxInt32 + 1` is refused.
 // Go: reference/latest/smux/mux_test.go:TestConfigMaxReceiveBufferUpperBound
 #[tokio::test]
 async fn test_config_max_receive_buffer_upper_bound() {
@@ -889,7 +889,7 @@ async fn test_config_max_receive_buffer_upper_bound() {
 // Long transfers
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestRandomLengthRandomDataTransferV1` / `V2` — 1 GiB of random data in random-sized
+/// Go: `TestRandomLengthRandomDataTransferV1` / `V2`, 1 GiB of random data in random-sized
 /// pieces through an echoing peer.
 // Go: reference/latest/smux/session_test.go:testRandomLength
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

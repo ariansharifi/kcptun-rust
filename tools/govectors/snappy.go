@@ -14,7 +14,7 @@ package main
 //
 // with c.w = snappy.NewBufferedWriter(conn). The generator cannot import kcptun (it refuses
 // `replace` directives, see README), so snappyFrame below repeats those two calls per write
-// against the pinned golang/snappy v1.0.0 — the same thing tools/gointerop/internal/std does
+// against the pinned golang/snappy v1.0.0: the same thing tools/gointerop/internal/std does
 // with a verbatim copy. Nothing else about the framing is reimplemented: the bytes come from
 // the library.
 //

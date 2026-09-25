@@ -1,9 +1,9 @@
-# `tools/pingpong` — lab workload driver and `/proc` sampler
+# `tools/pingpong`: lab workload driver and `/proc` sampler
 
 **Development only.** Nothing here is part of the kcptun port and nothing reaches a release: the
 crate is `publish = false`, the Dockerfile and the release workflow build `-p kcptun-client -p
 kcptun-server` by name, and no other crate depends on it. It is a workspace member so that
-`cargo fmt`, `cargo clippy` and `cargo test` cover it — the 11.4 soak runs these binaries
+`cargo fmt`, `cargo clippy` and `cargo test` cover it: the 11.4 soak runs these binaries
 unattended for six hours, which is not the moment to find out that a flag is ignored.
 
 Two binaries:
@@ -28,8 +28,8 @@ pingpong churn  --connect ADDR [--rate R] [--min-bytes N] [--max-bytes N] [--siz
                 [--long-lived-interval S] [--burst-every S] [--burst-streams N] [--burst-bytes N] …
 ```
 
-`serve` is the target the kcptun server's `-t` points at. The protocol is three framed verbs —
-`ECHO n`, `UP n`, `DN n` — with the byte count always in the header and **no half-close
+`serve` is the target the kcptun server's `-t` points at. The protocol is three framed verbs,
+`ECHO n`, `UP n`, `DN n`, with the byte count always in the header and **no half-close
 anywhere**: kcptun's half-close behaviour differs between the implementations (DECISIONS V04 and
 V11, and Go's QPP port has no `CloseWrite`), so a workload that ended a transfer with
 `shutdown(SHUT_WR)` would measure that difference instead of the tunnel.
@@ -43,8 +43,8 @@ RESULT {"kind":"churn","tag":"churn","opened":431982,"completed":431980,"errors"
 
 `tools/lab/lab.py` picks that line out of the process log.
 
-`ping --size` is capped at **1 MiB**. `ECHO` is a lock-step exchange — the client writes all N
-bytes before reading any back, and the target echoes as it reads — so a request larger than the
+`ping --size` is capped at **1 MiB**. `ECHO` is a lock-step exchange: the client writes all N
+bytes before reading any back, and the target echoes as it reads, so a request larger than the
 socket buffers plus the tunnel's in-flight window (S2's `streambuf` is 2 MiB) deadlocks both
 ends, and `ping` has no per-request timeout to break it. Large transfers are what `bulk` is for.
 
@@ -86,7 +86,7 @@ Linux only at runtime (it reads `/proc`); every parser it uses is unit-tested on
 
 ## Tests
 
-`cargo test -p kcptun-pingpong` — unit tests for the parsers, the histogram, the CSV writer and
+`cargo test -p kcptun-pingpong`: unit tests for the parsers, the histogram, the CSV writer and
 the framing, plus `tests/cli.rs`, which runs the real binaries over loopback and checks the
 `RESULT` lines and the CSVs they produce. Those are named `tool_*` (docs/porting-guide.md §8) and
 are **not** `#[ignore]`d, unlike the `e2e_*` suites in `crates/interop-tests`: they need no

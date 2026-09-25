@@ -10,7 +10,7 @@
 //!   constructors (`mux.go`).
 //! - [`conn`]: [`SmuxConn`], the byte stream a session runs over, and [`SplitConn`], the adapter
 //!   for tokio streams.
-//! - [`session`]: [`Session`] — open/accept, the receive and send loops, keepalive and close
+//! - [`session`]: [`Session`], open/accept, the receive and send loops, keepalive and close
 //!   (`session.go`).
 //! - [`stream`]: [`Stream`], the multiplexed stream (`stream.go`).
 //! - [`shaper`]: the write queue that decides the order of the frames (`shaper.go`).

@@ -158,7 +158,7 @@ async fn read_to_end(stream: &Stream) -> Vec<u8> {
 // Read and write, end to end
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestEcho` — write, echo, read back, for both protocol versions.
+/// Go: `TestEcho`, write, echo, read back, for both protocol versions.
 // Go: reference/latest/smux/session_test.go:TestEcho
 #[tokio::test]
 async fn test_echo() {
@@ -212,7 +212,7 @@ async fn test_tiny_read_buffer() {
 }
 
 /// An empty buffer reads nothing and an empty slice writes nothing, exactly as Go returns
-/// `(0, nil)` for both — the write check even precedes the closed-write check.
+/// `(0, nil)` for both: the write check even precedes the closed-write check.
 #[tokio::test]
 async fn empty_buffers_are_no_ops() {
     let (session, peer) = peered(quiet_config(1));
@@ -673,8 +673,8 @@ async fn write_and_read_after_close() {
 }
 
 /// Dropping the last handle closes the stream: Go's finalizer on accepted streams, made
-/// deterministic. The FIN goes out on a detached task, and the synchronous half — leaving the
-/// map and giving the tokens back — has already happened when `drop` returns.
+/// deterministic. The FIN goes out on a detached task, and the synchronous half, leaving the
+/// map and giving the tokens back: has already happened when `drop` returns.
 #[tokio::test]
 async fn dropping_the_last_handle_closes_the_stream() {
     let (session, peer) = peered(quiet_config(1));
@@ -1057,7 +1057,7 @@ async fn write_waits_for_the_connection() {
 // ---------------------------------------------------------------------------------------
 
 /// Go: `TestBufferRingPushPopOrder`, `TestBufferRingEmptyPop`, `TestBufferRingGrow` and
-/// `TestNewBufferRingMinCapacity` — Go's `bufferRing` is a hand-written ring of `[]byte`
+/// `TestNewBufferRingMinCapacity`: Go's `bufferRing` is a hand-written ring of `[]byte`
 /// slices, this port's [`StreamBuf`] a `VecDeque<Bytes>`. Growth and the minimum capacity are
 /// therefore the container's business; what has to hold is the order, the byte count and the
 /// empty pop.
@@ -1128,7 +1128,7 @@ async fn test_stream_wait_read_timeout() {
     }
 }
 
-/// Go: `TestStreamWaitReadFinWithBufferedData` — the peer's FIN with data still buffered is a
+/// Go: `TestStreamWaitReadFinWithBufferedData`, the peer's FIN with data still buffered is a
 /// wakeup, not an EOF (smux issue #82).
 // Go: reference/latest/smux/stream_internal_test.go:TestStreamWaitReadFinWithBufferedData
 #[tokio::test]
@@ -1178,7 +1178,7 @@ async fn test_stream_wait_read_closed() {
     }
 }
 
-/// Go: `TestStreamSetDeadlineWakesUp` — setting a deadline wakes the blocked reader and writer,
+/// Go: `TestStreamSetDeadlineWakesUp`, setting a deadline wakes the blocked reader and writer,
 /// so they pick the new value up.
 // Go: reference/latest/smux/stream_internal_test.go:TestStreamSetDeadlineWakesUp
 #[tokio::test]
@@ -1205,7 +1205,7 @@ async fn test_stream_set_deadline_wakes_up() {
     assert_eq!(err, Error::Timeout);
 }
 
-/// Go: `TestSendWindowUpdateTimeout` — a `cmdUPD` inherits the read deadline.
+/// Go: `TestSendWindowUpdateTimeout`, a `cmdUPD` inherits the read deadline.
 // Go: reference/latest/smux/stream_internal_test.go:TestSendWindowUpdateTimeout
 #[tokio::test]
 async fn test_send_window_update_timeout() {
@@ -1233,7 +1233,7 @@ async fn test_write_v2_closed_pipe() {
     );
 }
 
-/// Go: `TestWriteV2TimeoutWhenWindowZero` — with no window left, the write deadline decides.
+/// Go: `TestWriteV2TimeoutWhenWindowZero`, with no window left, the write deadline decides.
 // Go: reference/latest/smux/stream_internal_test.go:TestWriteV2TimeoutWhenWindowZero
 #[tokio::test]
 async fn test_write_v2_timeout_when_window_zero() {
@@ -1279,7 +1279,7 @@ impl std::fmt::Debug for DebugTry {
 ///
 /// The FIN closes `fin_event` and, because this side had already half-closed, `die` as well
 /// (`try_half_close_cleanup`). Go's `waitRead` selects between the two at random and reports
-/// `io.ErrClosedPipe` when it picks `die` — reproduced Go↔Go with `smuxecho` (2 of 5 runs with
+/// `io.ErrClosedPipe` when it picks `die`: reproduced Go↔Go with `smuxecho` (2 of 5 runs with
 /// 256 streams). This port answers in a fixed order, so the stream always ends in EOF.
 // Go: smux@v1.5.55 stream.go:waitRead() (the random select), docs/DECISIONS.md V11
 #[tokio::test]

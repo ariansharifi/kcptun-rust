@@ -188,7 +188,7 @@ fn resolve_literals() {
     );
 }
 
-// Go: go1.27.1 net/ipsock.go:(addrList).forResolve() — IPv4 first, unless the address is a
+// Go: go1.27.1 net/ipsock.go:(addrList).forResolve(), IPv4 first, unless the address is a
 // bracketed IPv6 literal.
 #[test]
 fn test_for_resolve() {

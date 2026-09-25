@@ -15,7 +15,7 @@
 //! atomic counter so `Len`/`IsEmpty` can be read without that mutex. The port merges the
 //! goroutine away: writers push into the queue directly and the send task pops from it, so the
 //! session owns one `Mutex<ShaperQueue<_>>` (never held across an `.await`) and this type needs
-//! no interior locking and no atomics — `len` and `is_empty` are plain field reads under the
+//! no interior locking and no atomics: `len` and `is_empty` are plain field reads under the
 //! session's lock. Admission is bounded at [`MAX_SHAPER_SIZE`](crate::MAX_SHAPER_SIZE) requests
 //! by the session (06.3), the same bound Go's `shaperLoop` enforces by detaching the channel.
 //! The ordering rules, and therefore the frame order, are unchanged; that is what the tests
@@ -35,7 +35,7 @@ fn itimediff(later: u32, earlier: u32) -> i32 {
 /// One queued frame: the ordering keys plus the caller's `body`.
 ///
 /// Go's `writeRequest` is `{class, frame Frame, seq uint32, result chan writeResult}`. The port
-/// keeps `class`, the frame's `sid` and `seq` — everything the shaper orders by — and leaves the
+/// keeps `class`, the frame's `sid` and `seq` (everything the shaper orders by) and leaves the
 /// rest to the session, which picks `T`: Go's `Frame` borrows the writer's buffer, while a
 /// request that crosses to the send task has to own its payload (an `Arc<[u8]>`, say) and carry
 /// the channel that reports the result back. The shaper never looks inside `body`.
@@ -94,7 +94,7 @@ impl<T> ShaperHeap<T> {
     }
 
     /// Whether `items[i]` sorts before `items[j]`: class first, then the wrapping sequence
-    /// compare. Panics never happen — both indices come from the heap algorithm.
+    /// compare. Panics never happen: both indices come from the heap algorithm.
     // Go: smux@v1.5.55 shaper.go:shaperHeap.Less()
     fn less(&self, i: usize, j: usize) -> bool {
         let a = &self.items[i];
@@ -130,7 +130,7 @@ impl<T> ShaperHeap<T> {
     fn up(&mut self, j: usize) {
         let mut j = j;
         loop {
-            // Go: `i := (j - 1) / 2; if i == j` — integer division makes the root its own
+            // Go: `i := (j - 1) / 2; if i == j`, integer division makes the root its own
             // parent, which is the loop's exit condition.
             if j == 0 {
                 break;
@@ -342,7 +342,7 @@ impl<T> ShaperQueue<T> {
     /// Returns the next frame to write, round-robin over the streams that have one.
     ///
     /// The cursor advances to the element *after* the one served, wrapping at the back, and a
-    /// stream whose heap runs empty leaves the list at once — so every element in the list has
+    /// stream whose heap runs empty leaves the list at once, so every element in the list has
     /// pending frames and the scan below always succeeds on its first step. The scan is Go's
     /// and is kept for the same reason Go keeps it: it is what makes the cursor safe.
     // Go: smux@v1.5.55 shaper.go:shaperQueue.Pop()

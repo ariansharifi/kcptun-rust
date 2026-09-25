@@ -17,7 +17,7 @@
 //!
 //! **Normalisation** ([`normalise`]) removes four things, all of which are the test's own noise:
 //!
-//! 1. Go's `log` header — `2026/09/23 11:29:59 ` — because the two runs happen at different
+//! 1. Go's `log` header (`2026/09/23 11:29:59 `) because the two runs happen at different
 //!    instants;
 //! 2. the `file:line` that follows it in a `SELFBUILD` build, which is **deviation V08** (Go's
 //!    source position against ours). The tokens are not discarded: they are returned separately
@@ -35,7 +35,7 @@
 //!
 //! **Allowed differences.** A case is either [`Expect::Identical`] or it names exactly one
 //! [`Deviation`], and each deviation is checked by its own predicate in [`check`]: a case that
-//! deviates in any other way, or that stops deviating, fails. The list is closed on purpose —
+//! deviates in any other way, or that stops deviating, fails. The list is closed on purpose,
 //! step 09 allows the CLI differential to differ only where a
 //! numbered decision says so.
 //!
@@ -79,32 +79,32 @@ const POLL: Duration = Duration::from_millis(20);
 /// so a new deviation cannot appear here without a `docs/DECISIONS.md` entry to go with it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Deviation {
-    /// **V06** — a usage error exits **2** here and **0** in Go. The text is identical.
+    /// **V06**: a usage error exits **2** here and **0** in Go. The text is identical.
     V06UsageExitStatus,
-    /// **V07** — `datashard + parityshard > 256` is refused at startup; Go silently switches to
+    /// **V07**: `datashard + parityshard > 256` is refused at startup; Go silently switches to
     /// klauspost's Leopard GF(2^16) codec and runs on, emitting parity no kcptun receiver can
     /// decode.
     V07FecShardsExceed256,
-    /// **V08** — the `file:line` a `SELFBUILD` build puts in the log header is a Rust source
+    /// **V08**: the `file:line` a `SELFBUILD` build puts in the log header is a Rust source
     /// position, not a Go one. Present in every case that logs at all, so it is checked for every
     /// case rather than named by one.
     V08FileAndLine,
-    /// **V14** — `MST` in a `-snmplog` file *name* renders as the zone's numeric offset here and
+    /// **V14**: `MST` in a `-snmplog` file *name* renders as the zone's numeric offset here and
     /// as its tzdb abbreviation in Go.
     V14SnmpLogZone,
-    /// **V15** — a `-QPPCount` that does not fit in `uint16` is rejected at startup; Go truncates
+    /// **V15**: a `-QPPCount` that does not fit in `uint16` is rejected at startup; Go truncates
     /// it and runs (into a divide by zero for 65536, with a single pad and no warning above that).
     V15QppCountTruncates,
-    /// **V19** — a `-conn` that truncates to **zero** is rejected at startup; Go runs and divides
+    /// **V19**: a `-conn` that truncates to **zero** is rejected at startup; Go runs and divides
     /// by zero at the first accepted connection. Only that case: `-conn 65537` runs here exactly
     /// as it does in Go.
     V19ConnTruncatesToZero,
-    /// **V20** — after a fatal error Go prints the message and then a Go stack trace; we print the
+    /// **V20**, after a fatal error Go prints the message and then a Go stack trace; we print the
     /// message line only. The first line is byte-identical.
     V20NoStackTrace,
-    /// **V21** — `--pprof` in a build without the optional `pprof` feature logs one extra line,
+    /// **V21**: `--pprof` in a build without the optional `pprof` feature logs one extra line,
     /// [`PPROF_NOT_AVAILABLE`], which Go never prints (D23). Every other byte is unchanged, and a
-    /// `--features pprof` build has no difference at all — that half is an
+    /// `--features pprof` build has no difference at all: that half is an
     /// [`Expect::Identical`] case, see `tests/cli_diff.rs`.
     V21PprofNotAvailable,
 }
@@ -725,7 +725,7 @@ fn is_file_line(token: &str) -> bool {
 
 /// Replaces the program's own name in the help text's `USAGE:` line (D18: our binaries are
 /// `kcptun-client`/`kcptun-server`, Go's are `client_<goos>_<goarch>`).
-// Go: urfave/cli@v1.22.17 app.go:Setup() — `HelpName: filepath.Base(os.Args[0])`
+// Go: urfave/cli@v1.22.17 app.go:Setup(), `HelpName: filepath.Base(os.Args[0])`
 fn strip_program_name(line: &str, program: &str) -> String {
     match line
         .strip_prefix("   ")
@@ -840,8 +840,8 @@ fn check_v08(expect: Expect, go: &Run, rust: &Run, problems: &mut Vec<String>) {
 /// How far apart the two sides' stamped-line counts may be, for [`check_v08`].
 ///
 /// Every deviation but one is a single line on one side. V07 is the exception: our binary stops at
-/// the FEC check, one line before Go's key derivation, so Go stamps the two derivation lines —
-/// and, on the server, the `Listening on:` line of the listener it goes on to open — against our
+/// the FEC check, one line before Go's key derivation, so Go stamps the two derivation lines,
+/// and, on the server, the `Listening on:` line of the listener it goes on to open, against our
 /// single fatal one. [`check_fec_rejected_at_startup`] pins those lines exactly, so the slack here
 /// is not what holds V07 in place.
 fn log_line_slack(expect: Expect) -> usize {
@@ -934,7 +934,7 @@ fn check_deviation(deviation: Deviation, go: &Run, rust: &Run, problems: &mut Ve
 ///
 /// The final line is asserted against reedsolomon's own text, which the port keeps
 /// (`kcptun_kcp::rs::Error::MaxShardNum`), prefixed with the two flag values.
-// Go: klauspost/reedsolomon@v1.13.0 reedsolomon.go:ErrMaxShardNum — the text `New()` never
+// Go: klauspost/reedsolomon@v1.13.0 reedsolomon.go:ErrMaxShardNum, the text `New()` never
 // actually returns above 256 shards, because it builds the Leopard codec instead (V07).
 fn check_fec_rejected_at_startup(go: &Run, rust: &Run, problems: &mut Vec<String>) {
     diff_lines("stdout", &go.stdout, &rust.stdout, problems);
@@ -983,7 +983,7 @@ fn check_fec_rejected_at_startup(go: &Run, rust: &Run, problems: &mut Vec<String
 }
 
 /// V21: our stderr is Go's with exactly one line inserted, that line is `extra`, and where it sits
-/// does not matter — the client logs it last, the server logs it before its `Listening on:` line.
+/// does not matter: the client logs it last, the server logs it before its `Listening on:` line.
 fn check_one_extra_line(extra: &str, go: &Run, rust: &Run, problems: &mut Vec<String>) {
     if rust.stderr.len() != go.stderr.len() + 1 {
         problems.push(format!(

@@ -212,7 +212,7 @@ fn test_encryption_mixed_prng() {
 ///
 /// Go only logs them. Two properties are worth asserting: a seed shorter than 32 bytes is
 /// PBKDF2-expanded to exactly 32 bytes first, after which `seedIdx` reads those same 32 bytes
-/// for every chunk — so **all seven chunks are identical** — while a seed whose length does not
+/// for every chunk (so **all seven chunks are identical**) while a seed whose length does not
 /// divide 32 gives seven different ones.
 #[test]
 fn test_seed_to_chunk() {

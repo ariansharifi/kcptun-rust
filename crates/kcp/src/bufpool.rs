@@ -15,7 +15,7 @@
 //! on a full queue, `SendOOB` does it twice, `postProcess` does it after `tx`), and nothing stops
 //! it from putting the same slice back twice. Here [`BufferPool::get`] returns a [`PacketBuf`]
 //! RAII handle that returns its buffer in `Drop`, so a buffer can be neither leaked nor recycled
-//! twice however the packet path ends — dropped on a full channel, dropped on a closing session,
+//! twice however the packet path ends: dropped on a full channel, dropped on a closing session,
 //! or consumed by the tx task.
 //!
 //! The pool itself is a bounded lock-free [`ArrayQueue`] (D06) instead of Go's per-P `sync.Pool`
@@ -166,7 +166,7 @@ impl BufferPool {
     ///
     /// Concurrent `get`s are safe: only currently parked buffers are popped, and a `get` that
     /// finds the pool empty allocates as usual.
-    // Go: runtime/mgc.go:poolCleanup() — the GC's own emptying of every sync.Pool.
+    // Go: runtime/mgc.go:poolCleanup(), the GC's own emptying of every sync.Pool.
     pub fn trim(&self, keep: usize) -> usize {
         let mut freed = 0;
         while self.free.len() > keep && self.free.pop().is_some() {
@@ -269,7 +269,7 @@ impl DerefMut for PacketBuf {
 }
 
 impl Drop for PacketBuf {
-    // Go: kcp-go/v5@v5.6.66 sess.go — the explicit `defaultBufferPool.Put(...)` calls.
+    // Go: kcp-go/v5@v5.6.66 sess.go, the explicit `defaultBufferPool.Put(...)` calls.
     fn drop(&mut self) {
         if let Some(buf) = self.buf.take() {
             self.pool.put(buf);

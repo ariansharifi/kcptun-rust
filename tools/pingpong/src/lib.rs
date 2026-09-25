@@ -7,9 +7,9 @@
 //! belongs: the soak in 11.4 runs these binaries unattended for six hours.
 //!
 //! Two binaries use it:
-//! - `pingpong` — the workload driver that runs *through* the tunnel (`serve`, `ping`, `bulk`,
+//! - `pingpong`: the workload driver that runs *through* the tunnel (`serve`, `ping`, `bulk`,
 //!   `churn`);
-//! - `labsample` — the `/proc` sampler that watches the tunnel processes from outside.
+//! - `labsample`: the `/proc` sampler that watches the tunnel processes from outside.
 //!
 //! Everything that parses or formats is a pure function with unit tests, so the Linux-only
 //! binary (`labsample` reads `/proc`) is still fully tested on macOS.

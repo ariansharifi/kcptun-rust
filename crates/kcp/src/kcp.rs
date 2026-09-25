@@ -239,7 +239,7 @@ pub trait Output {
     /// **Deviation V18**, not in Go: kcp-go's output callback hands each packet to a 2048-deep
     /// channel with a non-blocking send and **drops** it when that channel is full
     /// (`sess.go:newUDPSession`), so one `flush()` of a large send window can lose most of a
-    /// burst — and, because the segment was already marked as transmitted, wait out a
+    /// burst, and, because the segment was already marked as transmitted, wait out a
     /// retransmission timeout for every lost packet. [`Kcp::flush`] asks this *before* it
     /// touches a segment and stops emitting instead, leaving the rest for the next flush. The
     /// checks are inert while the sink has room, so an `Output` that never fills up sees
@@ -408,7 +408,7 @@ pub struct Kcp<O, C = SystemClock> {
 
     /// How many full flushes skipped part of `snd_buf` (Decision D29), and how many segments
     /// they left untouched in total. Tests use it to show that a run exercises the skip at
-    /// all — a differential test against the naive scan proves nothing if it never fires.
+    /// all: a differential test against the naive scan proves nothing if it never fires.
     #[cfg(test)]
     pub(crate) scan_skipped: (u64, u64),
 
@@ -422,8 +422,8 @@ pub struct Kcp<O, C = SystemClock> {
 ///
 /// `misses` is the interesting one: it counts the times `snd_buf` did not hold the segment
 /// where its sequence number says it must, and the ACK fell back to kcp-go's linear scan.
-/// Nothing a peer can send makes that happen — `snd_buf` is contiguous in `sn` by construction
-/// — so a randomised trace that ends with `misses > 0` has found a broken invariant rather
+/// Nothing a peer can send makes that happen: `snd_buf` is contiguous in `sn` by construction,
+/// so a randomised trace that ends with `misses > 0` has found a broken invariant rather
 /// than a slow path.
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -456,8 +456,8 @@ pub(crate) enum ScanBound {
 /// What [`Kcp::flush`] knows about `snd_buf` from the last time it scanned it, so that the next
 /// flush can leave the front of the window untouched (**Decision D29**, plan step 12.2c).
 ///
-/// Go rescans the whole send buffer on every flush — every write, every update tick and every
-/// ACK that advances `una` — which is 8192 segments (512 kB of `Segment`) per call at the
+/// Go rescans the whole send buffer on every flush: every write, every update tick and every
+/// ACK that advances `una`, which is 8192 segments (512 kB of `Segment`) per call at the
 /// production window. Nothing in that scan can change unless a segment falls due, a duplicate
 /// ACK arrives, or a segment is (re)transmitted, and all three are visible here.
 ///
@@ -520,8 +520,8 @@ impl FlushScan {
     ///
     /// 1. **It would not be sent.** It has been transmitted (`xmit != 0`), it is not due
     ///    (`resendts` is still ahead of `current`) and it has no duplicate ACKs pending, so
-    ///    none of the four retransmit branches fires and nothing — not `xmit`, not `resendts`,
-    ///    not `fastack`, not the output — is touched.
+    ///    none of the four retransmit branches fires and nothing, not `xmit`, not `resendts`,
+    ///    not `fastack`, not the output: is touched.
     /// 2. **It would not lower `nextUpdate`.** `nextUpdate` starts at `interval` and only ever
     ///    takes a *smaller* `resendts - current`, so a covered segment at least `interval` ms
     ///    from falling due cannot change it, whatever the segments that *are* scanned do.
@@ -661,7 +661,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
     ///
     /// With the production window (`-sndwnd 8192 -rcvwnd 8192`) one burst takes `snd_buf` and
     /// `rcv_queue` to 8192 slots each and `rcv_buf` to as much as the receive window: about 1 MB
-    /// of arrays per session that a `RingBuffer` — Go's as much as this port's — never gives
+    /// of arrays per session that a `RingBuffer` (Go's as much as this port's) never gives
     /// back. A Go process gets it back anyway, because the *replaced* arrays become garbage;
     /// here [`crate::memory`] says when to ask and a session's update task does the asking (plan
     /// 12.3, `docs/benchmarks/memory.md` §4).
@@ -669,7 +669,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
     /// Only a queue that is empty **at this instant** gives anything back: a queue with something
     /// in it is in use, and shrinking it would lose nothing but would make the next burst copy
     /// the elements again. Nothing received-but-not-read is ever disturbed, so the shrink cannot
-    /// change behaviour — but "empty at this instant" is not the same as "this session is idle",
+    /// change behaviour, but "empty at this instant" is not the same as "this session is idle",
     /// and the difference is worth stating:
     ///
     /// - `snd_queue` and `snd_buf` are empty only when everything sent has been acknowledged, so
@@ -680,7 +680,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
     ///   [`SESSION_SHRINK_INTERVAL`](crate::memory::SESSION_SHRINK_INTERVAL) tick lands on such a
     ///   moment gives its 8192-slot array back and regrows it through the `grow` doublings and
     ///   +10 % steps as the window refills. That is a few reallocations and about half a megabyte
-    ///   of `Segment` moves, per session, at most once per 30 s — measured as negligible against
+    ///   of `Segment` moves, per session, at most once per 30 s: measured as negligible against
     ///   the transfer that is running, but it is capacity oscillation under load rather than a
     ///   change that only touches idle sessions.
     ///
@@ -947,8 +947,8 @@ impl<O: Output, C: Clock> Kcp<O, C> {
     ///   origin.
     ///
     /// The offset is **checked, not trusted**: the segment found there must carry `sn`. Every
-    /// other case — a sequence number outside the ring, a ring shorter than the offset, or an
-    /// invariant broken by something not in the list above — returns `None`, and the caller
+    /// other case: a sequence number outside the ring, a ring shorter than the offset, or an
+    /// invariant broken by something not in the list above: returns `None`, and the caller
     /// falls back to kcp-go's linear scan, which is correct whatever the ring holds. What the
     /// check alone cannot establish is that the scan would have *reached* that offset (it
     /// stops at the first segment past `sn`), and that is why debug builds compare every hit
@@ -1059,8 +1059,8 @@ impl<O: Output, C: Clock> Kcp<O, C> {
     /// Segments with `fastack == 0xFFFFFFFF` (already fast-retransmitted, waiting for their
     /// RTO) are not counted.
     ///
-    /// Decision D31: the segments Go's loop reaches are exactly those *before* `sn` — it skips
-    /// the one that carries `sn` and stops at the first one past it — so the ring offset of
+    /// Decision D31: the segments Go's loop reaches are exactly those *before* `sn`, it skips
+    /// the one that carries `sn` and stops at the first one past it, so the ring offset of
     /// `sn` is the bound, and the two sequence-number tests come out of the loop body. The
     /// work left is proportional to how far into the window the ACK reaches, which no index
     /// can remove: every one of those segments has its `fastack` raised.
@@ -1125,7 +1125,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
         });
         self.snd_buf.discard(count);
         // Decision D29: the never-transmitted segments are the tail of the ring and this only
-        // removes from its head, so the suffix can only get shorter — by the whole of it when
+        // removes from its head, so the suffix can only get shorter, by the whole of it when
         // a peer claims `una` for segments we have not sent yet.
         self.flush_scan.unsent = self.flush_scan.unsent.min(self.snd_buf.len());
         count
@@ -1483,7 +1483,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
         // bounded packet channel (`crate::tx`). Writing a segment into `buffer` commits to
         // OUTPUT_ROOM output calls: the one `make_space` may do now, and the one the final
         // `flush_buffer` owes for whatever stays in the buffer. Below that, nothing more is
-        // emitted and nothing is consumed — the acks stay in `acklist`, the probe bits stay in
+        // emitted and nothing is consumed: the acks stay in `acklist`, the probe bits stay in
         // `probe` and the segments stay exactly as they were, for the next flush.
         // (Not in Go, which drops the surplus instead; see `Output::capacity`.)
         macro_rules! has_room {
@@ -1586,7 +1586,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
             );
         }
 
-        // Go: `kcp.probe = 0` — the same, unless V18 held a probe back above.
+        // Go: `kcp.probe = 0`, the same, unless V18 held a probe back above.
         self.probe &= !probe_done;
 
         // calculate window size
@@ -1632,7 +1632,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
         let mut next_update = self.interval;
 
         // Deviation V18: set once a segment had to be left unsent because the output is full.
-        // From there on the loop only computes `next_update` — every branch below that touches
+        // From there on the loop only computes `next_update`: every branch below that touches
         // a segment also sends it, so skipping them is exactly "send nothing more".
         let mut backpressured = false;
 
@@ -1656,8 +1656,8 @@ impl<O: Output, C: Clock> Kcp<O, C> {
             self.scan_skipped.1 += skipped as u64;
         }
         // What this flush learns about the segments it does look at. `min_rto` is the smallest
-        // `resendts - current` of a transmitted, unacknowledged segment — the very value the
-        // loop already works out for `next_update` — and the two flags are branchless, so the
+        // `resendts - current` of a transmitted, unacknowledged segment: the very value the
+        // loop already works out for `next_update`, and the two flags are branchless, so the
         // summary costs three register operations per segment and the scan it cannot spare
         // stays as fast as the naive one. `scan_unsent` is a plain count, not a trailing run:
         // *where* the never-transmitted segments are is settled after the loop, by walking back
@@ -1696,7 +1696,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
                 }
 
                 // Deviation V18: whether this segment would be (re)transmitted, decided before
-                // anything is written to it — the four conditions are the four branches below,
+                // anything is written to it: the four conditions are the four branches below,
                 // in the same order and reading only state none of them has written yet (the
                 // `debug_assert` after the chain keeps the two in step). Stopping here leaves
                 // `xmit`, `rto`, `resendts` and `fastack` untouched, so the next flush sends the
@@ -1807,7 +1807,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
                     next_update = rto as u32;
                 }
                 // Every segment that reaches here has been transmitted: the `xmit == 0` branch
-                // above always sends, and the one case where it does not — V18 backpressure —
+                // above always sends, and the one case where it does not: V18 backpressure,
                 // left through the arm above.
                 debug_assert!(
                     segment.xmit > 0,
@@ -1828,7 +1828,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
             };
             // `min_rto` was measured against a `current` that a send may have moved forward,
             // and `scan_base` is where it started, so this can only land at or before the true
-            // earliest retransmission — which is the direction a bound may be wrong in.
+            // earliest retransmission, which is the direction a bound may be wrong in.
             let scan_due = if min_rto == i32::MAX {
                 ScanBound::Nothing
             } else {
@@ -1839,7 +1839,7 @@ impl<O: Output, C: Clock> Kcp<O, C> {
 
             // Where the `scan_unsent` never-transmitted segments are: the run of them at the
             // tail. This stops at the first transmitted segment, so it touches at most one
-            // segment more than there are unsent ones — normally exactly one.
+            // segment more than there are unsent ones: normally exactly one.
             let mut tail = 0usize;
             for segment in self.snd_buf.iter().rev() {
                 if segment.xmit != 0 {
@@ -1851,8 +1851,8 @@ impl<O: Output, C: Clock> Kcp<O, C> {
             if scan_unsent != tail {
                 // The never-transmitted segments are not one run at the tail after all, so the
                 // suffix this flush skipped from cannot be trusted next time. Nothing above has
-                // gone wrong — this flush scanned from `skipped`, which the *previous* scan
-                // vouched for — but no flush may skip anything until a full scan has seen the
+                // gone wrong: this flush scanned from `skipped`, which the *previous* scan
+                // vouched for, but no flush may skip anything until a full scan has seen the
                 // whole ring again.
                 self.flush_scan.due = ScanBound::Unknown;
                 self.flush_scan.unsent = 0;

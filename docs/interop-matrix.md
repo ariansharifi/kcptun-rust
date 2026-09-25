@@ -1,6 +1,6 @@
 # Go ↔ Rust interop matrix
 
-Plan step 09.4. Every case below runs the real `kcptun-client` and `kcptun-server` binaries on loopback in **all four pairings**: `go->rs` and `rs->go` are the interop crossings, `go->go` and `rs->rs` are **controls**. A control that fails means the harness is wrong, not the port — `go->go` runs no Rust at all.
+Plan step 09.4. Every case below runs the real `kcptun-client` and `kcptun-server` binaries on loopback in **all four pairings**: `go->rs` and `rs->go` are the interop crossings, `go->go` and `rs->rs` are **controls**. A control that fails means the harness is wrong, not the port, `go->go` runs no Rust at all.
 
 Regenerate one platform's section (the others are kept):
 
@@ -15,10 +15,10 @@ KCPTUN_INTEROP_MATRIX_OUT=docs/interop-matrix.md \
 
 Those two tags are the **only** tolerated difference, they apply only to the half-close probe, and only with a **Go client**:
 
-* **V11** — Go's smux discards received-but-unread data when the peer's FIN completes a half-close (`tryHalfCloseCleanup` → `streamClosed` → `recycleTokens`), so the answer is cut, usually at a frame boundary.
-* **V04** — with `-QPP` on top, Go's `std.QPPPort` implements no `CloseWrite`, so kcptun's `Pipe` falls back to `Close()` and tears the whole stream down; nothing of the answer survives, hence the `0/…` rows.
+* **V11**: Go's smux discards received-but-unread data when the peer's FIN completes a half-close (`tryHalfCloseCleanup` → `streamClosed` → `recycleTokens`), so the answer is cut, usually at a frame boundary.
+* **V04**, with `-QPP` on top, Go's `std.QPPPort` implements no `CloseWrite`, so kcptun's `Pipe` falls back to `Close()` and tears the whole stream down; nothing of the answer survives, hence the `0/…` rows.
 
-Both reproduce in the `go->go` control. Every byte that *does* arrive is still checked against the expected stream, so a truncation can never hide corruption, and a **Rust client is held to a complete response against either server** — that is what V11 and V04 bought. `b/b` on a V11 row means the expected truncation happened not to occur that run: it is a race inside Go, not a difference between the peers. A V11 row is only ever a statement that what arrived was a correct prefix — `0/b` would be accepted too, so a run that produces one carries a note saying to compare it with its `go->go` control.
+Both reproduce in the `go->go` control. Every byte that *does* arrive is still checked against the expected stream, so a truncation can never hide corruption, and a **Rust client is held to a complete response against either server** (that is what V11 and V04 bought. `b/b` on a V11 row means the expected truncation happened not to occur that run: it is a race inside Go, not a difference between the peers. A V11 row is only ever a statement that what arrived was a correct prefix) `0/b` would be accepted too, so a run that produces one carries a note saying to compare it with its `go->go` control.
 
 ## Cases
 
@@ -60,11 +60,11 @@ Both reproduce in the `go->go` control. Every byte that *does* arrive is still c
 One case can be re-run on its own, in all four pairings, with `KCPTUN_INTEROP_MATRIX_FILTER=<case id>`.
 
 <!-- platform: macos/aarch64 -->
-## macos/aarch64 — 2026-09-23 10:03:31Z
+## macos/aarch64: 2026-09-23 10:03:31Z
 
 **128/128** runs passed.
 
-Workload per run: 20 MB each way on one bulk stream, 100 concurrent streams of 16 KiB each way, and a half-close probe that asks for 256 KiB after `shutdown(SHUT_WR)` (having waited 250ms first, so the answer and the peer's FIN are both buffered) — all SHA-256 verified, with both processes' logs scanned afterwards. The harness adds `-closewait 0` to the server so teardown is not delayed by 30 s per direction; nothing else is added to a case's flags.
+Workload per run: 20 MB each way on one bulk stream, 100 concurrent streams of 16 KiB each way, and a half-close probe that asks for 256 KiB after `shutdown(SHUT_WR)` (having waited 250ms first, so the answer and the peer's FIN are both buffered), all SHA-256 verified, with both processes' logs scanned afterwards. The harness adds `-closewait 0` to the server so teardown is not delayed by 30 s per direction; nothing else is added to a case's flags.
 
 ### Binaries
 
@@ -124,11 +124,11 @@ Workload per run: 20 MB each way on one bulk stream, 100 concurrent streams of 1
 No failures.
 
 <!-- platform: linux/aarch64 -->
-## linux/aarch64 — 2026-09-23 10:07:12Z
+## linux/aarch64: 2026-09-23 10:07:12Z
 
 **128/128** runs passed.
 
-Workload per run: 20 MB each way on one bulk stream, 100 concurrent streams of 16 KiB each way, and a half-close probe that asks for 256 KiB after `shutdown(SHUT_WR)` (having waited 250ms first, so the answer and the peer's FIN are both buffered) — all SHA-256 verified, with both processes' logs scanned afterwards. The harness adds `-closewait 0` to the server so teardown is not delayed by 30 s per direction; nothing else is added to a case's flags.
+Workload per run: 20 MB each way on one bulk stream, 100 concurrent streams of 16 KiB each way, and a half-close probe that asks for 256 KiB after `shutdown(SHUT_WR)` (having waited 250ms first, so the answer and the peer's FIN are both buffered), all SHA-256 verified, with both processes' logs scanned afterwards. The harness adds `-closewait 0` to the server so teardown is not delayed by 30 s per direction; nothing else is added to a case's flags.
 
 ### Binaries
 

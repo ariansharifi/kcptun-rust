@@ -5,8 +5,8 @@
 //! (`log.SetFlags(...)`, `log.SetPrefix(...)`, `log.Println`, `log.Printf`), with the timestamps
 //! taken from `LOCAL_TIME_GOLDENS` below. Those goldens come from
 //! `time.Unix(e, 123456789).Format("2006/01/02 15:04:05[.000000]")` run under the same `TZ`, so
-//! `test_local_time_matches_go` checks this port's calendar conversion — daylight-saving
-//! transitions and half-hour zones included — against Go's.
+//! `test_local_time_matches_go` checks this port's calendar conversion: daylight-saving
+//! transitions and half-hour zones included, against Go's.
 
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
@@ -273,7 +273,7 @@ fn test_printf_semantics() {
         capture(|| logf!("Listening on: {}/tcp", "127.0.0.1:4000")),
         format!("{TS}Listening on: 127.0.0.1:4000/tcp\n")
     );
-    // Go: checkError's log.Printf("%+v\n", err) — the newline is already there.
+    // Go: checkError's log.Printf("%+v\n", err), the newline is already there.
     assert_eq!(
         capture(|| logf!("{}\n", "open /nope: no such file or directory")),
         format!("{TS}open /nope: no such file or directory\n")

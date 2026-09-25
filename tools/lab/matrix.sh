@@ -75,7 +75,7 @@ done
 [[ -f "$SCENARIO" ]] || { echo "matrix: no scenario $SCENARIO" >&2; exit 2; }
 
 # A load guard *looser* than lab.py's own is only sanctioned on a box the user called
-# expendable. On any other host — production, or one this file has never heard of — the campaign
+# expendable. On any other host (production, or one this file has never heard of) the campaign
 # runs at 1.0 or it does not run. A tighter value is somebody being careful and is always fine,
 # hence the numeric comparison (bash 3.2 has no float test, so awk does it).
 if awk -v load="$MAX_LOAD" 'BEGIN { exit !(load + 0 > 1.0) }' \

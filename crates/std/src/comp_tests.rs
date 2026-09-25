@@ -247,7 +247,7 @@ fn uvarint_matches_go() {
     );
 }
 
-// An empty write produces no bytes at all — not even the stream identifier. Go's
+// An empty write produces no bytes at all, not even the stream identifier. Go's
 // `Writer.Write(nil)` buffers nothing and `Flush` returns early on an empty buffer.
 #[tokio::test]
 async fn an_empty_write_sends_nothing() {
@@ -356,7 +356,7 @@ async fn a_write_error_is_sticky() {
     assert_eq!(err.kind(), io::ErrorKind::BrokenPipe);
 }
 
-// Whatever the stream writes, it reads back — across chunk boundaries, with the reader fed in
+// Whatever the stream writes, it reads back, across chunk boundaries, with the reader fed in
 // small pieces and asked for small pieces.
 #[test]
 fn a_stream_round_trips_through_the_reader() {

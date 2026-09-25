@@ -80,7 +80,7 @@ pub fn dial_rule(proto: Protocol, laddr: &str, lport: &str, rip: &str, rport: u1
 /// The `filter/OUTPUT` rule a **listening** connection installs: drop everything the kernel emits
 /// from the listening port with TTL (hop limit) 1.
 ///
-/// Unlike the dialled rule this names no peer — a server does not know its clients in advance —
+/// Unlike the dialled rule this names no peer: a server does not know its clients in advance,
 /// so one rule per protocol covers every accepted connection. `lport` is Go's
 /// `fmt.Sprint(laddr.Port)`, the port of the **resolved** listen address rather than the one the
 /// kernel assigned; the two differ only for a `:0` listen, which tcpraw cannot serve anyway.
@@ -128,7 +128,7 @@ impl IpTables {
     /// `iptables.NewWithProtocol(proto)`.
     ///
     /// Every caller in tcpraw ignores the error and simply installs no rules (`if ipt, err :=
-    /// …; err == nil`), so a host without `iptables` keeps working — with the kernel's own
+    /// …; err == nil`), so a host without `iptables` keeps working, with the kernel's own
     /// traffic suppressed by the TTL alone.
     // Go: go-iptables@v0.8.0 iptables/iptables.go:New(), NewWithProtocol()
     pub fn new_with_protocol(proto: Protocol) -> io::Result<IpTables> {
@@ -507,7 +507,7 @@ impl XtablesLock {
         }
         let err = io::Error::last_os_error();
         match err.raw_os_error() {
-            // Go: `case syscall.EWOULDBLOCK: return nopUnlocker{}, nil` — run unlocked.
+            // Go: `case syscall.EWOULDBLOCK: return nopUnlocker{}, nil`, run unlocked.
             Some(libc::EWOULDBLOCK) => Ok(XtablesLock { _file: None }),
             _ => Err(err),
         }

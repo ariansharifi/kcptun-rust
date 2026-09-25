@@ -2,7 +2,7 @@
 
 How to get a kcptun-rust link to behave, and what each knob really does. This is a port of the
 tuning sections of the Go kcptun README (commit `39935d5`), updated where this implementation
-differs — the flags, the defaults and the advice are otherwise the same, because the protocol and
+differs: the flags, the defaults and the advice are otherwise the same, because the protocol and
 the parameters are the same.
 
 **Two rules before anything else.**
@@ -30,7 +30,7 @@ ulimit -n 65535          # or in ~/.bashrc, or LimitNOFILE= in the systemd unit
 ```
 
 ```
-# /etc/sysctl.d/90-kcptun.conf — dist/linux/sysctl_linux
+# /etc/sysctl.d/90-kcptun.conf: dist/linux/sysctl_linux
 net.core.rmem_max=26214400       # bandwidth-delay product
 net.core.rmem_default=26214400
 net.core.wmem_max=26214400
@@ -64,7 +64,7 @@ max rate ≈ window × MTU / RTT
 
 So 1024 packets × 1350 B / 100 ms ≈ 13.8 MB/s. Increase the windows until measured throughput stops
 improving; past that point you are only buying buffer bloat and memory. `-mtu` raises the same
-product, but only up to the path MTU — a fragmented UDP datagram is worse than a smaller one.
+product, but only up to the path MTU: a fragmented UDP datagram is worse than a smaller one.
 
 Note that client and server have different defaults: the client sends with `-sndwnd 128` and
 receives with `-rcvwnd 512`, the server uses 1024 for both. For a download-shaped workload the pair
@@ -74,7 +74,7 @@ that matters is the server's `-sndwnd` and the client's `-rcvwnd`.
 window of packets at once. In Go, anything that does not fit the internal send queue is dropped and
 costs a retransmission timeout, which is why large windows there can be *slower* than small ones;
 this port applies backpressure instead and leaves the surplus for the next flush
-([V18](differences.md#full-list)). Large windows are therefore safe here, but they still cost memory —
+([V18](differences.md#full-list)). Large windows are therefore safe here, but they still cost memory,
 see [Memory](#memory).
 
 ## Latency
@@ -132,7 +132,7 @@ linger while its streams drain.
 kcptun sends `-parityshard` redundant packets for every `-datashard` data packets, so the receiver
 can reconstruct up to `parityshard` losses within a group without a retransmission.
 
-* Defaults: `-datashard 10 -parityshard 3` — 30 % bandwidth overhead (`parityshard / datashard`).
+* Defaults: `-datashard 10 -parityshard 3`, 30 % bandwidth overhead (`parityshard / datashard`).
 * More parity: better on lossy paths, more bandwidth and more CPU.
 * `-parityshard 0` (or both shards 0) turns FEC off: less CPU, less bandwidth, worse on a lossy
   link.
@@ -147,7 +147,7 @@ configuration at startup instead ([V07](differences.md#full-list)).
 
 FEC costs roughly 0.3–0.4 µs of CPU per packet on an ARM server core and less on a modern x86 or
 Apple core, with vectorised (NEON / AVX2 / SSSE3) Reed-Solomon kernels chosen at run time. On a CPU
-with neither — a 32-bit ARM router, an i686 box — the scalar fallback is 7–16× slower, and turning
+with neither (a 32-bit ARM router, an i686 box) the scalar fallback is 7–16× slower, and turning
 FEC off is usually the right call. Measurements:
 [docs/benchmarks/fec.md](benchmarks/fec.md).
 
@@ -191,7 +191,7 @@ byte. Go writes the raw value on IPv6, which shifts the class and sets stray ECN
 
 ## Encryption
 
-Every packet is encrypted in full — FEC header, KCP header, checksum and payload — under a key
+Every packet is encrypted in full (FEC header, KCP header, checksum and payload) under a key
 derived from `-key` with PBKDF2. Each packet carries a fresh nonce, so identical plaintexts never
 produce identical ciphertext.
 
@@ -201,12 +201,12 @@ produce identical ciphertext.
   `salsa20`.
 * `aes-128-gcm` is the only AEAD mode, and the only mode this port is **slower** at than Go
   (0.68–0.77× depending on machine and direction). Everything else is at or above parity, most of
-  it well above — see [docs/benchmarks/crypto.md](benchmarks/crypto.md).
+  it well above, see [docs/benchmarks/crypto.md](benchmarks/crypto.md).
 * `-crypt xor` is **insecure** (trivially broken by known-plaintext analysis). Do not use it unless
   you understand exactly what you are giving up; it exists for links where the payload is already
   encrypted and CPU is the binding constraint.
 * `-crypt none` keeps the packet header format but sends it in plaintext, so the headers can be
-  tampered with — window sizes, RTT, FEC properties, checksums. `-crypt null` sends raw data with
+  tampered with: window sizes, RTT, FEC properties, checksums. `-crypt null` sends raw data with
   no cryptographic framing at all: fastest, least secure, easiest to fingerprint.
 
 kcptun has no asymmetric handshake, so replay of captured packets is theoretically possible; if
@@ -225,7 +225,7 @@ Both flags must be identical on both sides (`"qpp": true`, `"qpp-count": 61` in 
 worth anything:
 
 1. use a `-key` of at least **211 bytes**, and
-2. keep `-QPPCount` **coprime with 8** — simplest is a prime, and at least 7.
+2. keep `-QPPCount` **coprime with 8**: simplest is a prime, and at least 7.
 
 Two notes specific to this port:
 
@@ -240,7 +240,7 @@ Two notes specific to this port:
 Snappy compression of the stream is **on by default**; `-nocomp` disables it, and the setting must
 match on both sides.
 
-It is worth keeping for plaintext, compressible traffic — cross-datacenter replication, redo logs,
+It is worth keeping for plaintext, compressible traffic: cross-datacenter replication, redo logs,
 message queues. It is worth turning off when the payload is already encrypted or already
 compressed (TLS, media, most tunnelled traffic): every chunk is then compressed, found to be no
 smaller, and sent as it was, for nothing.
@@ -259,8 +259,8 @@ translates into the same flags with no runtime knob to go with them:
 | Number of KCP connections | `-conn` on the client |
 
 Packet buffers come from a pool of fixed 1500-byte buffers with no zeroing on reuse, as in kcp-go.
-A proxied TCP connection that is idle holds no copy buffer at all — buffers are taken only when
-there is data to move — which is the main structural difference from Go, where the TCP → stream
+A proxied TCP connection that is idle holds no copy buffer at all: buffers are taken only when
+there is data to move, which is the main structural difference from Go, where the TCP → stream
 direction holds `io.Copy`'s 32 KiB buffer for the connection's whole life (the stream → TCP
 direction uses smux's own `WriteTo` and takes none; the pooled 4 KiB `bufSize` in Go's
 `std/copy.go` is only the fallback path, when neither fast path applies).
@@ -270,7 +270,7 @@ the send queue. With backpressure ([V18](differences.md#full-list)) that peak is
 what the same configuration held before, roughly 3 MB per session at `-sndwnd 8192`.
 
 On a memory-constrained device, lower `-smuxbuf` (it trades concurrency for memory), lower the
-windows, and turn FEC off. On a big server with many clients, raise `-smuxbuf` — but its relation
+windows, and turn FEC off. On a big server with many clients, raise `-smuxbuf`, but its relation
 to concurrency is not linear, so measure.
 
 **No Go-vs-Rust RSS comparison has been published in this repository yet**; when one exists it will
@@ -291,7 +291,7 @@ cgroup limit up and never goes below 2. Set `GOMAXPROCS` explicitly there.
 Reed-Solomon coding and block ciphers are the expensive parts. On a low-end router or SoC:
 
 * **Turn FEC off:** `-datashard 0 -parityshard 0` on both sides. On CPUs without NEON, AVX2 or
-  SSSE3 — 32-bit ARM, i686 — the codec falls back to scalar kernels that are 7–16× slower than the
+  SSSE3 (32-bit ARM, i686) the codec falls back to scalar kernels that are 7–16× slower than the
   vectorised ones.
 * **Pick a cheap cipher.** Go's advice is `salsa20`; that holds here, and on a CPU with AES
   instructions `aes-128` is cheaper still. On the two machines measured this port encrypts at
@@ -304,7 +304,7 @@ Reed-Solomon coding and block ciphers are the expensive parts. On a low-end rout
 
 A statically linked musl build has no runtime dependencies, which makes these devices easy
 targets: `tools/release.sh v0.1.0 linux-musl` builds them. **Read the warning below before you
-reach for one on a device with little RAM** — which is exactly the device this section is about.
+reach for one on a device with little RAM**, which is exactly the device this section is about.
 
 > ### ⚠ The static musl build never gives memory back
 >
@@ -314,11 +314,11 @@ reach for one on a device with little RAM** — which is exactly the device this
 > after six hours (79 → 253 MiB)**. On a 1 GB box that is an out-of-memory kill within a day, and
 > on the 64–256 MB routers this section is about it is very much sooner.
 >
-> Measured with only the allocator changed — same box, same kernel, same netem, same flags, same
+> Measured with only the allocator changed: same box, same kernel, same netem, same flags, same
 > churn seed, and the same 36.7 Mbit/s at the same latency and CPU in both arms: musl peaked at
 > **253 MiB and released 0 %**, still climbing at **+44,860 kB/h**; glibc peaked at **50 MiB**,
 > fell to **13.6 MiB** within two minutes and had a *negative* slope. musl's `mallocng` has no
-> `malloc_trim` entry point at all, so the tunnel's idle-trim has nothing to call — this is not
+> `malloc_trim` entry point at all, so the tunnel's idle-trim has nothing to call: this is not
 > something a flag can tune away. [`benchmarks/memory.md`](benchmarks/memory.md) §8 has the run.
 >
 > So on a small device, prefer the glibc artifact if the device has a usable glibc at all. If it
@@ -327,14 +327,14 @@ reach for one on a device with little RAM** — which is exactly the device this
 
 ## SNMP
 
-Both binaries keep the same counters as Go — bytes and packets in and out, KCP segments,
+Both binaries keep the same counters as Go: bytes and packets in and out, KCP segments,
 retransmissions (normal, fast, early), losses, duplicates, FEC recoveries and errors, checksum
 errors, connection counts.
 
 * **`kill -USR1 <pid>`** dumps them to the log, as in Go.
 * **`-snmplog ./snmp-20060102.log -snmpperiod 60`** appends them to a CSV file; the file name is a
   Go time layout, so the example rotates daily. (A layout containing the `MST` token renders
-  differently here — a numeric offset rather than a zone abbreviation, see
+  differently here: a numeric offset rather than a zone abbreviation, see
   [V14](differences.md#full-list). Every other token is exact.)
 
 Retransmission and FEC counters are the ones to watch while tuning: rising `RetransSegs` with flat

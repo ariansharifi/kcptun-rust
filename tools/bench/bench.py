@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark harness for Step 12.1 (step 12) — the scenario x metric grid.
+"""Benchmark harness for Step 12.1 (step 12): the scenario x metric grid.
 
 Runs **on the laptop**, on top of :mod:`tools/lab/lab.py`, and drives one or two Linux lab hosts
 over ssh. Python standard library only.
@@ -13,10 +13,10 @@ A **campaign** is a grid: one *cell* per (scenario config, metric family). ``run
 cell into a `lab.py` scenario file, hands it to `lab.py run`, and then reduces every collected
 run into one page:
 
-* ``docs/benchmarks/<date>-<env>.md`` — one table per configuration, one row per measurement,
+* ``docs/benchmarks/<date>-<env>.md``: one table per configuration, one row per measurement,
   one column per implementation pair, medians across the repetitions, plus the ``RR/GG`` ratio
   that the Definition of Done in step 12 is written in terms of;
-* ``docs/benchmarks/<date>-<env>.csv`` — the **raw** long-format rows behind those medians (one
+* ``docs/benchmarks/<date>-<env>.csv``: the **raw** long-format rows behind those medians (one
   row per config, metric, pair, repetition and measurement). Nothing in the page is a number
   the CSV cannot reproduce.
 
@@ -30,7 +30,7 @@ step 12 "Rules for every optimisation" is the whole design:
    again). Background drift on a 1-vCPU box therefore hits both implementations equally.
    `run` *refuses* a campaign with fewer than `MIN_REPETITIONS` repetitions unless
    ``--allow-few-repetitions`` is given, and a page produced that way says so in its first
-   paragraph — a single run presented as a measurement is the failure this harness exists to
+   paragraph: a single run presented as a measurement is the failure this harness exists to
    prevent.
 2. **The exact command per row.** Every table is followed by the literal command that produced
    it, and the generated scenario files are kept beside the raw runs.
@@ -93,10 +93,10 @@ PAIR_ORDER = ("GG", "RR", "GR", "RG")
 
 #: The four pairs, as `lab.py` spells them.
 ALL_PAIRS = (("go", "go"), ("rust", "rust"), ("go", "rust"), ("rust", "go"))
-#: GG and RR only — everything that is not throughput (step 12.1).
+#: GG and RR only, everything that is not throughput (step 12.1).
 SAME_PAIRS = (("go", "go"), ("rust", "rust"))
 
-#: kcptun's own `-sockbuf` default, in bytes — `lab.py` owns it, this is the same object.
+#: kcptun's own `-sockbuf` default, in bytes, `lab.py` owns it, this is the same object.
 #:
 #: From `reference/kcptun/client/main.go:185-188` and `reference/kcptun/server/main.go:176-179`,
 #: both ``Value: 4194304 // default socket buffer size in bytes``. It is applied to the UDP
@@ -104,7 +104,7 @@ SAME_PAIRS = (("go", "go"), ("rust", "rust"))
 #: (`client/main.go:467-471`, `server/main.go:412-416`), so a configuration that passes no
 #: `-sockbuf` at all is **not** asking for a small buffer: it is asking for 4 MiB, 20x the stock
 #: `net.core.rmem_max` of `STOCK_SOCKET_CEILING`. S1 is the loud case because it asks for 8 MiB
-#: explicitly, but S2/S3/S4 are clamped on a stock host too — which is why this is a constant
+#: explicitly, but S2/S3/S4 are clamped on a stock host too, which is why this is a constant
 #: read out of the Go source rather than an absent flag treated as "no request".
 #:
 #: Bound to `lab.DEFAULT_SOCKBUF` rather than written out a second time: `lab.py` is what every
@@ -117,8 +117,8 @@ DEFAULT_SOCKBUF = lab.DEFAULT_SOCKBUF
 #: docs/DECISIONS.md D32 is written against this number: `setsockopt(SO_RCVBUF)` is silently
 #: clamped to it, and on a host carrying it one 65 s S1 run lost 95,133 datagrams to
 #: `UdpRcvbufErrors` for Go and 223,293 for Rust, while the same run at lab-arm64's 8 MiB ceiling
-#: lost **zero** and three failing cells inverted. D32's rule — "any future S1 measurement on a
-#: host with a stock ceiling is invalid and must be discarded, not interpreted" — is enforced by
+#: lost **zero** and three failing cells inverted. D32's rule, "any future S1 measurement on a
+#: host with a stock ceiling is invalid and must be discarded, not interpreted", is enforced by
 #: `socket_buffer_banner` on the page and by `cmd_run` before a campaign starts.
 STOCK_SOCKET_CEILING = 212992
 
@@ -140,7 +140,7 @@ class Measure:
     """One number a row of the table holds.
 
     `better` is the direction that is *better*, and it is what decides how the ``RR/GG`` ratio
-    is annotated — a ratio of 0.5 is a win for CPU and a loss for goodput, and a table that
+    is annotated: a ratio of 0.5 is a win for CPU and a loss for goodput, and a table that
     leaves the reader to work that out per row is a table that gets misquoted.
     """
 
@@ -148,7 +148,7 @@ class Measure:
     label: str
     unit: str
     #: ``"high"``, ``"low"`` or ``"neutral"``. Neutral is for a counter that is neither good nor
-    #: bad on its own — `OutSegs` is larger for the arm that moved more data, and ticking it as
+    #: bad on its own, `OutSegs` is larger for the arm that moved more data, and ticking it as
     #: a loss would be a lie told by the table rather than by the number.
     better: str
     digits: int = 2
@@ -164,7 +164,7 @@ class Measure:
 
     def format(self, value: float | None) -> str:
         if value is None:
-            return "—"
+            return "-"
         if self.digits == 0:
             return f"{value:,.0f}"
         return f"{value:,.{self.digits}f}"
@@ -238,7 +238,7 @@ RESOURCE_MEASURES = (
 
 #: The same, for a family that moves almost no data. Dividing a tunnel's CPU by the 64-byte
 #: probes of a latency cell produces a per-GB number in the thousands that says nothing about
-#: efficiency, so an idle-ish family reports **absolute** CPU seconds over the run instead —
+#: efficiency, so an idle-ish family reports **absolute** CPU seconds over the run instead,
 #: which is what "idle cost" in step 12's metric table actually means.
 IDLE_RESOURCE_MEASURES = (
     "cpu_s_cli", "cpu_s_srv", "rss_kb_cli", "rss_kb_srv", "hwm_kb_cli", "hwm_kb_srv",
@@ -257,7 +257,7 @@ IDLE_RESOURCE_MEASURES = (
 #: **All three components of `RetransSegs` are here.** One `flush` adds `LostSegs +
 #: FastRetransSegs + EarlyRetransSegs` into `RetransSegs` (the "counter updates" block of
 #: `flush`, reference/kcptun/vendor/github.com/xtaci/kcp-go/v5/kcp.go), so the total decomposes
-#: exactly — and only exactly when all three are printed. An earlier version of this tuple
+#: exactly, and only exactly when all three are printed. An earlier version of this tuple
 #: quoted two of them, which left every `RetransSegs` row on the baseline pages with a visible
 #: remainder (9.5% of the total on one of them) that read as unattributable retransmission,
 #: which is the one thing these rows exist to attribute. `lab.py`'s `COMPARE_SNMP` says the
@@ -433,7 +433,7 @@ class Campaign:
     server_flags: dict[str, Any] = field(default_factory=dict)
     notes: tuple[str, ...] = ()
     #: Paragraphs rendered as an "Observations" section at the end of the page. They are written
-    #: *after* the campaign has run — that is the point of `report --campaign`: the reading of a
+    #: *after* the campaign has run, that is the point of `report --campaign`: the reading of a
     #: result belongs in the committed campaign file beside the grid that produced it, so the
     #: page stays regenerable from the raw runs instead of being hand-edited afterwards.
     observations: tuple[str, ...] = ()
@@ -445,7 +445,7 @@ class Campaign:
         return [(config, metric) for config in self.configs for metric in self.metrics]
 
     def cell_name(self, config: str, metric: str) -> str:
-        """The scenario name of one cell — it becomes a directory and PID file names."""
+        """The scenario name of one cell: it becomes a directory and PID file names."""
         return f"{self.name}-{config}-{metric}"
 
     def scenario(self, config: str, metric: str) -> dict[str, Any]:
@@ -454,7 +454,7 @@ class Campaign:
         raw: dict[str, Any] = {
             "name": self.cell_name(config, metric),
             "description": f"{self.description or self.name}: {config} x {metric} "
-                           f"— {family.description}",
+                           f"- {family.description}",
             "config": config,
             "mode": self.mode,
             "netem": self.netem,
@@ -483,9 +483,9 @@ CAMPAIGN_FIELDS = {f.name for f in dataclasses.fields(Campaign)} - {"source"}
 #: The only fields `report --campaign` may pick up from an edited campaign file.
 #:
 #: They are the *reading* of the result and the prose around it, which is written after the runs
-#: are in and which `report --campaign` exists to let in. Every other field describes what ran —
+#: are in and which `report --campaign` exists to let in. Every other field describes what ran,
 #: `repetitions`, `duration`, `configs`, `metrics`, `mode`, `netem`, `settle`, the ports, the
-#: flags — and is printed into the Method table and used by the under-replication banner as if
+#: flags, and is printed into the Method table and used by the under-replication banner as if
 #: it were a statement about the runs on disk. Editing `repetitions` from 3 to 5 and
 #: regenerating would otherwise produce a page claiming five runs per pair, with the banner
 #: gone, from three. `cmd_report` refuses that; this set is what it allows through.
@@ -623,7 +623,7 @@ def transferred_bytes(state: dict[str, Any], directory: Path) -> float:
 def harvest(state: dict[str, Any], directory: Path) -> dict[str, float]:
     """Every measurement of one collected run, as ``key -> value``.
 
-    A key that is missing is genuinely *not measured* and prints as ``—``; nothing here
+    A key that is missing is genuinely *not measured* and prints as ``-``; nothing here
     substitutes a zero, because "the FEC counters were all zero" and "this run has no FEC
     counters" are different facts and only one of them is a result.
     """
@@ -737,7 +737,7 @@ def medians(samples: Sequence[Sample], pair: str, key: str) -> tuple[float | Non
 def ratio_cell(rr: float | None, gg: float | None, measure: Measure) -> str:
     """``RR/GG`` with the direction spelt out: 0.5 is a win for one row and a loss for the next.
 
-    Three outcomes, kept distinct on purpose: ``—`` when one of the two was not measured, ``n/a``
+    Three outcomes, kept distinct on purpose: ``-`` when one of the two was not measured, ``n/a``
     when the ratio would be a verdict on nothing, and the ratio otherwise.
 
     A ratio is "a verdict on nothing" in two ways. Go's median is zero, or prints as zero: the
@@ -747,7 +747,7 @@ def ratio_cell(rr: float | None, gg: float | None, measure: Measure) -> str:
     reader then has to discount by hand.
     """
     if rr is None or gg is None:
-        return "—"
+        return "-"
     # Not only `gg == 0`: a ratio computed from two values that both *print* as zero is a number
     # the reader cannot check against the cells beside it, and on a counter like the idle end's
     # retransmission share it reads as a 35 % win over nothing at all.
@@ -784,7 +784,7 @@ def cell_table(samples: Sequence[Sample], metric: Metric) -> list[str]:
             values[pair] = value
             cells.append(measure.format(value) + (f" ({count})" if 0 < count < MIN_REPETITIONS
                                                   else ""))
-        if all(cell in ("—", "·") for cell in cells):
+        if all(cell in ("-", "·") for cell in cells):
             continue
         lines.append("| " + " | ".join([
             measure.label, measure.unit, *cells,
@@ -804,7 +804,7 @@ def spread_table(samples: Sequence[Sample], metric: Metric) -> list[str]:
     measure = MEASURES[key]
     pairs = [p for p in PAIR_ORDER
              if p in {(lab.IMPLS[c] + lab.IMPLS[s]).upper() for c, s in metric.pairs}]
-    lines = [f"The spread behind those medians — every run of *{measure.label}* "
+    lines = [f"The spread behind those medians: every run of *{measure.label}* "
              f"({measure.unit}), in the order it ran:", ""]
     lines.append("| pair | runs | min | median | max | every run |")
     lines.append("|---|---:|---:|---:|---:|---|")
@@ -813,7 +813,7 @@ def spread_table(samples: Sequence[Sample], metric: Metric) -> list[str]:
         ordered.sort(key=lambda s: s.repetition)
         values = [s.values[key] for s in ordered]
         if not values:
-            lines.append(f"| {pair} | 0 | — | — | — | — |")
+            lines.append(f"| {pair} | 0 | - | - | - | - |")
             continue
         every = ", ".join(measure.format(value) for value in values)
         lines.append(f"| {pair} | {len(values)} | {measure.format(min(values))} | "
@@ -863,7 +863,7 @@ class Clamp:
 def config_sockbuf(config: str, side: str) -> tuple[int, bool]:
     """What one side of a configuration asks `setsockopt` for, and whether it said so.
 
-    A configuration that passes no `-sockbuf` still requests `DEFAULT_SOCKBUF` — kcptun's flag
+    A configuration that passes no `-sockbuf` still requests `DEFAULT_SOCKBUF`: kcptun's flag
     has a default and the binary always calls `SetReadBuffer`/`SetWriteBuffer` with it. Treating
     an absent flag as "no request" is exactly how S2 looked exempt from D32 when it is not.
     """
@@ -920,7 +920,7 @@ def recorded_sides(states: Sequence[dict[str, Any]]) -> dict[str, set[str]]:
 
 
 def campaign_sides(campaign: Campaign, client_host: str) -> dict[str, set[str]]:
-    """`recorded_sides` for a campaign that has not run yet — from the recipe, not from states.
+    """`recorded_sides` for a campaign that has not run yet, from the recipe, not from states.
 
     The preflight has to know this before a single run exists, and it is the same mapping
     `lab.py` passes to `warn_clamped_sockbuf` when it preflights a WAN pair.
@@ -981,13 +981,13 @@ def socket_buffer_row(configs: Sequence[str], states: Sequence[dict[str, Any]]) 
     """
     by_host, missing = recorded_ceilings(states)
     if not by_host:
-        return ("| socket-buffer ceilings | **not recorded** — `-sockbuf` is silently clamped to "
+        return ("| socket-buffer ceilings | **not recorded**: `-sockbuf` is silently clamped to "
                 "`net.core.rmem_max`/`wmem_max` and no run here says what they were "
                 "(docs/DECISIONS.md D32) |")
     summary = ceiling_summary(by_host)
     if missing:
-        summary += f" — recorded for {len(states) - missing} of {len(states)} runs"
-    summary += (" — `setsockopt(SO_RCVBUF)`/`SO_SNDBUF` is silently clamped to these "
+        summary += f": recorded for {len(states) - missing} of {len(states)} runs"
+    summary += (": `setsockopt(SO_RCVBUF)`/`SO_SNDBUF` is silently clamped to these "
                 "(docs/DECISIONS.md D32)")
     clamps = sockbuf_clamps(configs, by_host, recorded_sides(states))
     granted = []
@@ -1006,7 +1006,7 @@ def socket_buffer_row(configs: Sequence[str], states: Sequence[dict[str, Any]]) 
             else:
                 granted.append(f"`{config}` {side} {asked} → honoured")
     note = " Requested `-sockbuf` → what the kernel grants: " + "; ".join(granted) + "."
-    # From the flag, not from a `*` in the rendered text — the bold markers round `**8,388,608**`
+    # From the flag, not from a `*` in the rendered text: the bold markers round `**8,388,608**`
     # are asterisks too, and scanning for one printed the footnote on a grid that has no default
     # in it.
     if any_default:
@@ -1020,11 +1020,11 @@ def socket_buffer_banner(configs: Sequence[str], states: Sequence[dict[str, Any]
 
     Three separate failures, three separate wordings, because they are not equally bad:
 
-    * **nothing recorded** — the page cannot rule the defect in or out, which is the state the
+    * **nothing recorded**: the page cannot rule the defect in or out, which is the state the
       12.1 pages were published in;
-    * **more than one ceiling in one campaign** — a median across two of them is a number no
+    * **more than one ceiling in one campaign**: a median across two of them is a number no
       experiment produced (`lab.py`'s impairment matrix splits its cells for the same reason);
-    * **clamped at the stock ceiling** — D32 says discard, not interpret, so the banner says
+    * **clamped at the stock ceiling**: D32 says discard, not interpret, so the banner says
       invalid rather than merely noting it.
 
     A clamp at a *raised* ceiling is a condition of the experiment, not a defect: lab-arm64 runs
@@ -1036,7 +1036,7 @@ def socket_buffer_banner(configs: Sequence[str], states: Sequence[dict[str, Any]
         return []
     by_host, missing = recorded_ceilings(states)
     if not by_host:
-        return ["> ⚠ **SOCKET-BUFFER CEILING NOT RECORDED — this page cannot rule out "
+        return ["> ⚠ **SOCKET-BUFFER CEILING NOT RECORDED: this page cannot rule out "
                 "docs/DECISIONS.md D32.** `-sockbuf` is silently clamped to "
                 "`net.core.rmem_max`/`wmem_max`, and on a host at the stock "
                 f"{STOCK_SOCKET_CEILING:,} B ceiling that clamp alone inverted three cells of "
@@ -1053,7 +1053,7 @@ def socket_buffer_banner(configs: Sequence[str], states: Sequence[dict[str, Any]
         if missing:
             detail.append(f"{missing} of {len(states)} runs recorded no ceiling at all")
         lines.append("> ⚠ **THE RUNS BEHIND THIS PAGE WERE NOT ALL TAKEN UNDER THE SAME "
-                     "SOCKET-BUFFER CEILING** — " + "; and ".join(detail) +
+                     "SOCKET-BUFFER CEILING**: " + "; and ".join(detail) +
                      ". A median across two ceilings is a number no experiment produced; the "
                      "cells below do not separate them, so nothing here is quotable until the "
                      "runs are split.")
@@ -1061,7 +1061,7 @@ def socket_buffer_banner(configs: Sequence[str], states: Sequence[dict[str, Any]
     stock = [c for c in clamps if c.stock]
     if stock:
         affected = sorted({c.config for c in stock})
-        lines.append("> ⚠ **INVALID UNDER docs/DECISIONS.md D32 — do not interpret "
+        lines.append("> ⚠ **INVALID UNDER docs/DECISIONS.md D32: do not interpret "
                      + ", ".join(f"`{c}`" for c in affected) +
                      ", discard it.** The host is at the stock "
                      f"{STOCK_SOCKET_CEILING:,} B socket-buffer ceiling, so what these "
@@ -1069,7 +1069,7 @@ def socket_buffer_banner(configs: Sequence[str], states: Sequence[dict[str, Any]
                      "; ".join(c.describe() for c in stock[:4]) +
                      ("; …" if len(stock) > 4 else "") + ".")
     elif clamps:
-        lines.append("> **Note — `-sockbuf` is clamped here, at a raised ceiling.** "
+        lines.append("> **Note: `-sockbuf` is clamped here, at a raised ceiling.** "
                      + "; ".join(c.describe() for c in clamps) +
                      ". That is the same clamp lab-arm64 runs under, where D32 measured zero "
                      "`UdpRcvbufErrors` over a 65 s S1 run, so it is a stated condition of "
@@ -1087,7 +1087,7 @@ def socket_buffer_banner(configs: Sequence[str], states: Sequence[dict[str, Any]
 def build_lines(states: Sequence[dict[str, Any]]) -> list[str]:
     """What actually ran, named from the build stamps `lab.py` recorded (12.0).
 
-    `lab.compare_artefacts` prints the commit, which is what a reader wants — but a stamp also
+    `lab.compare_artefacts` prints the commit, which is what a reader wants, but a stamp also
     records the *revision*, and a revision ending in ``-dirty`` means the binary was built from
     a tree that was not the commit it names. That is precisely the kind of "named but not
     actually attributable" artefact 12.0 exists to catch, so it gets its own line rather than
@@ -1120,7 +1120,7 @@ def report(campaign: Campaign, cells: dict[tuple[str, str], list[Sample]],
     date = meta.get("date", time.strftime("%Y-%m-%d"))
     few = campaign.repetitions < MIN_REPETITIONS
     out: list[str] = []
-    out.append(f"# Go vs Rust end to end — {meta.get('env_title', campaign.env)}, {date}")
+    out.append(f"# Go vs Rust end to end: {meta.get('env_title', campaign.env)}, {date}")
     out.append("")
     if few:
         out.append(f"> **UNDER-REPLICATED.** This campaign ran {campaign.repetitions} "
@@ -1140,7 +1140,7 @@ def report(campaign: Campaign, cells: dict[tuple[str, str], list[Sample]],
     out.append("| | |")
     out.append("|---|---|")
     out.append(f"| campaign | `{Path(campaign.source).name or campaign.name}` |")
-    out.append(f"| client host | `{meta.get('host', '?')}` — {meta.get('host_detail', '')} |")
+    out.append(f"| client host | `{meta.get('host', '?')}`: {meta.get('host_detail', '')} |")
     if campaign.mode == lab.MODE_WAN:
         out.append(f"| server host | `{campaign.server_host}` at `{campaign.server_addr}` |")
         out.append("| path | the real Internet path between them, no netem |")
@@ -1157,7 +1157,7 @@ def report(campaign: Campaign, cells: dict[tuple[str, str], list[Sample]],
     # the kernel, and a page that does not say what the cap was cannot be checked against D32.
     out.append(socket_buffer_row(campaign.configs, meta.get("states", [])))
     if meta.get("iperf3_detail"):
-        out.append(f"| iperf3 | {meta['iperf3_detail']} — the host's own package, which "
+        out.append(f"| iperf3 | {meta['iperf3_detail']}: the host's own package, which "
                    "carries no build stamp of ours |")
     out.append(f"| started | {meta.get('started_iso', '?')} |")
     out.append(f"| finished | {meta.get('finished_iso', '?')} |")
@@ -1176,7 +1176,7 @@ def report(campaign: Campaign, cells: dict[tuple[str, str], list[Sample]],
     out.append("")
     out.append("* Every cell is a **median over the repetitions of one session**, and the pairs "
                "inside a session were interleaved, so the columns share whatever the box was "
-               "doing. Medians from two different sessions are not comparable — on a shared "
+               "doing. Medians from two different sessions are not comparable, on a shared "
                "box, and on a real path, absolutely not.")
     out.append("* `RR/GG` is annotated ✓ when Rust is on the better side of Go for **that** "
                "row's direction (high is better for goodput and stream counts, low for CPU, "
@@ -1184,7 +1184,7 @@ def report(campaign: Campaign, cells: dict[tuple[str, str], list[Sample]],
     out.append("* A `·` cell is one that is deliberately not measured: step 12.1 gives the "
                "cross pairs (GR, RG) throughput only, because a CPU or RSS row for a mixed "
                "pair describes two different implementations at once.")
-    out.append("* A `—` cell is **not measured**, never measured-as-zero. An `n/a` ratio is one "
+    out.append("* A `-` cell is **not measured**, never measured-as-zero. An `n/a` ratio is one "
                "the two cells beside it cannot support: either Go's median is zero, so the "
                "ratio is undefined rather than infinite, or both medians are segment counts "
                f"below {SEGMENT_NOISE_FLOOR:.0f} over the whole run, where a ratio would be a "
@@ -1206,7 +1206,7 @@ def report(campaign: Campaign, cells: dict[tuple[str, str], list[Sample]],
     out.append("")
 
     for config in campaign.configs:
-        out.append(f"## Configuration `{config}` — {_config_title(config)}")
+        out.append(f"## Configuration `{config}`: {_config_title(config)}")
         out.append("")
         out.append("```")
         out.append(_config_flags(config))
@@ -1215,7 +1215,7 @@ def report(campaign: Campaign, cells: dict[tuple[str, str], list[Sample]],
         for metric_name in campaign.metrics:
             metric = METRICS[metric_name]
             samples = cells.get((config, metric_name), [])
-            out.append(f"### `{metric_name}` — {metric.description}")
+            out.append(f"### `{metric_name}`: {metric.description}")
             out.append("")
             if not samples:
                 out.append("Not run.")
@@ -1242,15 +1242,15 @@ def report(campaign: Campaign, cells: dict[tuple[str, str], list[Sample]],
     out.append("## Raw data")
     out.append("")
     out.append(f"Every number above is a median of the rows in [`{date}-{campaign.env}.csv`]"
-               f"({date}-{campaign.env}.csv) — one row per configuration, metric, pair, "
+               f"({date}-{campaign.env}.csv): one row per configuration, metric, pair, "
                "repetition and measurement. The run directories the CSV names are under "
                "`lab-runs/` (gitignored) on the machine that ran the campaign, one `state.json`, "
                "`proc.csv`, `snmp-*.csv` and workload log per run.")
     out.append("")
     out.append("The CSV is the **complete** record and is wider than the tables: it carries the "
                "cross pairs' CPU and memory rows, which the tables deliberately do not show "
-               "(see the `·` note above). They are data, not a comparison — a GR row's CPU is a "
-               "Go client's and a Rust server's added together — so anything read out of them "
+               "(see the `·` note above). They are data, not a comparison: a GR row's CPU is a "
+               "Go client's and a Rust server's added together, so anything read out of them "
                "is a lead to be confirmed, never a result.")
     out.append("")
     out.append("Regenerate the page and the CSV from those directories without re-running "
@@ -1277,7 +1277,7 @@ def _config_note(configs: Sequence[str]) -> str:
 
 
 def _config_flags(config: str) -> str:
-    """The flags a configuration renders to, from `lab.CONFIGS` — never a copy by hand."""
+    """The flags a configuration renders to, from `lab.CONFIGS`, never a copy by hand."""
     base = lab.CONFIGS[config]
     common = " ".join(lab.render_flags(base["common"]))
     client = " ".join(lab.render_flags(base["client"]))
@@ -1297,8 +1297,8 @@ CSV_COLUMNS = ("config", "metric", "pair", "repetition", "runid", "started_iso",
 def csv_value(value: float) -> str:
     """One raw value, rendered so that nothing is lost.
 
-    The CSV is the page's evidence — every generated page says "every number above is a median of
-    the rows in this file" — so a value has to round-trip. An earlier version wrote
+    The CSV is the page's evidence: every generated page says "every number above is a median of
+    the rows in this file", so a value has to round-trip. An earlier version wrote
     ``f"{value:.6g}"``, which is harmless for a goodput in the hundreds and silently wrong for a
     counter: an `OutSegs` of 1 470 402 came out as ``1.47040e+06`` while the page beside it
     printed ``1,470,402``, a number its own CSV could no longer reproduce. Counters cross 1e6
@@ -1344,7 +1344,7 @@ def write_csv(path: Path, campaign: Campaign,
 def lab_command(campaign: Campaign, host: str, scenario_path: Path,
                 runs_dir: Path, extra: Sequence[str] = (),
                 wait_load: int = DEFAULT_WAIT_LOAD) -> list[str]:
-    """The `lab.py run` command line one cell is produced by — printed into the page verbatim."""
+    """The `lab.py run` command line one cell is produced by: printed into the page verbatim."""
     argv = [
         _relative(REPO / "tools" / "lab" / "lab.py"),
         "--host", host,
@@ -1427,7 +1427,7 @@ def iperf3_detail(host: str) -> str:
 
     A step 12.0 note records this as an open gap: `lab.py` invokes `iperf3` by bare
     name, so it is whatever the distribution installed, and its version, path and hash appear in
-    no `BUILD.txt`, no `state.json` and no report — while it is the instrument behind every
+    no `BUILD.txt`, no `state.json` and no report, while it is the instrument behind every
     goodput row. A campaign cannot give it a build stamp, but it can at least say which file it
     was, so that two pages taken months apart can be told apart when they disagree.
     """
@@ -1479,7 +1479,7 @@ def preflight_sockbuf(campaign: Campaign, args: argparse.Namespace) -> None:
             f"socket-buffer ceiling: {stock[0].host} is at the stock "
             f"{stock[0].ceiling:,} B `net.core.{stock[0].sysctl}`, so {affected} would measure "
             "the host rather than the implementations. docs/DECISIONS.md D32: any such "
-            "measurement is invalid and must be discarded, not interpreted — raise the ceiling "
+            "measurement is invalid and must be discarded, not interpreted: raise the ceiling "
             "(`/etc/sysctl.d/99-kcptun-lab.conf`, 8388608 / 67108864, as lab-arm64, lab-x86-1 "
             "and lab-x86-2 carry) or pass --allow-clamped-sockbuf to measure the clamp on "
             "purpose; the page it writes leads with an INVALID banner.")
@@ -1541,7 +1541,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                            f"{campaign.cell_name(config, metric)}.json", root, args.lab_arg,
                            args.wait_load)
         runs = campaign.repetitions * len(METRICS[metric].pairs)
-        print(f"bench: [{index}/{total}] {config} x {metric} — {runs} runs")
+        print(f"bench: [{index}/{total}] {config} x {metric}, {runs} runs")
         print(f"bench:     {' '.join(argv)}", flush=True)
         if args.dry_run:
             continue
@@ -1557,7 +1557,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                   flush=True)
             time.sleep(campaign.cooldown)
     if args.dry_run:
-        print(f"bench: dry run — {total} cell(s) planned under {root}")
+        print(f"bench: dry run, {total} cell(s) planned under {root}")
         return 0
 
     meta["finished_iso"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -1636,7 +1636,7 @@ def cmd_report(args: argparse.Namespace) -> int:
     root = Path(args.directory).expanduser().resolve()
     stored = root / "campaign.json"
     if not stored.exists():
-        raise BenchError(f"{root}: no campaign.json — is this a bench campaign directory?")
+        raise BenchError(f"{root}: no campaign.json, is this a bench campaign directory?")
     blob = json.loads(stored.read_text(encoding="utf-8"))
     as_run = parse_campaign(
         {k: v for k, v in blob["campaign"].items() if k in CAMPAIGN_FIELDS},

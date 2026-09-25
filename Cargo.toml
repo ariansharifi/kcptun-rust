@@ -11,7 +11,7 @@ members = [
     "crates/testkit",
     "crates/interop-tests",
     # Development-only lab tools (Step 11): never shipped, but in the workspace so the gate
-    # covers them — the 11.4 soak runs them unattended for six hours.
+    # covers them: the 11.4 soak runs them unattended for six hours.
     "tools/pingpong",
 ]
 # cargo-fuzz crates have their own workspace (nightly only, run with `cargo +nightly fuzz`).

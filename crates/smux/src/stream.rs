@@ -380,8 +380,8 @@ impl StreamInner {
     /// Drops everything still buffered and reports how many tokens that frees.
     ///
     /// Go calls this from `streamClosed` for every close, which is what deviation V11 is about;
-    /// here only an explicit close — [`StreamInner::close`] and [`Drop for
-    /// Stream`](Stream#impl-Drop-for-Stream), where the caller has said it wants nothing more —
+    /// here only an explicit close: [`StreamInner::close`] and [`Drop for
+    /// Stream`](Stream#impl-Drop-for-Stream), where the caller has said it wants nothing more,
     /// and the final [`Drop`] use it.
     // Go: smux@v1.5.55 stream.go:stream.recycleTokens()
     fn recycle_tokens(&self) -> usize {
@@ -462,7 +462,7 @@ impl StreamInner {
     /// Blocks until a read event occurs, the stream ends, or it fails.
     ///
     /// Go's `select` picks at random between the cases that are ready together, so the same
-    /// state can produce `io.EOF` or `io.ErrClosedPipe` from one run to the next — which, with
+    /// state can produce `io.EOF` or `io.ErrClosedPipe` from one run to the next, which, with
     /// deviation V11, would decide at random whether a half-closed stream's data survives.
     /// Everything already true when the wait starts is therefore answered in a fixed order
     /// first: buffered data, then the peer's FIN, then a failed connection, then the close.
@@ -758,7 +758,7 @@ impl StreamInner {
         }
     }
 
-    /// Queues one `cmdPSH` and waits until the send task has written it — the backpressure the
+    /// Queues one `cmdPSH` and waits until the send task has written it: the backpressure the
     /// proxy relies on. `numWritten` grows before the result is inspected, as in Go.
     // Go: smux@v1.5.55 stream.go:writeV1() / writeV2() (the writeFrameInternal call)
     async fn write_frame(
@@ -1036,8 +1036,8 @@ impl Stream {
 /// Go attaches `runtime.SetFinalizer(wrapper, func(s *Stream) { s.Close() })` to accepted
 /// streams (`session.go:AcceptStream`) and leaves opened ones to the application, because a
 /// finalizer that ran while the application still held the stream was a real bug (smux issue
-/// #997). `Drop` has neither problem — it runs exactly when the last handle is gone, and never
-/// while one exists — so both kinds of stream get it.
+/// #997). `Drop` has neither problem: it runs exactly when the last handle is gone, and never
+/// while one exists, so both kinds of stream get it.
 ///
 /// What Go's `Close` does synchronously happens here synchronously: `die` and the write side are
 /// closed, the tokens of unread data go back to the bucket, and the stream leaves the session
@@ -1047,7 +1047,7 @@ impl Stream {
 impl Drop for Stream {
     fn drop(&mut self) {
         if !self.inner.close_die() {
-            // Already closed — by `close`, by the session, or by the half-close cleanup, each
+            // Already closed, by `close`, by the session, or by the half-close cleanup, each
             // of which has sent, or deliberately not sent, its own FIN.
             return;
         }

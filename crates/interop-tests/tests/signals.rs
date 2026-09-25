@@ -2,7 +2,7 @@
 //!
 //! | Test | What it pins |
 //! |---|---|
-//! | `e2e_sigusr1_snmp_line_matches_go` | `SIGUSR1` prints `KCP SNMP:&{…}`, all 30 counters in Go's struct order — byte for byte Go's line |
+//! | `e2e_sigusr1_snmp_line_matches_go` | `SIGUSR1` prints `KCP SNMP:&{…}`, all 30 counters in Go's struct order: byte for byte Go's line |
 //! | `e2e_sigterm_exits_like_go` | `SIGTERM` ends the process **by `SIGTERM`**, with Go's wait status, inside Go's `EXIT_WAIT` |
 //! | `e2e_sigint_exits_like_go` | `SIGINT` does the same, and also leaves a `signal 15` status (Go re-raises `SIGTERM`) |
 //! | `e2e_snmplog_csv_matches_go` | `-snmplog snmp-20060102.log -snmpperiod 1` writes Go's file name, header and rows |
@@ -45,7 +45,7 @@ use kcptun_testkit::servers::{EchoServer, write_prng_stream};
 
 /// `SIGTERM`'s number: the status of a kcptun process that was asked to stop, whichever of
 /// `SIGINT` and `SIGTERM` it was asked with.
-// Go: kcptun/std/signal.go:sigHandler() — syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+// Go: kcptun/std/signal.go:sigHandler(), syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 const SIGTERM: i32 = 15;
 
 /// How long the `-snmplog` runs are left alone; `-snmpperiod 1` gives one row per second, and
@@ -59,7 +59,7 @@ const SNMP_ARGS: [&str; 4] = ["-snmplog", SNMP_LOG_LAYOUT, "-snmpperiod", "1"];
 
 /// Cumulative counters, which can only ever grow. The rest (`CurrEstab`, the `RingBuffer*`
 /// gauges, `FECShardMin`) are levels and may fall.
-// Go: kcp-go/v5@v5.6.66 snmp.go — every one of these is only ever `atomic.AddUint64`ed.
+// Go: kcp-go/v5@v5.6.66 snmp.go, every one of these is only ever `atomic.AddUint64`ed.
 const CUMULATIVE: [&str; 10] = [
     "BytesSent",
     "BytesReceived",
@@ -165,7 +165,7 @@ fn snmp_run(implementation: Impl, side: Side, root: &Path, case: &str) -> (SnmpC
 
 /// `SIGUSR1` prints the whole SNMP snapshot, and prints it exactly as Go does.
 ///
-/// Both processes are idle — the client has dialled nothing, the server has received nothing —
+/// Both processes are idle: the client has dialled nothing, the server has received nothing,
 /// so every counter is zero on both sides and the two lines have to be identical, not merely
 /// alike. That is what makes this a differential rather than a shape check: a renamed, reordered,
 /// missing or extra counter fails here.
@@ -307,7 +307,7 @@ fn exits_like_go(signal: &str) {
 
 /// A client and a server with a live KCP session, an open smux stream and a target connection
 /// still die of `SIGTERM`, in time. (Go's handler cannot be blocked by a busy tunnel; neither
-/// may ours — a shutdown that waits for a task to finish would show up here.)
+/// may ours: a shutdown that waits for a task to finish would show up here.)
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "needs the Rust binaries: cargo build --release -p kcptun-client -p kcptun-server"]
 async fn e2e_sigterm_ends_a_live_tunnel() {
@@ -426,7 +426,7 @@ fn e2e_snmplog_csv_matches_go() {
 /// A second run on the same day appends: Go writes the header only into an empty file, so the
 /// file keeps one header and simply grows. (A re-written header would be a row of names, which
 /// `problems` rejects as non-numeric.)
-// Go: kcptun/std/snmp.go:writeSnmpRecord() — `if stat.Size() == 0 { w.Write(header) }`
+// Go: kcptun/std/snmp.go:writeSnmpRecord(), `if stat.Size() == 0 { w.Write(header) }`
 #[test]
 #[ignore = "needs reference/bin and the Rust binaries (cargo build --release -p kcptun-client -p kcptun-server)"]
 fn e2e_snmplog_appends_without_a_second_header() {

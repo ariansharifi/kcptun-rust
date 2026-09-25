@@ -146,8 +146,8 @@ async fn half_close_case(qpp: bool) {
         .expect("request record");
     assert_eq!(records[0].request_bytes, REQUEST.len() as u64);
 
-    // Wait until the server has finished the stream — it wrote the whole response and sent its own
-    // FIN — while the application has not read a byte. Without this the case would only be testing
+    // Wait until the server has finished the stream: it wrote the whole response and sent its own
+    // FIN, while the application has not read a byte. Without this the case would only be testing
     // a race it usually wins, so this is part of the test, not decoration. It is a bounded poll
     // rather than a fixed sleep: nothing is read from `app` until the line appears, so a slow
     // machine waits longer instead of failing.
@@ -532,7 +532,7 @@ async fn e2e_fifty_long_streams_with_interleaved_traffic() {
 // ---------------------------------------------------------------------------------------
 
 /// The helpers that parse logs and stream endpoints are pure, so they are checked without
-/// spawning anything — this one runs in the normal gate.
+/// spawning anything: this one runs in the normal gate.
 #[test]
 fn log_helpers_read_the_binaries_lines() {
     let log = "\

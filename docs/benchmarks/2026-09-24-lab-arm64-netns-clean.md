@@ -1,20 +1,20 @@
-# Go vs Rust end to end — lab-arm64-netns-clean, 2026-09-24
+# Go vs Rust end to end: lab-arm64-netns-clean, 2026-09-24
 
-The Step 12.1 baseline on the deployment architecture: Go versus Rust end to end on the lab's only aarch64 host (Neoverse-N1, 2 vCPU), both tunnel ends in the `kr-cli`/`kr-srv` namespaces of that host with no impairment. The same grid as the x86_64 baseline, so the two can be read side by side — within each page, never across them. It is the reference the optimisations from 12.2f onwards are measured against, **not** a measurement of the unoptimised port — see the note below on what the binaries already carry.
+The Step 12.1 baseline on the deployment architecture: Go versus Rust end to end on the lab's only aarch64 host (Neoverse-N1, 2 vCPU), both tunnel ends in the `kr-cli`/`kr-srv` namespaces of that host with no impairment. The same grid as the x86_64 baseline, so the two can be read side by side (within each page, never across them. It is the reference the optimisations from 12.2f onwards are measured against, **not** a measurement of the unoptimised port) see the note below on what the binaries already carry.
 
 ## Method
 
 | | |
 |---|---|
 | campaign | `baseline-netns-arm64.json` |
-| client host | `lab-arm64` — Linux 6.17.0-1020-oracle aarch64, 2 vCPU, ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39, 11.6 GiB |
+| client host | `lab-arm64`: Linux 6.17.0-1020-oracle aarch64, 2 vCPU, ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39, 11.6 GiB |
 | arrangement | both tunnel ends in the `kr-cli`/`kr-srv` namespaces of one host, netem profile `clean` |
 | configurations | `s1`, `s2` (s1 = the user's production profile, s2 = kcptun's own defaults) |
 | metric families | `bulk-up`, `bulk-down`, `latency`, `latency-loaded` |
 | repetitions | 5 per pair per cell, A/B interleaved (GG, RR, GR, RG, then again) |
 | workload duration | 20 s |
-| socket-buffer ceilings | `lab-arm64` `net.core.rmem_max` 8,388,608, `wmem_max` 67,108,864 — `setsockopt(SO_RCVBUF)`/`SO_SNDBUF` is silently clamped to these (docs/DECISIONS.md D32). Requested `-sockbuf` → what the kernel grants: `s1` client 8,388,608 → honoured; `s1` server 67,108,868 → **8,388,608**; `s2` client and server 4,194,304* → honoured. An asterisk is kcptun's own default, which a configuration that passes no `-sockbuf` still asks for. **Added by hand in 12.1b, and an inference rather than a record:** this page predates `bench.py` printing the ceiling and the `lab-runs/` directory behind it is no longer on the machine that ran the campaign, so the value is taken from tools/lab/README.md, which records this host as tuned to exactly these limits, and is corroborated by the S1 retransmission rows below (13.2 % for Go, **0.0 % for Rust**), which a clamped receive buffer could not produce. |
-| iperf3 | iperf 3.16 (cJSON 1.7.15) at `/usr/bin/iperf3`, sha256 `626565d9571f0ebb…` — the host's own package, which carries no build stamp of ours |
+| socket-buffer ceilings | `lab-arm64` `net.core.rmem_max` 8,388,608, `wmem_max` 67,108,864: `setsockopt(SO_RCVBUF)`/`SO_SNDBUF` is silently clamped to these (docs/DECISIONS.md D32). Requested `-sockbuf` → what the kernel grants: `s1` client 8,388,608 → honoured; `s1` server 67,108,868 → **8,388,608**; `s2` client and server 4,194,304* → honoured. An asterisk is kcptun's own default, which a configuration that passes no `-sockbuf` still asks for. **Added by hand in 12.1b, and an inference rather than a record:** this page predates `bench.py` printing the ceiling and the `lab-runs/` directory behind it is no longer on the machine that ran the campaign, so the value is taken from tools/lab/README.md, which records this host as tuned to exactly these limits, and is corroborated by the S1 retransmission rows below (13.2 % for Go, **0.0 % for Rust**), which a clamped receive buffer could not produce. |
+| iperf3 | iperf 3.16 (cJSON 1.7.15) at `/usr/bin/iperf3`, sha256 `626565d9571f0ebb…`: the host's own package, which carries no build stamp of ours |
 | started | 2026-09-24T10:22:36Z |
 | finished | 2026-09-24T12:05:33Z |
 | runs harvested | 120 |
@@ -25,20 +25,20 @@ Artefacts: go `75fd8d8d61c0` (none, linux/arm64) on `lab-arm64`; lab tools `75fd
 
 Read before quoting anything here:
 
-* Every cell is a **median over the repetitions of one session**, and the pairs inside a session were interleaved, so the columns share whatever the box was doing. Medians from two different sessions are not comparable — on a shared box, and on a real path, absolutely not.
+* Every cell is a **median over the repetitions of one session**, and the pairs inside a session were interleaved, so the columns share whatever the box was doing. Medians from two different sessions are not comparable, on a shared box, and on a real path, absolutely not.
 * `RR/GG` is annotated ✓ when Rust is on the better side of Go for **that** row's direction (high is better for goodput and stream counts, low for CPU, memory, latency and retransmissions).
 * A `·` cell is one that is deliberately not measured: step 12.1 gives the cross pairs (GR, RG) throughput only, because a CPU or RSS row for a mixed pair describes two different implementations at once.
-* A `—` cell is **not measured**, never measured-as-zero. An `n/a` ratio is one the two cells beside it cannot support: either Go's median is zero, so the ratio is undefined rather than infinite, or both medians are segment counts below 100 over the whole run, where a ratio would be a verdict on noise. A number in parentheses after a cell is the number of runs behind it when that is fewer than the 5 the plan requires.
+* A `-` cell is **not measured**, never measured-as-zero. An `n/a` ratio is one the two cells beside it cannot support: either Go's median is zero, so the ratio is undefined rather than infinite, or both medians are segment counts below 100 over the whole run, where a ratio would be a verdict on noise. A number in parentheses after a cell is the number of runs behind it when that is fewer than the 5 the plan requires.
 * CPU per GB divides the process's own `utime + stime` by the bytes the *workload* moved, not by the bytes that went over the wire: charging an implementation only for the goodput it delivered is what makes FEC and retransmission show up as cost rather than as credit.
 * `RetransSegs` **decomposes**: one `flush` adds `LostSegs + FastRetransSegs + EarlyRetransSegs` into it, so all three components are printed beneath it and a `RetransSegs` row with an unexplained remainder means a counter is missing from this page rather than that some retransmission is unattributable. The three are medians of their own five runs, so they sum to the `RetransSegs` median only to within the run-to-run spread, not exactly; the per-run rows in the CSV do sum exactly.
-* **Socket-buffer ceiling (added in Sub-step 12.1b).** `lab-arm64` is recorded in tools/lab/README.md as tuned to `net.core.rmem_max=8388608` / `wmem_max=67108864`, which is the ceiling docs/DECISIONS.md D32 measured zero `UdpRcvbufErrors` at, so the S1 rows on this page are **not** withdrawn the way the x86_64 page's are. The limits were not printed by the harness when this page was generated — they are now — and the runs it was built from are no longer on disk, so the ceiling here is an inference from the host record and from this page's own S1 retransmission rows (13.2 % for Go, 0.0 % for Rust, which a receive buffer that was overflowing could not produce), not something these runs recorded. `s1`'s server asks for 67,108,868 B and is granted 8,388,608 even at this ceiling; that clamp is a stated condition of the numbers, not a defect.
-* The host has **two** vCPUs and carries both tunnel ends, the workload and the echo target, plus the host's own live kcptun deployment (27 clients, 3 servers), which was left running throughout. They are idle in the sense that matters here — the load average was 0.05 before the campaign — but they are not absent, and every run shares the box with them. The namespace lab is loopback-bound inside `kr-cli`/`kr-srv`, so nothing here touches the host's NIC.
+* **Socket-buffer ceiling (added in Sub-step 12.1b).** `lab-arm64` is recorded in tools/lab/README.md as tuned to `net.core.rmem_max=8388608` / `wmem_max=67108864`, which is the ceiling docs/DECISIONS.md D32 measured zero `UdpRcvbufErrors` at, so the S1 rows on this page are **not** withdrawn the way the x86_64 page's are. The limits were not printed by the harness when this page was generated (they are now) and the runs it was built from are no longer on disk, so the ceiling here is an inference from the host record and from this page's own S1 retransmission rows (13.2 % for Go, 0.0 % for Rust, which a receive buffer that was overflowing could not produce), not something these runs recorded. `s1`'s server asks for 67,108,868 B and is granted 8,388,608 even at this ceiling; that clamp is a stated condition of the numbers, not a defect.
+* The host has **two** vCPUs and carries both tunnel ends, the workload and the echo target, plus the host's own live kcptun deployment (27 clients, 3 servers), which was left running throughout. They are idle in the sense that matters here (the load average was 0.05 before the campaign) but they are not absent, and every run shares the box with them. The namespace lab is loopback-bound inside `kr-cli`/`kr-srv`, so nothing here touches the host's NIC.
 * iperf3 is the host's own distribution package and its version is recorded nowhere but this page (a step 12.0 note), so absolute iperf3 throughput is version-unattributed and is **not** comparable with the x86_64 page, which used a different iperf3. Both arms of a cell used the same one, so the ratios are safe.
-* The build stamps read `75fd8d8-dirty`, and the page flags that above. What differed from `75fd8d8` was **only untracked files** — `tools/bench/bench.py`, its tests, its campaigns and `tools/pingpong/tests/bench_py.rs`, i.e. this harness itself, which the campaign was written with. No tracked file under `crates/` was modified, so the `kr-client`, `kr-server`, `kr-pingpong` and `kr-labsample` binaries are what `75fd8d8` builds. Stated here rather than left to the flag, because the flag cannot know that.
-* **What these binaries already contain, and what this page is therefore a baseline *for*.** They are built from `75fd8d8`, which is not the naive port. It already carries `[12.2a]` (Deviation V18, tx-channel backpressure), `[12.2b]` (the AES-GCM backend comparison — no code change, RustCrypto stayed), `[12.2c]` (D29, `flush` skips the already-scanned part of `snd_buf`), `[12.2d]` (D31, ACK addressed by sequence number), `[12.2e]` (the aarch64 numbers for those two) and `[12.3a]`–`[12.3f]` (glibc as the Linux release default per D07, `crates/kcp/src/memory.rs` giving memory back after a burst, the contiguous receive batch). So this is the reference for **12.2f onwards** and for 12.5, and it is **not** a measurement of the unoptimised port. Differencing it against the naive-port figures in [`kcp.md`](kcp.md) § 03.6 would credit work already done here to work not yet done, which is the error `kcp.md` § 12.1 was written to stop.
-* **What this grid does not cover.** `tools/bench/bench.py metrics` defines seven metric families and `lab.py` four configurations; this campaign runs four families (`bulk-up`, `bulk-down`, `latency`, `latency-loaded`) at two configurations (`s1`, `s2`). Not taken here: `bulk-par-up`/`bulk-par-down` (iperf3 `-P 8`, the second half of step 12's Goodput row), `churn` (its Scale row), and configurations `s3` and `s4`. step 12's Idle-cost and Startup rows and its S5 (QPP) have no harness family or `lab.py` configuration at all yet. The harness would run the first three unchanged — they are omitted for machine time, not because they do not work — so an absent family on this page means it was **not run**, and 12.5 must not present this page as the full grid.
+* The build stamps read `75fd8d8-dirty`, and the page flags that above. What differed from `75fd8d8` was **only untracked files**: `tools/bench/bench.py`, its tests, its campaigns and `tools/pingpong/tests/bench_py.rs`, i.e. this harness itself, which the campaign was written with. No tracked file under `crates/` was modified, so the `kr-client`, `kr-server`, `kr-pingpong` and `kr-labsample` binaries are what `75fd8d8` builds. Stated here rather than left to the flag, because the flag cannot know that.
+* **What these binaries already contain, and what this page is therefore a baseline *for*.** They are built from `75fd8d8`, which is not the naive port. It already carries `[12.2a]` (Deviation V18, tx-channel backpressure), `[12.2b]` (the AES-GCM backend comparison, no code change, RustCrypto stayed), `[12.2c]` (D29, `flush` skips the already-scanned part of `snd_buf`), `[12.2d]` (D31, ACK addressed by sequence number), `[12.2e]` (the aarch64 numbers for those two) and `[12.3a]`–`[12.3f]` (glibc as the Linux release default per D07, `crates/kcp/src/memory.rs` giving memory back after a burst, the contiguous receive batch). So this is the reference for **12.2f onwards** and for 12.5, and it is **not** a measurement of the unoptimised port. Differencing it against the naive-port figures in [`kcp.md`](kcp.md) § 03.6 would credit work already done here to work not yet done, which is the error `kcp.md` § 12.1 was written to stop.
+* **What this grid does not cover.** `tools/bench/bench.py metrics` defines seven metric families and `lab.py` four configurations; this campaign runs four families (`bulk-up`, `bulk-down`, `latency`, `latency-loaded`) at two configurations (`s1`, `s2`). Not taken here: `bulk-par-up`/`bulk-par-down` (iperf3 `-P 8`, the second half of step 12's Goodput row), `churn` (its Scale row), and configurations `s3` and `s4`. step 12's Idle-cost and Startup rows and its S5 (QPP) have no harness family or `lab.py` configuration at all yet. The harness would run the first three unchanged (they are omitted for machine time, not because they do not work) so an absent family on this page means it was **not run**, and 12.5 must not present this page as the full grid.
 
-## Configuration `s1` — the user's production profile
+## Configuration `s1`: the user's production profile
 
 ```
 both   -mode normal -crypt xor -mtu 1390 -sndwnd 8192 -rcvwnd 8192 -smuxver 2 -smuxbuf 16777216 -streambuf 16777216 -datashard 0 -parityshard 0 -nocomp -quiet
@@ -46,7 +46,7 @@ client -conn 4 -sockbuf 8388608
 server -sockbuf 67108868
 ```
 
-### `bulk-up` — one TCP stream through the tunnel, client to server (iperf3, forward)
+### `bulk-up`: one TCP stream through the tunnel, client to server (iperf3, forward)
 
 | measurement | unit | GG | RR | GR | RG | RR/GG |
 |---|---:|---:|---:|---:|---:|---:|
@@ -74,7 +74,7 @@ server -sockbuf 67108868
 | RepeatSegs received by the client | segments | 1 | 0 | · | · | n/a |
 | RepeatSegs received by the server | segments | 12,640 | 0 | · | · | 0.00x ✓ |
 
-The spread behind those medians — every run of *goodput* (Mbit/s), in the order it ran:
+The spread behind those medians: every run of *goodput* (Mbit/s), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -89,7 +89,7 @@ Produced by:
 tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-baseline-arm64 run lab-runs/20260924T102236Z-bench-baseline-arm64/scenarios/baseline-arm64-s1-bulk-up.json --no-report --wait-load 600
 ```
 
-### `bulk-down` — one TCP stream through the tunnel, server to client (iperf3 -R)
+### `bulk-down`: one TCP stream through the tunnel, server to client (iperf3 -R)
 
 | measurement | unit | GG | RR | GR | RG | RR/GG |
 |---|---:|---:|---:|---:|---:|---:|
@@ -117,7 +117,7 @@ tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-bas
 | RepeatSegs received by the client | segments | 14,936 | 0 | · | · | 0.00x ✓ |
 | RepeatSegs received by the server | segments | 3 | 0 | · | · | n/a |
 
-The spread behind those medians — every run of *goodput* (Mbit/s), in the order it ran:
+The spread behind those medians: every run of *goodput* (Mbit/s), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -132,7 +132,7 @@ Produced by:
 tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-baseline-arm64 run lab-runs/20260924T102236Z-bench-baseline-arm64/scenarios/baseline-arm64-s1-bulk-down.json --no-report --wait-load 600
 ```
 
-### `latency` — 64-byte ping/pong through an otherwise idle tunnel
+### `latency`: 64-byte ping/pong through an otherwise idle tunnel
 
 | measurement | unit | GG | RR | RR/GG |
 |---|---:|---:|---:|---:|
@@ -148,7 +148,7 @@ tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-bas
 | peak VmHWM, client | kB | 27,104 | 4,664 | 0.17x ✓ |
 | peak VmHWM, server | kB | 27,204 | 4,584 | 0.17x ✓ |
 
-The spread behind those medians — every run of *latency p50* (ms), in the order it ran:
+The spread behind those medians: every run of *latency p50* (ms), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -161,7 +161,7 @@ Produced by:
 tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-baseline-arm64 run lab-runs/20260924T102236Z-bench-baseline-arm64/scenarios/baseline-arm64-s1-latency.json --no-report --wait-load 600
 ```
 
-### `latency-loaded` — the same ping/pong while a bulk flow saturates the same tunnel
+### `latency-loaded`: the same ping/pong while a bulk flow saturates the same tunnel
 
 | measurement | unit | GG | RR | RR/GG |
 |---|---:|---:|---:|---:|
@@ -193,7 +193,7 @@ tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-bas
 | RepeatSegs received by the client | segments | 0 | 0 | n/a |
 | RepeatSegs received by the server | segments | 2,234 | 0 | 0.00x ✓ |
 
-The spread behind those medians — every run of *latency p50* (ms), in the order it ran:
+The spread behind those medians: every run of *latency p50* (ms), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -206,14 +206,14 @@ Produced by:
 tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-baseline-arm64 run lab-runs/20260924T102236Z-bench-baseline-arm64/scenarios/baseline-arm64-s1-latency-loaded.json --no-report --wait-load 600
 ```
 
-## Configuration `s2` — kcptun's own defaults
+## Configuration `s2`: kcptun's own defaults
 
 ```
 both   -mode fast -crypt aes -mtu 1350 -sndwnd 128 -rcvwnd 512 -smuxver 2 -smuxbuf 4194304 -streambuf 2097152 -datashard 10 -parityshard 3
 client -conn 1
 ```
 
-### `bulk-up` — one TCP stream through the tunnel, client to server (iperf3, forward)
+### `bulk-up`: one TCP stream through the tunnel, client to server (iperf3, forward)
 
 | measurement | unit | GG | RR | GR | RG | RR/GG |
 |---|---:|---:|---:|---:|---:|---:|
@@ -241,7 +241,7 @@ client -conn 1
 | RepeatSegs received by the client | segments | 0 | 0 | · | · | n/a |
 | RepeatSegs received by the server | segments | 0 | 0 | · | · | n/a |
 
-The spread behind those medians — every run of *goodput* (Mbit/s), in the order it ran:
+The spread behind those medians: every run of *goodput* (Mbit/s), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -256,7 +256,7 @@ Produced by:
 tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-baseline-arm64 run lab-runs/20260924T102236Z-bench-baseline-arm64/scenarios/baseline-arm64-s2-bulk-up.json --no-report --wait-load 600
 ```
 
-### `bulk-down` — one TCP stream through the tunnel, server to client (iperf3 -R)
+### `bulk-down`: one TCP stream through the tunnel, server to client (iperf3 -R)
 
 | measurement | unit | GG | RR | GR | RG | RR/GG |
 |---|---:|---:|---:|---:|---:|---:|
@@ -284,7 +284,7 @@ tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-bas
 | RepeatSegs received by the client | segments | 0 | 0 | · | · | n/a |
 | RepeatSegs received by the server | segments | 0 | 0 | · | · | n/a |
 
-The spread behind those medians — every run of *goodput* (Mbit/s), in the order it ran:
+The spread behind those medians: every run of *goodput* (Mbit/s), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -299,7 +299,7 @@ Produced by:
 tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-baseline-arm64 run lab-runs/20260924T102236Z-bench-baseline-arm64/scenarios/baseline-arm64-s2-bulk-down.json --no-report --wait-load 600
 ```
 
-### `latency` — 64-byte ping/pong through an otherwise idle tunnel
+### `latency`: 64-byte ping/pong through an otherwise idle tunnel
 
 | measurement | unit | GG | RR | RR/GG |
 |---|---:|---:|---:|---:|
@@ -315,7 +315,7 @@ tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-bas
 | peak VmHWM, client | kB | 28,476 | 5,000 | 0.18x ✓ |
 | peak VmHWM, server | kB | 28,476 | 4,728 | 0.17x ✓ |
 
-The spread behind those medians — every run of *latency p50* (ms), in the order it ran:
+The spread behind those medians: every run of *latency p50* (ms), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -328,7 +328,7 @@ Produced by:
 tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-baseline-arm64 run lab-runs/20260924T102236Z-bench-baseline-arm64/scenarios/baseline-arm64-s2-latency.json --no-report --wait-load 600
 ```
 
-### `latency-loaded` — the same ping/pong while a bulk flow saturates the same tunnel
+### `latency-loaded`: the same ping/pong while a bulk flow saturates the same tunnel
 
 | measurement | unit | GG | RR | RR/GG |
 |---|---:|---:|---:|---:|
@@ -360,7 +360,7 @@ tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-bas
 | RepeatSegs received by the client | segments | 0 | 0 | n/a |
 | RepeatSegs received by the server | segments | 0 | 0 | n/a |
 
-The spread behind those medians — every run of *latency p50* (ms), in the order it ran:
+The spread behind those medians: every run of *latency p50* (ms), in the order it ran:
 
 | pair | runs | min | median | max | every run |
 |---|---:|---:|---:|---:|---|
@@ -377,21 +377,21 @@ tools/lab/lab.py --host lab-arm64 --runs-dir lab-runs/20260924T102236Z-bench-bas
 
 **This is the deployment architecture, and it is the port's best page so far.** Rust's goodput is 1.74-2.34x Go's, its CPU per GB for both ends together 0.44-0.55x (0.36-0.56x per end), its steady RSS 0.17-0.50x and its idle p50 latency 0.54-0.68x, in both profiles and both directions. step 12's Definition of Done asks for CPU/GB <= Go with a 25% target at S1, goodput >= 0.98x Go and p99 <= Go: S1 comes in at **0.54x CPU per GB** (a 46% reduction, not 25%), **1.74-1.79x goodput** and **0.50-0.73x p99**.
 
-**Two vCPUs change the retransmission picture, but the 1-vCPU comparison this observation was written against has since been withdrawn.** Here the S1 retransmitted share of `OutSegs` is **13.2% for Go and 0.0% for Rust** uploading, **11.8% and 0.0%** downloading. The x86_64 figures originally quoted beside them (36.5% Go, 34.2% Rust) came from a campaign run at that host's *stock* `net.core.rmem_max`, which docs/DECISIONS.md D32 rules invalid; re-taken at a raised ceiling ([the current x86_64 S1 grid](2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md), 12.1b) the same cells read **1.5% for Go and 0.0% for Rust** uploading, 1.7% and 0.0% downloading. So the second core is not what stops the retransmission — a receive buffer that can hold the window is — and the part of this observation that survives is the part about which implementation stops first: **Rust retransmits nothing at S1 on either host**, while Go retransmits on both. It is what happens when the receiving end cannot drain its socket fast enough, and the cheaper implementation stops doing it first. The 11.4 soak's 28.4% (Rust, this host, but the `wan50` netem profile) should be re-read in that light, and **nothing about the RTO or the fast-retransmit threshold should be tuned on the strength of a retransmission count taken on a saturated box.**
+**Two vCPUs change the retransmission picture, but the 1-vCPU comparison this observation was written against has since been withdrawn.** Here the S1 retransmitted share of `OutSegs` is **13.2% for Go and 0.0% for Rust** uploading, **11.8% and 0.0%** downloading. The x86_64 figures originally quoted beside them (36.5% Go, 34.2% Rust) came from a campaign run at that host's *stock* `net.core.rmem_max`, which docs/DECISIONS.md D32 rules invalid; re-taken at a raised ceiling ([the current x86_64 S1 grid](2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md), 12.1b) the same cells read **1.5% for Go and 0.0% for Rust** uploading, 1.7% and 0.0% downloading. So the second core is not what stops the retransmission (a receive buffer that can hold the window is) and the part of this observation that survives is the part about which implementation stops first: **Rust retransmits nothing at S1 on either host**, while Go retransmits on both. It is what happens when the receiving end cannot drain its socket fast enough, and the cheaper implementation stops doing it first. The 11.4 soak's 28.4% (Rust, this host, but the `wan50` netem profile) should be re-read in that light, and **nothing about the RTO or the fast-retransmit threshold should be tuned on the strength of a retransmission count taken on a saturated box.**
 
-**The cross pairs agree with that reading and are worth reading as a CPU budget.** At S1 both mixed pairs land between the two like-for-like ones — GR 765 and RG 733 Mbit/s against GG 587 and RR 1022 — and their CPU per GB does too (16.8 and 17.7 against 23.7 and 12.9). On this box, unlike the 1-vCPU one, there is no pair that beats RR in either direction: replacing either end with the Go binary costs roughly half the improvement, which is what you would expect if the win is spread evenly across the send and receive paths rather than concentrated in one of them.
+**The cross pairs agree with that reading and are worth reading as a CPU budget.** At S1 both mixed pairs land between the two like-for-like ones (GR 765 and RG 733 Mbit/s against GG 587 and RR 1022) and their CPU per GB does too (16.8 and 17.7 against 23.7 and 12.9). On this box, unlike the 1-vCPU one, there is no pair that beats RR in either direction: replacing either end with the Go binary costs roughly half the improvement, which is what you would expect if the win is spread evenly across the send and receive paths rather than concentrated in one of them.
 
-**The one row where Rust is behind, stated plainly.** At S1 under a competing bulk flow the port's p50 latency is 0.63 ms against Go's 0.54 (and p90 2.81 against 2.68) — the only two cells in the whole grid with a cross against them. In the same runs Rust is moving **1,084 Mbit/s against Go's 621**, so the tunnel it is measuring the latency through is carrying 1.75x the traffic; a queue that is 75% busier is not the same queue. It is still a real row and it is still Rust's loss: p99 in the same cell is 7.45 ms against 14.84, so the tail is better while the median is worse, which is the signature of a fuller pipe rather than a slower one. Worth a bounded-rate re-run in 12.2 before anything is concluded from it.
+**The one row where Rust is behind, stated plainly.** At S1 under a competing bulk flow the port's p50 latency is 0.63 ms against Go's 0.54 (and p90 2.81 against 2.68): the only two cells in the whole grid with a cross against them. In the same runs Rust is moving **1,084 Mbit/s against Go's 621**, so the tunnel it is measuring the latency through is carrying 1.75x the traffic; a queue that is 75% busier is not the same queue. It is still a real row and it is still Rust's loss: p99 in the same cell is 7.45 ms against 14.84, so the tail is better while the median is worse, which is the signature of a fuller pipe rather than a slower one. Worth a bounded-rate re-run in 12.2 before anything is concluded from it.
 
 **Memory: the same rout, with one caveat about what these numbers are.** Steady RSS under load is 5.6-28.7 MB for Rust against 29.6-58.0 MB for Go, and in the idle-ish `latency` cells 4.6-5.0 MB against 27.1-28.5. These are processes that have just moved gigabytes, not idle ones; `docs/benchmarks/memory.md` owns the idle floor and owns the one measurement the port loses, which is how much of a burst is given back afterwards. Nothing on this page measures release.
 
-**What this page may not be compared with.** Its absolute Mbit/s are ~3-5x the x86_64 page's, and almost none of that is the architecture: this box has two cores to that one's one, a different iperf3 (3.16 against 3.9) and a different kernel. Only the Go-versus-Rust columns *inside* one cell of one page mean anything. What the two pages may legitimately be read together for is the *shape* of a difference — the retransmission observation above is exactly that, and it needed both.
+**What this page may not be compared with.** Its absolute Mbit/s are ~3-5x the x86_64 page's, and almost none of that is the architecture: this box has two cores to that one's one, a different iperf3 (3.16 against 3.9) and a different kernel. Only the Go-versus-Rust columns *inside* one cell of one page mean anything. What the two pages may legitimately be read together for is the *shape* of a difference, the retransmission observation above is exactly that, and it needed both.
 
 ## Raw data
 
-Every number above is a median of the rows in [`2026-09-24-lab-arm64-netns-clean.csv`](2026-09-24-lab-arm64-netns-clean.csv) — one row per configuration, metric, pair, repetition and measurement. The run directories the CSV names are under `lab-runs/` (gitignored) on the machine that ran the campaign, one `state.json`, `proc.csv`, `snmp-*.csv` and workload log per run.
+Every number above is a median of the rows in [`2026-09-24-lab-arm64-netns-clean.csv`](2026-09-24-lab-arm64-netns-clean.csv): one row per configuration, metric, pair, repetition and measurement. The run directories the CSV names are under `lab-runs/` (gitignored) on the machine that ran the campaign, one `state.json`, `proc.csv`, `snmp-*.csv` and workload log per run.
 
-The CSV is the **complete** record and is wider than the tables: it carries the cross pairs' CPU and memory rows, which the tables deliberately do not show (see the `·` note above). They are data, not a comparison — a GR row's CPU is a Go client's and a Rust server's added together — so anything read out of them is a lead to be confirmed, never a result.
+The CSV is the **complete** record and is wider than the tables: it carries the cross pairs' CPU and memory rows, which the tables deliberately do not show (see the `·` note above). They are data, not a comparison (a GR row's CPU is a Go client's and a Rust server's added together) so anything read out of them is a lead to be confirmed, never a result.
 
 Regenerate the page and the CSV from those directories without re-running anything:
 

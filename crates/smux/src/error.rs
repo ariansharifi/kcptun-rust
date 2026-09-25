@@ -113,7 +113,7 @@ impl From<Error> for io::Error {
     /// binaries' `pipe:` line renders the `io::Error` a stream read or write failed with, and
     /// `kcptun_kcp::goerrno::go_error_text` can only consult Go's table for an error that still
     /// knows its errno. `io::Error::from_raw_os_error` reproduces the kind and the `Display` of
-    /// the error it rebuilds, so nothing else about the conversion changes — and nothing in the
+    /// the error it rebuilds, so nothing else about the conversion changes, and nothing in the
     /// tree downcasts an `io::Error` back to an [`Error`].
     fn from(e: Error) -> io::Error {
         match e {
@@ -192,7 +192,7 @@ mod tests {
     fn io_error_conversion_keeps_the_errno() {
         // DECISIONS D30: `goerrno::go_error_text` reaches Go's table only through
         // `raw_os_error()`, so the errno of a socket failure has to survive the trip through the
-        // `AsyncRead`/`AsyncWrite` adapters — that is what the binaries' `pipe:` line renders.
+        // `AsyncRead`/`AsyncWrite` adapters: that is what the binaries' `pipe:` line renders.
         // `EINVAL` is 22 on every platform this targets, spelled out so smux keeps no `libc`
         // dependency for one constant.
         let errno = 22;

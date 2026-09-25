@@ -48,7 +48,7 @@ enum Fault {
     Write(io::ErrorKind),
     /// Every write accepts nothing, which no `io.Writer` may do.
     WriteZero,
-    /// Writes succeed but the flush fails — a buffering destination losing the tail, which is why
+    /// Writes succeed but the flush fails: a buffering destination losing the tail, which is why
     /// the `Flushing` phase exists at all (Step 09's smux stream and QPP wrapper).
     Flush(io::ErrorKind),
 }
@@ -289,7 +289,7 @@ async fn test_pipe_half_close_keeps_the_reverse_direction_open() {
     assert!(bob_cw.at <= alice_cw.at, "bob's direction ended first");
 }
 
-/// The same sequence over real TCP sockets, driven through [`pipe`] itself — the public entry
+/// The same sequence over real TCP sockets, driven through [`pipe`] itself: the public entry
 /// point, and the only test that uses the process-wide buffer pool rather than a per-test one.
 #[tokio::test]
 async fn test_pipe_uses_the_process_wide_pool() {
@@ -329,11 +329,11 @@ async fn test_pipe_uses_the_process_wide_pool() {
     err_b.unwrap();
 }
 
-/// The same sequence over the socket types this module implements [`HalfCloseWrite`] for — a TCP
+/// The same sequence over the socket types this module implements [`HalfCloseWrite`] for: a TCP
 /// end and a unix-socket end at once, which is what the client does with `-l /path/to.sock`.
 ///
 /// Unix only, because the unix half of it is: [`HalfCloseWrite`] is implemented for
-/// `tokio::net::UnixStream` under `#[cfg(unix)]` (deviation V09 — tokio has no `UnixStream` on
+/// `tokio::net::UnixStream` under `#[cfg(unix)]` (deviation V09: tokio has no `UnixStream` on
 /// Windows), and `-l`/`-t` reject a unix path there for the same reason.
 #[cfg(unix)]
 #[tokio::test]

@@ -5,10 +5,10 @@
 //! a packet of length `L` is `nonce(12) | AES-128-GCM(plaintext) | tag(16)`, there is no
 //! additional data, and both directions work in place.
 //!
-//! - [`RustCryptoGcm`]  — `aes-gcm` 0.11, what the port ships today (DECISIONS D13).
-//! - [`RingGcm`]        — `ring` 0.17, BoringSSL assembly.
-//! - [`AwsLcGcm`]       — `aws-lc-rs` 1.18, AWS-LC (BoringSSL fork) assembly.
-//! - [`FusedGcm`]       — our own single-pass AES-CTR + GHASH over the RustCrypto primitives.
+//! - [`RustCryptoGcm`] : `aes-gcm` 0.11, what the port ships today (DECISIONS D13).
+//! - [`RingGcm`]       : `ring` 0.17, BoringSSL assembly.
+//! - [`AwsLcGcm`]      : `aws-lc-rs` 1.18, AWS-LC (BoringSSL fork) assembly.
+//! - [`FusedGcm`]      : our own single-pass AES-CTR + GHASH over the RustCrypto primitives.
 //!
 //! AES-GCM is fully specified, so a correct backend is a byte-for-byte replacement: the tests
 //! below check all four against each other over a length sweep and against the published
@@ -42,7 +42,7 @@ pub trait PacketAead {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 1. RustCrypto `aes-gcm` 0.11 — the implementation the port ships (crates/kcp/src/crypt/aead.rs).
+// 1. RustCrypto `aes-gcm` 0.11: the implementation the port ships (crates/kcp/src/crypt/aead.rs).
 // ---------------------------------------------------------------------------------------------
 
 /// `aes-gcm` 0.11: AES-CTR over the whole packet, then GHASH over the whole packet.
@@ -77,7 +77,7 @@ impl PacketAead for RustCryptoGcm {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 2. ring 0.17 — BoringSSL's `aes_gcm_{enc,dec}_kernel` assembly.
+// 2. ring 0.17: BoringSSL's `aes_gcm_{enc,dec}_kernel` assembly.
 // ---------------------------------------------------------------------------------------------
 
 /// `ring` 0.17. `LessSafeKey` is the right primitive here: kcptun derives the nonce itself
@@ -113,7 +113,7 @@ impl PacketAead for RingGcm {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 3. aws-lc-rs 1.18 — AWS-LC assembly, the ring-compatible API.
+// 3. aws-lc-rs 1.18: AWS-LC assembly, the ring-compatible API.
 // ---------------------------------------------------------------------------------------------
 
 /// `aws-lc-rs` 1.18. Note it has no AES-192-GCM, which `AeadCrypt` accepts (Go's
@@ -176,7 +176,7 @@ const LANES: usize = 8;
 /// first and only then applies the keystream, so `open_in_place` leaves the packet untouched on
 /// failure. (`ring` and `aws-lc-rs` document the same overwrite-on-failure behaviour as this
 /// backend for their `open_in_place`.) A caller must therefore discard the buffer whenever `open`
-/// fails — kcptun's receive path does, because it drops the packet — but adopting a fused kernel
+/// fails (kcptun's receive path does, because it drops the packet) but adopting a fused kernel
 /// for the product would have to accept that property deliberately rather than inherit it.
 pub struct FusedGcm {
     aes: Aes128,
@@ -534,7 +534,7 @@ mod tests {
     }
 
     /// McGrew & Viega, "The Galois/Counter Mode of Operation", test case 3 (AES-128, 96-bit IV,
-    /// no AAD) — the same vector `crates/kcp/src/crypt/aead.rs` checks.
+    /// no AAD): the same vector `crates/kcp/src/crypt/aead.rs` checks.
     #[test]
     fn gcm_spec_known_answer() {
         let key = hex::decode("feffe9928665731c6d6a8f9467308308").expect("hex");

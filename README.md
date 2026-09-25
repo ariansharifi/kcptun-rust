@@ -1,10 +1,10 @@
 # kcptun-rust
 
-A Rust port of [kcptun](https://github.com/xtaci/kcptun) — a tunnel that carries TCP connections
+A Rust port of [kcptun](https://github.com/xtaci/kcptun): a tunnel that carries TCP connections
 over reliable UDP, with multiplexing, forward error correction, encryption and compression.
 
 **It is a drop-in replacement for the Go binaries.** Same wire protocol, same flags, same JSON
-config keys, same log lines — so a Rust client talks to a Go server, a Go client talks to a Rust
+config keys, same log lines, so a Rust client talks to a Go server, a Go client talks to a Rust
 server, and you can swap one side, both, or neither.
 
 ```
@@ -22,11 +22,11 @@ The image is **[`ariyansharifi/kcptun-rust`](https://hub.docker.com/r/ariyanshar
 (`latest`, plus a tag per release; `linux/amd64` and `linux/arm64`).
 
 ```sh
-# server — publishes the service at 127.0.0.1:9000 to the tunnel
+# server: publishes the service at 127.0.0.1:9000 to the tunnel
 docker run -d -p 29900:29900/udp ariyansharifi/kcptun-rust \
     /bin/server -t "127.0.0.1:9000" -l ":29900" -mode fast3 -key "YOUR_KEY"
 
-# client — applications now connect to 127.0.0.1:9000 and come out at the target
+# client: applications now connect to 127.0.0.1:9000 and come out at the target
 docker run -d -p 9000:9000 ariyansharifi/kcptun-rust \
     /bin/client -r "SERVER_IP:29900" -l ":9000" -mode fast3 -key "YOUR_KEY"
 ```
@@ -39,20 +39,20 @@ Download from [Releases](https://github.com/ariansharifi/kcptun-rust/releases), 
 cargo build --release -p kcptun-client -p kcptun-server
 ```
 
-**Set `-key` on both ends** — the default secret is upstream's and is public. `-key`, `-crypt`,
+**Set `-key` on both ends**: the default secret is upstream's and is public. `-key`, `-crypt`,
 `-nocomp`, `-smuxver`, `-QPP` and `-QPPCount` must be identical on both sides.
 
 **Raise `net.core.rmem_max` before anything serious.** `setsockopt(SO_RCVBUF)` is silently clamped
 to it, and the stock value costs both this port and Go roughly half their throughput.
-[`dist/linux/sysctl_linux`](dist/linux/sysctl_linux) is the drop-in. (Open-file limits need nothing
-— the binaries raise their own, as the Go ones do.)
+[`dist/linux/sysctl_linux`](dist/linux/sysctl_linux) is the drop-in. (Open-file limits need nothing,
+the binaries raise their own, as the Go ones do.)
 
 → [Docker in detail](docs/docker.md) · [all flags](docs/flags.md) · [tuning](docs/tuning.md) ·
 [troubleshooting](docs/troubleshooting.md) · [service files and examples](dist/README.md)
 
 ## Compatible with Go kcptun
 
-Built against kcptun `39935d5` (kcp-go v5.6.66, smux v1.5.55) — the last full-code version, since
+Built against kcptun `39935d5` (kcp-go v5.6.66, smux v1.5.55): the last full-code version, since
 upstream is archived. Compatibility is tested, not asserted: **128/128 interop runs green** in all
 four Go/Rust pairings on two platforms, plus golden vectors generated from the Go code for every
 byte-level layer.
@@ -78,7 +78,7 @@ supported**. → [What is finished, and what is not](docs/status.md)
 | [Compatibility](docs/compatibility.md) | The pinned Go reference and how it is verified |
 | [Differences from Go](docs/differences.md) | All 23, with what Go does and why this differs |
 | [Status](docs/status.md) | What is finished and what is not |
-| [Performance report](docs/benchmarks/REPORT.md) | Go vs Rust, end to end — with every gap stated |
+| [Performance report](docs/benchmarks/REPORT.md) | Go vs Rust, end to end, with every gap stated |
 | [Interop matrix](docs/interop-matrix.md) | Go ↔ Rust results per platform |
 | [Packaging](dist/README.md) | systemd units, sysctl drop-ins, example configurations |
 | [Changelog](CHANGELOG.md) | What has changed |
@@ -86,11 +86,11 @@ supported**. → [What is finished, and what is not](docs/status.md)
 
 ## Licence
 
-**MIT, except [`crates/qpp`](crates/qpp/LICENSE), which is GPL-3.0** — it is a port of
+**MIT, except [`crates/qpp`](crates/qpp/LICENSE), which is GPL-3.0**: it is a port of
 [xtaci/qpp](https://github.com/xtaci/qpp) and inherits its licence.
 
 The `qpp` feature is **on by default**, for parity with the Go binaries, so a default build is a
-combined work and may only be distributed under the **GPL-3.0** — exactly the position Go kcptun is
+combined work and may only be distributed under the **GPL-3.0**, exactly the position Go kcptun is
 in, since it links the same library. `cargo build --no-default-features` gives an **MIT-only**
 binary; everything works except `-QPP`.
 

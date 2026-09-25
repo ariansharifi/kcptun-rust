@@ -12,7 +12,7 @@
 //! | [`children_cpu`] | `RUSAGE_CHILDREN` | every child that has been **waited for** |
 //!
 //! `RUSAGE_CHILDREN` is a running total over reaped children only, so a harness that spawns a
-//! peer must reap it (`Proc::kill`, or a `wait` that saw it exit — [`proc`](crate::proc) does
+//! peer must reap it (`Proc::kill`, or a `wait` that saw it exit: [`proc`](crate::proc) does
 //! both) before reading the counter, and must not let unrelated children be reaped in between.
 //! Take a reading before and after the measured work and subtract:
 //!

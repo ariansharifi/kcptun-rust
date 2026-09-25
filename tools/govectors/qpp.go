@@ -1,6 +1,6 @@
 package main
 
-// Area "qpp" (plan step 07.2): the Quantum Permutation Pad of xtaci/qpp v1.1.25 — the sizes it
+// Area "qpp" (plan step 07.2): the Quantum Permutation Pad of xtaci/qpp v1.1.25, the sizes it
 // derives from the number of qubits, the seed chunks and permutation matrices a seed produces,
 // the state of a freshly created PRNG, and the ciphertext of a 1 MiB stream encrypted in
 // several chunkings.
@@ -138,7 +138,7 @@ func (s qppSeed) bytes() []byte {
 
 // qppSeeds are the seeds of the chunk and PRNG cases: kcptun's default -key, a one-byte seed
 // (both shorter than 32 bytes, so both are PBKDF2-expanded first), a seed of exactly the
-// expansion threshold, and one longer than the 224 bytes the seven chunks consume — the case
+// expansion threshold, and one longer than the 224 bytes the seven chunks consume: the case
 // where seedIdx wraps mid-chunk.
 var qppSeeds = []qppSeed{
 	{name: "default_key", text: "it's a secrect"},
@@ -185,7 +185,7 @@ func genQpp() ([]any, error) {
 
 	// pads/*: the permutation matrices. 1 is the degenerate single pad, 7 the minimum for 8
 	// qubits (and the number of chunks, so every chunk is used exactly once), 61 kcptun's
-	// default -qpp-count and 101 a larger prime — the pad id is formatted in binary, so ids
+	// default -qpp-count and 101 a larger prime: the pad id is formatted in binary, so ids
 	// with different bit lengths must be covered.
 	padSeed := []byte("it's a secrect")
 	for _, numPads := range []uint16{1, 7, 61, 101} {

@@ -3,10 +3,10 @@
 //! # Where the golden segments come from
 //!
 //! `GO_*` below are real gopacket output. They were produced by a throwaway Go program that
-//! reproduces `tcpraw@v1.2.32 tcp_linux.go:WriteTo()` — the same `layers.TCP` fields, the same
+//! reproduces `tcpraw@v1.2.32 tcp_linux.go:WriteTo()`: the same `layers.TCP` fields, the same
 //! `[NOP, NOP, Timestamps]` fingerprint from `fingerprints.go`, the same
 //! `gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}` and the same
-//! `SetNetworkLayerForChecksum(&layers.IPv4{…})` / `IPv6` — against the pinned
+//! `SetNetworkLayerForChecksum(&layers.IPv4{…})` / `IPv6`, against the pinned
 //! `gopacket@v1.1.19` from `reference/kcptun/vendor`:
 //!
 //! ```go
@@ -344,7 +344,7 @@ fn decode_go_pinned_segment() {
     assert_eq!(seg.payload, PAYLOAD);
 
     let options: Vec<_> = seg.options().collect();
-    // gopacket pads with zero bytes, so the walk ends on an EndList option — exactly what Go's
+    // gopacket pads with zero bytes, so the walk ends on an EndList option, exactly what Go's
     // own decoder reports for a segment its own encoder produced.
     assert_eq!(options.len(), 4);
     assert_eq!(options[0].kind, OPTION_KIND_NOP);
@@ -547,12 +547,12 @@ fn decode_bad_data_offset_keeps_the_header() {
 }
 
 /// A malformed option ends the walk but is itself reported (gopacket appends it before it
-/// returns the error), and the payload — assigned before the options are parsed — stays
+/// returns the error), and the payload (assigned before the options are parsed) stays
 /// readable, so such a segment is still delivered.
 ///
 /// The expected `(kind, length, data length)` triples were read off gopacket itself, by
 /// decoding these very option areas with `gopacket.NewPacket(buf, layers.LayerTypeTCP,
-/// DecodeOptions{NoCopy: true, Lazy: true})` — `captureFlow`'s own call — and printing
+/// DecodeOptions{NoCopy: true, Lazy: true})` (`captureFlow`'s own call) and printing
 /// `tcp.Options`.
 #[test]
 fn decode_malformed_options_keep_the_payload() {
@@ -942,7 +942,7 @@ fn checksum_known_answers_from_the_golden_segments() {
 }
 
 /// An option list longer than 40 bytes overflows the 4-bit data offset. gopacket truncates it
-/// silently — `uint8(16)` in the struct, a nibble of `0` on the wire, no error — and so does the
+/// silently (`uint8(16)` in the struct, a nibble of `0` on the wire, no error) and so does the
 /// port. Checked against gopacket@v1.1.19 with 39 NOPs plus a 2-byte option (41 option bytes, 3
 /// padding bytes): `DataOffset=16`, bytes 12..14 `0018`, and its own decoder then reports data
 /// offset 0 and an empty payload.

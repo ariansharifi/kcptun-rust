@@ -27,12 +27,12 @@ use kcptun_kcp::packet_conn::{BoxFuture, PacketConn, RecvBatch, TxMsg};
 use crate::TcpConn;
 
 #[cfg(target_os = "linux")]
-// Go: kcp-go/v5@v5.6.66 sess.go — the `net.PacketConn` a session or listener is built on
+// Go: kcp-go/v5@v5.6.66 sess.go, the `net.PacketConn` a session or listener is built on
 impl PacketConn for TcpConn {
     /// Waits for one datagram and puts it in the first slot.
     ///
     /// Go's non-batch read loop reads one packet per `ReadFrom` and hands it to `packetInput`
-    /// immediately; there is nothing to batch, because the next datagram is not there yet — the
+    /// immediately; there is nothing to batch, because the next datagram is not there yet: the
     /// capture loop delivers them one by one through an (effectively) unbuffered channel.
     // Go: kcp-go/v5@v5.6.66 readloop.go:(*UDPSession).defaultReadLoop()
     fn recv_batch<'a>(&'a self, batch: &'a mut RecvBatch) -> BoxFuture<'a, io::Result<usize>> {
@@ -98,7 +98,7 @@ impl PacketConn for TcpConn {
     /// **It blocks** while `iptables`/`ip6tables` run, exactly as Go's `Close` blocks the
     /// goroutine that calls it: a client session closes its own connection here
     /// (`kcp.NewConn4(..., ownConn: true)`), and the rules have to be gone when it returns.
-    /// Calling it twice is harmless and reports nothing, as Go's `dieOnce` does — unlike the UDP
+    /// Calling it twice is harmless and reports nothing, as Go's `dieOnce` does, unlike the UDP
     /// transport, whose second `close` answers `use of closed network connection`.
     // Go: tcpraw@v1.2.32 tcp_linux.go:(*tcpConn).Close()
     fn close(&self) -> io::Result<()> {
@@ -166,7 +166,7 @@ mod tests {
     }
 
     /// A batch of sends becomes one `WriteTo` per message, and a flow with no raw handle
-    /// swallows them exactly as Go's `WriteTo` does — the datagrams count as sent.
+    /// swallows them exactly as Go's `WriteTo` does: the datagrams count as sent.
     #[tokio::test]
     async fn send_batch_sends_every_message() {
         let conn = detached_conn();
@@ -212,7 +212,7 @@ mod tests {
     }
 
     /// The transport reports the address of the real TCP connection, and the option setters of a
-    /// connection with no raw sockets succeed without doing anything — Go's empty
+    /// connection with no raw sockets succeed without doing anything: Go's empty
     /// `for k := range conn.handles`.
     #[tokio::test]
     async fn the_setters_of_a_handleless_connection_succeed() {

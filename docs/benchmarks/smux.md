@@ -13,10 +13,10 @@ One of 06.6's two conclusions survives and one does not. Both are stated below.
 
 | | |
 |---|---|
-| Go | `reference/bin/smuxecho_darwin_arm64` — `tools/gointerop/cmd/smuxecho`, smux **v1.5.55**, built with kcptun's own `std.BuildSmuxConfig` |
-| Rust | `target/release/kcptun-smuxecho` — `crates/interop-tests/src/bin/smuxecho.rs`, flag-for-flag interchangeable with the Go peer |
+| Go | `reference/bin/smuxecho_darwin_arm64`: `tools/gointerop/cmd/smuxecho`, smux **v1.5.55**, built with kcptun's own `std.BuildSmuxConfig` |
+| Rust | `target/release/kcptun-smuxecho`: `crates/interop-tests/src/bin/smuxecho.rs`, flag-for-flag interchangeable with the Go peer |
 | Settings | kcptun's defaults on both sides: `-ver 2 -smuxbuf 4194304 -streambuf 2097152 -framesize 8192 -keepalive 10` |
-| Transport | smux directly over **TCP loopback**. No KCP, no crypto, no FEC — this page is the multiplexer alone |
+| Transport | smux directly over **TCP loopback**. No KCP, no crypto, no FEC: this page is the multiplexer alone |
 
 Both peers speak the same deterministic byte stream (`PrngStream` in Rust, `internal/peer.Stream`
 in Go), so each side verifies the echo from a SHA-256 it computes from the seed.
@@ -41,7 +41,7 @@ target/release/kcptun-smuxecho idle -remote 127.0.0.1:<port> -streams <N> -hold 
 | | |
 |---|---|
 | Machine | Apple M5 (Mac17,2), macOS 27.0, 10 cores, arm64 |
-| Host load | **1.35 / 1.59 / 1.59** before, **1.74 / 1.71 / 1.63** after, on 10 cores — the laptop was also driving the 12.1 lab campaign over ssh. Compare 06.6's 49–87 |
+| Host load | **1.35 / 1.59 / 1.59** before, **1.74 / 1.71 / 1.63** after, on 10 cores: the laptop was also driving the 12.1 lab campaign over ssh. Compare 06.6's 49–87 |
 | Tree | `75fd8d8`; no tracked file modified |
 | Rounds | throughput: 5, all four pairs inside each round; memory: 3, fresh server per point |
 
@@ -71,7 +71,7 @@ Every run behind those medians:
 | 64 × 4 MiB | GG | 274, 259, 270, 256, 271 |
 
 **This is not a smux measurement, and the spread proves it.** All four combinations land inside 5 %
-at one stream and 8 % at 64, in both directions of the comparison — the Rust client is marginally
+at one stream and 8 % at 64, in both directions of the comparison: the Rust client is marginally
 ahead at one stream and marginally behind at 64. The verifying client spends most of the timed
 region generating `PrngStream` bytes and hashing them, not in smux, so what this measures is
 mostly two PRNGs and two SHA-256s. For scale: 64 MiB in 122 ms is 524 MiB/s and 256 MiB in 285 ms
@@ -80,7 +80,7 @@ is 898 MiB/s, on loopback.
 | 06.6 said | 12.1 finds |
 |---|---|
 | "Swapping the **server** implementation does not move the number ⇒ smux is not the bottleneck." | **Confirmed, and now for the client too.** On a quiet machine no substitution on either side moves the number by more than 8 %. |
-| Cross-matrix medians 150 / 140 / 169 / **188** ms (RR / RG / GR / GG) at 1 × 64 MiB — a Go client looking 25 % slower than a Rust one. | **Not reproduced.** At load average 1.5 the same four numbers are 122 / 128 / 126 / 126. The 188 ms was the loaded box, not the Go client. |
+| Cross-matrix medians 150 / 140 / 169 / **188** ms (RR / RG / GR / GG) at 1 × 64 MiB: a Go client looking 25 % slower than a Rust one. | **Not reproduced.** At load average 1.5 the same four numbers are 122 / 128 / 126 / 126. The 188 ms was the loaded box, not the Go client. |
 
 That second row is the useful part: 06.6's own caveat ("the absolute figures are a lower bound and
 must be re-measured on a quiet machine") turns out to have applied to the *ratios* as well, because
@@ -113,7 +113,7 @@ Raw, all three rounds (kB):
 | 3 | 6 000 | 14 112 | 37 568 | 9 808 | 27 888 | 83 776 |
 
 The slope is taken between 2 000 and 10 000 rather than from the empty server, so that the fixed
-cost of the first session — the buffers, the tasks, the allocator's first arenas — is not divided
+cost of the first session (the buffers, the tasks, the allocator's first arenas) is not divided
 across the streams. Taking it from zero instead gives 3.15 kB/stream for Rust and 7.41 for Go, i.e.
 the same ratio; the lower figures are the honest marginal cost.
 
@@ -128,7 +128,7 @@ been read from owns no copy buffer.
 
 ### One thing that did move, and is not explained here
 
-The Rust server's **empty** RSS is 6.0 MB on this run against the 2.5 MiB 06.6 recorded — the Go
+The Rust server's **empty** RSS is 6.0 MB on this run against the 2.5 MiB 06.6 recorded: the Go
 server's is 9.7 MB against 10.2 MiB, essentially unchanged. Two candidate causes, not separated:
 the tree has moved a long way since 06.6 (12.3b added `crates/kcp/src/memory.rs` and the shrink
 machinery, and this binary links the whole workspace), or 06.6's figure was taken on a box at load
@@ -138,7 +138,7 @@ measures it. It is a question for 12.3, not a finding of this page.
 
 ### And one observation that is *not* a measurement
 
-Sampled during the throughput matrix above — after five rounds of 64 MiB transfers through each
+Sampled during the throughput matrix above, after five rounds of 64 MiB transfers through each
 server, so these are warm processes, not idle ones:
 
 | | Rust server | Go server |
@@ -147,7 +147,7 @@ server, so these are warm processes, not idle ones:
 | RSS while holding 10 000 idle streams | 42 400 kB | 83 872 kB |
 | RSS 3 s after those streams closed | 42 416 kB | 92 320 kB |
 
-Both processes retain what a burst grew. **Three seconds says nothing about release** — 12.3a's
+Both processes retain what a burst grew. **Three seconds says nothing about release**: 12.3a's
 measurement of that question ran for 600 s and `docs/benchmarks/memory.md` owns it. The rows are
 here only to record what was sampled.
 

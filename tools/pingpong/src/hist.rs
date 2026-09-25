@@ -1,8 +1,8 @@
 //! A bounded-memory latency histogram.
 //!
 //! A 30-second pingpong run holds tens of thousands of samples; the 11.4 soak runs for six
-//! hours and would hold hundreds of millions. Keeping every sample is therefore not an option —
-//! the harness itself must not grow without bound — so latencies go into a log-linear histogram
+//! hours and would hold hundreds of millions. Keeping every sample is therefore not an option,
+//! the harness itself must not grow without bound, so latencies go into a log-linear histogram
 //! in the shape HdrHistogram uses: 128 linear buckets per power of two, which bounds the
 //! relative error of any reported percentile at 1/128 (0.8 %) while the whole histogram is a
 //! fixed 58 KiB. `min` and `max` are tracked exactly, because the maximum is the number an

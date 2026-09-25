@@ -2,38 +2,38 @@
 # Step 10.5: the `--tcp` (fake TCP) evidence, run inside the two lab network namespaces.
 #
 # Everything here needs root (raw sockets, iptables) and a `filter/OUTPUT` chain nobody else
-# edits — which is what the namespaces are for: `kr-cli` and `kr-srv` have their own chains, so a
+# edits, which is what the namespaces are for: `kr-cli` and `kr-srv` have their own chains, so a
 # rule left behind is provably ours and the host's own chain is never touched.
 #
-#   lab-tcpraw.sh matrix   — the interop matrix: {rust,go} client x {rust,go} server, crypt
+#   lab-tcpraw.sh matrix  : the interop matrix: {rust,go} client x {rust,go} server, crypt
 #                            aes/xor, FEC 10/3 and 0/0, each checked by a 1 MiB echo whose
 #                            SHA-256 must come back unchanged.
-#   lab-tcpraw.sh v22      — the Go `--tcp` client receiving nothing (DECISIONS V22), with the
+#   lab-tcpraw.sh v22     : the Go `--tcp` client receiving nothing (DECISIONS V22), with the
 #                            rising `InErrs` from its own SIGUSR1 SNMP dump as the evidence.
-#   lab-tcpraw.sh cleanup  — the `filter/OUTPUT` chain after a failed dial, SIGINT, SIGTERM and
+#   lab-tcpraw.sh cleanup : the `filter/OUTPUT` chain after a failed dial, SIGINT, SIGTERM and
 #                            SIGKILL, compared with the baseline taken before each case.
-#   lab-tcpraw.sh pcap     — one Go and one Rust session captured on the veth, then compared with
+#   lab-tcpraw.sh pcap    : one Go and one Rust session captured on the veth, then compared with
 #                            `tshark`: the flags, window, header length and option layout of every
 #                            crafted segment each implementation emits, and the TCP checksum of
 #                            each one. Needs tshark on the lab host (`apt install tshark`).
-#   lab-tcpraw.sh tests [binary...]
-#                          — the 7 `#[ignore]`d privileged unit tests, inside `kr-cli` and with
+#   lab-tcpraw.sh tests [binary...],
+#                          the 7 `#[ignore]`d privileged unit tests, inside `kr-cli` and with
 #                            `net.ipv4.tcp_timestamps=0` set there first. That sysctl is the
 #                            documented precondition of `test_dial_tcp_stream` (DECISIONS V10):
 #                            the crafted segments carry no timestamp option, so a peer whose own
 #                            random boot offset is already past zero discards them by PAWS about
 #                            half the time. It is per-namespace, so the host is untouched, and it
-#                            is restored when the run ends — the throughput and WAN profiles share
+#                            is restored when the run ends: the throughput and WAN profiles share
 #                            these namespaces with a *kernel* TCP peer and must keep the default.
 #                            Defaults to every executable in $LAB/tests (where remote-test.sh
 #                            copies the cross-built binaries). The `write_*_fuzz_seeds` corpus
-#                            writers are skipped — see the comment in tests().
+#                            writers are skipped, see the comment in tests().
 #
-# Prerequisites: lab-netns.sh up, and — for everything but `tests` — bin/rust/kr-{client,server} +
+# Prerequisites: lab-netns.sh up, and (for everything but `tests`) bin/rust/kr-{client,server} +
 # bin/go/kg-{client,server} built for this host's architecture.
 #
 # Run from the laptop with `tools/lab/lab.sh tcpraw <cmd>`. That runs the script as the **login**
-# user — `ubuntu` on lab-arm64, root only on the hosts that log in as root — so, exactly as in
+# user (`ubuntu` on lab-arm64, root only on the hosts that log in as root) so, exactly as in
 # lab-netns.sh and lab-stop.sh, every privileged command here carries its own `sudo` rather than
 # relying on the script being root. Running the whole file under `sudo` would not do: sudoers'
 # `env_reset` makes `$HOME` /root, and lab-common.sh's `LAB="${KCPTUN_LAB:-$HOME/kcptun-lab}"`
@@ -68,7 +68,7 @@ BG_PIDS=()
 BG_PID="" # set by bg_ns to the pid it just started
 # The pid is handed back in BG_PID rather than on stdout: a `$(bg_ns …)` would run the whole
 # function in a subshell, and the BG_PIDS entry the exit trap relies on would die with it.
-bg_ns() { # <netns> <command...> — starts it in the background; sets BG_PID
+bg_ns() { # <netns> <command...>: starts it in the background; sets BG_PID
   local ns="$1"; shift
   local q pid; q="$(printf '%q ' "$@")"
   BG_PID=""
@@ -80,7 +80,7 @@ bg_ns() { # <netns> <command...> — starts it in the background; sets BG_PID
 # Kills one recorded background process and forgets it, so the exit trap cannot signal a pid the
 # kernel has since handed to somebody else. It escalates to SIGKILL after the same wait lab-stop.sh
 # uses, and only drops the pid once it is really gone: a pid forgotten while still alive is one the
-# exit trap can no longer reach — a root-owned tcpdump or holder left running on a shared lab host,
+# exit trap can no longer reach: a root-owned tcpdump or holder left running on a shared lab host,
 # which is the one outcome this file must never produce. If even SIGKILL leaves it, the pid stays
 # in the list *and* the run is a failure, because a leak must be reported, not silently tolerated.
 drop_bg() { # <pid> [signal]
@@ -103,7 +103,7 @@ drop_bg() { # <pid> [signal]
 # while it is not at it, so the exit trap restores it even when a `die` cuts the run short.
 TS_RESTORE=""
 
-# Everything that must happen however this script ends — including a `die` in the middle of a
+# Everything that must happen however this script ends, including a `die` in the middle of a
 # subcommand, which used to leave the echo service, a tcpdump and the changed sysctl behind.
 on_exit() {
   local rc=$? p unrestored=0
@@ -125,14 +125,14 @@ on_exit() {
   declare -F stop_all >/dev/null && stop_all
   declare -F stop_echo >/dev/null && stop_echo
   # A `return` from an EXIT trap cannot change the shell's exit status, so the one condition that
-  # must not be reported as success — the namespace left with tcp_timestamps=0, which the
-  # throughput and WAN profiles share with a kernel TCP peer — has to `exit` instead.
+  # must not be reported as success: the namespace left with tcp_timestamps=0, which the
+  # throughput and WAN profiles share with a kernel TCP peer: has to `exit` instead.
   [[ $unrestored -eq 0 ]] || exit 1
   return $rc
 }
 trap on_exit EXIT
 
-# The tunnel binaries, needed by every subcommand that starts a tunnel — but not by `tests`,
+# The tunnel binaries, needed by every subcommand that starts a tunnel, but not by `tests`,
 # which runs a self-contained test executable.
 need_tunnels() {
   local f
@@ -267,7 +267,7 @@ matrix() {
           out="$(probe 25 2>&1)"; rc=$?
           echo "$out" | sed 's/^/  /'
 
-          # The DROP rules must be in place while the tunnel is up — that is what stops the
+          # The DROP rules must be in place while the tunnel is up: that is what stops the
           # kernel from answering the crafted segments with its own RSTs. The client's rule
           # appears only once it has dialled, and it dials on the first accepted connection, so
           # this is read *after* the probe rather than before it.
@@ -322,7 +322,7 @@ v22() {
   grep -o 'KCP SNMP:.*' "$LOGS/cli.log" | tail -1 | sed 's/^/  /'
   [[ "$before" != "$after" ]] || fail "InErrs did not rise; V22's mechanism is not what happened"
 
-  # The same Go client against a *Go* server, to show the receive path — not the wire — is what
+  # The same Go client against a *Go* server, to show the receive path (not the wire) is what
   # fails: if this also carries nothing, no Rust code is involved in the failure at all.
   stop_all; sleep 0.5
   say "=== control: Go --tcp client, Go --tcp server"
@@ -347,7 +347,7 @@ cleanup_case() { # <label> <signal|none> <expect-clean 0|1>
   start_client rust aes 10 3 || { fail "$label: client did not start"; return; }
   wait_for_log cli.log 'listening on' 15
 
-  # The client dials — and so appends its rule — only when a connection arrives at its own
+  # The client dials (and so appends its rule) only when a connection arrives at its own
   # listener, so one is opened and held for the life of the case.
   bg_ns "$NS_CLI" python3 -c \
     "import socket,time; s=socket.create_connection(('$CLI_IP',$LOCAL_PORT),10); s.sendall(b'ping'); s.recv(16); time.sleep(60)" \
@@ -368,7 +368,7 @@ cleanup_case() { # <label> <signal|none> <expect-clean 0|1>
   now="$(chain "$NS_CLI")"; now6="$(chain6 "$NS_CLI")"
   if [[ "$now" == "$base" && "$now6" == "$base6" ]]; then
     if [[ "$expect" -eq 1 ]]; then say "$label: chain is back to baseline (as expected)";
-    else fail "$label: the chain is clean, but this path cannot clean up — check the test"; fi
+    else fail "$label: the chain is clean, but this path cannot clean up, check the test"; fi
   else
     if [[ "$expect" -eq 0 ]]; then
       say "$label: rules survived (as expected, documented):"
@@ -396,8 +396,8 @@ cleanup() {
   cleanup_case SIGTERM TERM 1
   cleanup_case SIGKILL KILL 0
 
-  # Dials that fail. There is no exit here to test — Go's `waitConn` retries for ever, and so
-  # does this port — but a leak would grow `filter/OUTPUT` once a second for the life of the
+  # Dials that fail. There is no exit here to test: Go's `waitConn` retries for ever, and so
+  # does this port, but a leak would grow `filter/OUTPUT` once a second for the life of the
   # process. A refused connect fails *before* the rules are appended (Go's `Dial` order: raw
   # socket, real TCP connect, then iptables), so what this shows is that nothing accumulates; the
   # harder case, a dial abandoned *after* the rules went in, is covered by the unit test
@@ -443,7 +443,7 @@ tsh() { # <pcap> <display filter> <field...>
 # The shape of every *crafted* segment one side emitted: flags, window, header length and the
 # option kinds, one unique line each and no counts, so two runs of different lengths still
 # compare. `tcp.len > 0` is what separates tcpraw's segments from the kernel's own handshake on
-# the same 5-tuple — the real TCP connection tcpraw holds open never carries a byte — and it is
+# the same 5-tuple (the real TCP connection tcpraw holds open never carries a byte) and it is
 # also why the checksum check below cannot trip over the kernel's TX-offloaded (and therefore
 # blank on the wire) handshake checksums.
 segment_shapes() { # <pcap> <source ip>
@@ -464,7 +464,7 @@ analyse_pcap() { # <pcap> <label> <emitter ip>
   else
     # tshark prints nothing at all when one of the -e names is not a field it knows, so an empty
     # table here is a broken query rather than a capture with no segments in it.
-    fail "$label: tshark returned no fields for $total segments — check the -e names in segment_shapes"
+    fail "$label: tshark returned no fields for $total segments, check the -e names in segment_shapes"
   fi
   bad="$(tsh "$f" "tcp.port==$TUN_PORT && tcp.len>0 && tcp.checksum.status==0" frame.number \
     | wc -l | tr -d ' ')"
@@ -490,7 +490,7 @@ pcap() { # one Go session and one Rust session, captured on the client's veth, t
     tcpdump_pid="$BG_PID"
     sleep 1
     # Always a *Rust* client: the Go client cannot receive (V22), and what is being compared here
-    # is the segments each implementation's tcpraw *emits* — the server's, for the Go side.
+    # is the segments each implementation's tcpraw *emits*: the server's, for the Go side.
     start_client rust aes 10 3 || die "client did not start"
     wait_for_log cli.log 'listening on' 15
     sudo ip netns exec "$NS_CLI" timeout 20 python3 "$RUN/tcp-probe.py" "$CLI_IP" "$LOCAL_PORT" 65536 20 \
@@ -554,7 +554,7 @@ pcap() { # one Go session and one Rust session, captured on the client's veth, t
 
 # ------------------------------------------------------------- the privileged unit tests, in netns
 
-tests() { # [binary...] — cross-built test executables, default: everything in $LAB/tests
+tests() { # [binary...]: cross-built test executables, default: everything in $LAB/tests
   local bins=() b base base6 ts_before rc
   if [[ $# -gt 0 ]]; then
     bins=("$@")
@@ -565,7 +565,7 @@ tests() { # [binary...] — cross-built test executables, default: everything in
   for b in "${bins[@]}"; do [[ -x "$b" ]] || die "not executable: $b"; done
 
   base="$(chain "$NS_CLI")"; base6="$(chain6 "$NS_CLI")"
-  # See the header: per-namespace, and put back below on the normal path — with the exit trap as
+  # See the header: per-namespace, and put back below on the normal path, with the exit trap as
   # the fallback that makes the restore survive a `die`, a timeout or a Ctrl-C mid-run.
   ts_before="$(sudo ip netns exec "$NS_CLI" sysctl -n net.ipv4.tcp_timestamps 2>/dev/null)"
   [[ "$ts_before" =~ ^[0-9]+$ ]] || ts_before=1 # the kernel default, if it could not be read

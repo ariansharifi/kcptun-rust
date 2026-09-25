@@ -148,7 +148,7 @@ pub fn gal_mul_slice_xor(kernel: Kernel, c: u8, input: &[u8], out: &mut [u8]) {
 fn mul_slice<const XOR: bool>(kernel: Kernel, c: u8, input: &[u8], out: &mut [u8]) {
     // The `code_group` arguments are built only where a SIMD arm exists to consume them. On a
     // target with no SIMD kernel (armv7, armv6, i686) the match is `Scalar` alone, and building
-    // them unconditionally made every cross-build of those targets emit four `unused` warnings —
+    // them unconditionally made every cross-build of those targets emit four `unused` warnings,
     // invisible to CI, which only ever runs clippy for the host architecture.
     #[cfg(any(
         all(target_arch = "aarch64", target_feature = "neon"),

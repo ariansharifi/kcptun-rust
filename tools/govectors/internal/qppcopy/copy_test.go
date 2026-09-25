@@ -40,7 +40,7 @@ func TestVerbatimCopy(t *testing.T) {
 
 // The copy must behave exactly like the linked module: same minimum sizes, and the same
 // ciphertext for a stream cut into pieces at every awkward boundary. Everything the generator
-// records — the chunks, the pads, the shuffle and the PRNG — feeds into that ciphertext, so a
+// records (the chunks, the pads, the shuffle and the PRNG) feeds into that ciphertext, so a
 // copy that had drifted could not pass this.
 func TestCopyMatchesTheLinkedModule(t *testing.T) {
 	for qubits := 1; qubits <= 10; qubits++ {

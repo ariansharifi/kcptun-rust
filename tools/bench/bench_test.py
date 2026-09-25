@@ -7,7 +7,7 @@ about what it found*. Neither needs a lab host: the planning half is pure, and t
 half reads a directory of `state.json`, `proc.csv`, `snmp-cli.csv` and workload logs, which the
 tests write by hand.
 
-The reporting assertions are deliberately about honesty rather than formatting — a `—` where
+The reporting assertions are deliberately about honesty rather than formatting: a `-` where
 nothing was measured, a `·` where a cross pair is deliberately not measured, a refusal below
 five repetitions, a banner when a build could not be named, and a CSV that reproduces every
 median in the page. Those are the properties that decide whether a number can be quoted;
@@ -280,7 +280,7 @@ class HarvestTests(unittest.TestCase):
         # reference/kcptun/vendor/github.com/xtaci/kcp-go/v5/kcp.go), so the total decomposes
         # exactly. An earlier version of `SNMP_KEYS` harvested two of the three, and every
         # `RetransSegs` row on the baseline pages carried a visible remainder that read as
-        # unattributable retransmission — the one thing those rows exist to attribute.
+        # unattributable retransmission: the one thing those rows exist to attribute.
         session = self.root / "20260924T000000Z-unit-s1-bulk-up"
         directory = write_run(
             session, "unit-gg-r1", client="go", server="go", repetition=1,
@@ -401,7 +401,7 @@ class ReportTests(unittest.TestCase):
 
     def test_a_counter_wider_than_six_figures_is_not_rounded_in_the_csv(self) -> None:
         # `f"{v:.6g}"` wrote an `OutSegs` of 1 470 402 as `1.47040e+06` while the page printed
-        # the exact integer — the page's own evidence could no longer reproduce the page. Every
+        # the exact integer: the page's own evidence could no longer reproduce the page. Every
         # segment counter crosses 1e6 on a 20-second bulk cell.
         for repetition in range(1, 6):
             for pair, (client, server) in (("gg", ("go", "go")), ("rr", ("rust", "rust")),
@@ -697,7 +697,7 @@ class HostDetailTests(unittest.TestCase):
 
 #: What a tuned lab host carries (`/etc/sysctl.d/99-kcptun-lab.conf` on lab-arm64, lab-x86-1 and
 #: lab-x86-2), and what a stock Ubuntu box carries. S1's server asks for 67,108,868 B, so even
-#: the raised ceiling clamps it — which is the case the page must *not* call invalid.
+#: the raised ceiling clamps it, which is the case the page must *not* call invalid.
 RAISED = {"rmem_max": 8388608, "wmem_max": 67108864}
 STOCK = {"rmem_max": 212992, "wmem_max": 212992}
 
@@ -713,7 +713,7 @@ class SocketBufferTests(unittest.TestCase):
 
     def test_a_configuration_with_no_sockbuf_flag_still_asks_for_kcptuns_default(self) -> None:
         # The S2 trap. S2 passes no `-sockbuf`, which reads as "asks for nothing" and is why S2
-        # looked exempt from D32 — but kcptun's flag defaults to 4 MiB and the binary always
+        # looked exempt from D32, but kcptun's flag defaults to 4 MiB and the binary always
         # calls SetReadBuffer/SetWriteBuffer with it, so on a stock host S2 is clamped 20x too.
         self.assertEqual(bench.DEFAULT_SOCKBUF, 4194304)
         self.assertEqual(bench.config_sockbuf("s2", "client"), (bench.DEFAULT_SOCKBUF, True))
@@ -731,7 +731,7 @@ class SocketBufferTests(unittest.TestCase):
     def test_only_the_side_a_host_actually_runs_is_checked_against_its_ceiling(self) -> None:
         # On a WAN campaign the two ends are two machines with their own ceilings. Checking the
         # client's `-sockbuf` against the *server* host's `rmem_max` would print a clamp naming
-        # a host that never ran that flag — and could refuse a campaign over it.
+        # a host that never ran that flag, and could refuse a campaign over it.
         by_host = {"cli-host": {(RAISED["rmem_max"], RAISED["wmem_max"])},
                    "srv-host": {(STOCK["rmem_max"], STOCK["wmem_max"])}}
         sides = {"cli-host": {"client"}, "srv-host": {"server"}}

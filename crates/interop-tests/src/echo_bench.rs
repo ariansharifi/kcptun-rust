@@ -12,19 +12,19 @@
 //! | `go` | `kcpecho server` | `kcpecho client` | `getrusage(RUSAGE_CHILDREN)` |
 //!
 //! The wall time is the client's own dial-to-last-byte time (process start-up is outside it on
-//! both sides) and the CPU is *both* endpoints together — one process for Rust, two for Go.
+//! both sides) and the CPU is *both* endpoints together: one process for Rust, two for Go.
 //! Four caveats follow from that and matter when reading the table:
 //!
 //! - The two timing windows are *not* exactly the same span. Go's `kcpecho client` starts its
 //!   clock after `DialWithOptions` and after `k.block()` (PBKDF2, 4096 rounds) and the option
 //!   setters; [`run_rust_client`] starts its clock before all of that, so the Rust window also
 //!   contains key derivation, the socket bind and the setters. That is on the order of a
-//!   millisecond per run — under 1 % of a half-second run — and it counts *against* Rust.
+//!   millisecond per run (under 1 % of a half-second run) and it counts *against* Rust.
 //! - Rust's client and server share one tokio runtime and one address space, Go's are two
 //!   processes with a runtime each, so Go pays two runtime start-ups (single-digit
 //!   milliseconds) while Rust may win a little on locality. Step 12 splits the two endpoints.
-//! - The CPU includes what the *harness* work costs on each side — generating the stream and
-//!   verifying and hashing the echo — because both clients do exactly that
+//! - The CPU includes what the *harness* work costs on each side: generating the stream and
+//!   verifying and hashing the echo, because both clients do exactly that
 //!   (`peer.Stream`/`peer.Verifier` in Go, `PrngStream`/`Verifier` here).
 //! - Wall time on a loaded machine is far noisier than CPU time, which is why every group is
 //!   repeated and reported as a median *with its min and max* ([`spread_table`]): a median of
@@ -34,8 +34,8 @@
 //! this port is aimed at (`xor`, no FEC, 8192-packet windows, MTU 1390); message sizes are
 //! [`MESSAGE_SIZES`] and payloads [`DEFAULT_PAYLOADS`]. More than one payload size is measured
 //! on purpose: the two profiles do not behave alike, and the production one used to be *payload
-//! dependent* — it had a degradation band, worst at 8 MiB on every host measured, which two
-//! steps of the tx path removed ([`DEFAULT_PAYLOADS`] has the measurements and the history) — so
+//! dependent*: it had a degradation band, worst at 8 MiB on every host measured, which two
+//! steps of the tx path removed ([`DEFAULT_PAYLOADS`] has the measurements and the history), so
 //! a single hard-coded payload would report whichever regime it happened to land in, and the two
 //! payloads are what keeps that band from coming back unnoticed. The three message sizes are kcp-go's
 //! `BenchmarkEchoSpeed4K/64K/512K` family. The numbers are a smoke baseline for Step 12, not a
@@ -68,17 +68,17 @@ pub const MESSAGE_SIZES: [usize; 3] = [4 * 1024, 64 * 1024, 512 * 1024];
 /// The band was the port's, not the protocol's: one `flush()` emits a whole send window, and
 /// the surplus over the session's packet channel was dropped after KCP had already counted it
 /// as transmitted, so the transfer stepped through retransmission timeouts (Deviations V13 and
-/// **V18**). Two steps removed it — 05.10 widened the channel to the window, 12.2a replaced
-/// dropping with backpressure in `Kcp::flush` and returned the channel to Go's 2048 — and the
+/// **V18**). Two steps removed it: 05.10 widened the channel to the window, 12.2a replaced
+/// dropping with backpressure in `Kcp::flush` and returned the channel to Go's 2048, and the
 /// state of the production profile at each of them is, as rs/go throughput for 4 KiB / 64 KiB /
 /// 512 KiB messages (above 1.00x Rust is faster):
 ///
 /// | payload | host | 05.9 (drop, 2048) | 05.10 (drop, 8192) | 12.2a (backpressure, 2048) |
 /// |---|---|---|---|---|
-/// |  8 MiB | macOS arm64 | 0.25x / 0.19x / — | 1.88x / 1.56x / 1.53x | 1.82x / 1.69x / 1.70x |
-/// | 32 MiB | macOS arm64 | 1.53x / 1.20x / — | 2.33x / 2.36x / 2.42x | 2.74x / 2.83x / 2.63x |
-/// |  8 MiB | lab-arm64 aarch64 | 0.34x / 0.26x / — | 1.17x / 1.17x / 0.96x | 1.32x / 1.10x / 1.03x |
-/// | 32 MiB | lab-arm64 aarch64 | 0.70x / 0.63x / — | 0.77x / 0.77x / 0.70x | 1.12x / 1.38x / 1.02x |
+/// |  8 MiB | macOS arm64 | 0.25x / 0.19x /: | 1.88x / 1.56x / 1.53x | 1.82x / 1.69x / 1.70x |
+/// | 32 MiB | macOS arm64 | 1.53x / 1.20x /: | 2.33x / 2.36x / 2.42x | 2.74x / 2.83x / 2.63x |
+/// |  8 MiB | lab-arm64 aarch64 | 0.34x / 0.26x /: | 1.17x / 1.17x / 0.96x | 1.32x / 1.10x / 1.03x |
+/// | 32 MiB | lab-arm64 aarch64 | 0.70x / 0.63x /: | 0.77x / 0.77x / 0.70x | 1.12x / 1.38x / 1.02x |
 ///
 /// The 2 vCPU Linux host is where it mattered: widening the channel alone left 32 MiB at
 /// 0.70-0.77x Go and CPU per GB *above* Go's (1.04-1.15x), and backpressure is what turns that
@@ -90,7 +90,7 @@ pub const MESSAGE_SIZES: [usize; 3] = [4 * 1024, 64 * 1024, 512 * 1024];
 /// wall time on a busy laptop is noisy, so read the min-max columns); lab-arm64 (Ubuntu 24.04,
 /// aarch64 Neoverse-N1, 2 vCPU), load average 0.11 at the start of each sweep, release build
 /// cross-compiled with `cargo-zigbuild`, medians of 3 runs. CPU seconds per GB compare the two
-/// implementations *within* one host only — the two hosts have different CPUs, so the
+/// implementations *within* one host only: the two hosts have different CPUs, so the
 /// CPU-ratio difference between them is a per-host observation, not a trend.
 pub const DEFAULT_PAYLOADS: [u64; 2] = [8 * 1024 * 1024, 32 * 1024 * 1024];
 
@@ -107,7 +107,7 @@ pub const RUN_TIMEOUT: Duration = Duration::from_secs(120);
 ///
 /// Deliberately short. Closing the Rust listener does not close the sessions it already
 /// accepted, but it does hand every one of them the `use of closed network connection` read
-/// error (recorded in step 05.7), which releases their blocked reads — so the echo tasks
+/// error (recorded in step 05.7), which releases their blocked reads, so the echo tasks
 /// of [`RustEchoServer`] close their sessions right after [`measure_rust`]'s `server.close()`.
 /// This timeout is the backstop for a session whose peer vanished before that, and it stops such
 /// a session from still waking its update and tx tasks inside a *later* measurement's CPU
@@ -232,7 +232,7 @@ pub fn size_label(bytes: u64) -> String {
 /// Median, min and max of one metric over the repeats of a group.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Stat {
-    /// Median of the repeats — the headline number.
+    /// Median of the repeats: the headline number.
     pub median: f64,
     /// Smallest repeat.
     pub min: f64,
@@ -304,8 +304,8 @@ pub fn median(values: &[f64]) -> f64 {
     }
 }
 
-/// Groups `measurements` by (profile, payload, message size, implementation) — keeping the order
-/// they were measured in — and summarises each group.
+/// Groups `measurements` by (profile, payload, message size, implementation): keeping the order
+/// they were measured in, and summarises each group.
 pub fn summarise(measurements: &[Measurement]) -> Vec<Summary> {
     let mut out: Vec<Summary> = Vec::new();
     for m in measurements {
@@ -452,7 +452,7 @@ pub fn comparison_table(measurements: &[Measurement]) -> String {
 }
 
 /// Per-group min, median and max of both metrics, one row per (profile, payload, message size,
-/// implementation) — the spread behind every median of [`comparison_table`].
+/// implementation): the spread behind every median of [`comparison_table`].
 pub fn spread_table(measurements: &[Measurement]) -> String {
     let summaries = summarise(measurements);
     let mut out = table_row(
@@ -521,7 +521,7 @@ pub async fn measure_rust(
         timeout: RUN_TIMEOUT,
     };
     let report = run_rust_client(&run, &profile.case).await;
-    // Settle, then tear down, then read — the same order as `measure_go`, so that the listener
+    // Settle, then tear down, then read: the same order as `measure_go`, so that the listener
     // close falls inside this window just as the Go server's kill falls inside that one.
     tokio::time::sleep(SETTLE).await;
     server.close();

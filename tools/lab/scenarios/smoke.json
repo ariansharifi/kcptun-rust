@@ -1,6 +1,6 @@
 {
   "name": "smoke",
-  "description": "A minute of everything: proves the lab, the tunnel and the tools work before a long run is started. Rust<->Rust, S1, no impairment. `closewait 0` for the same reason the soak sets it — the server's 30 s default would leave every finished stream's file descriptor open.",
+  "description": "A minute of everything: proves the lab, the tunnel and the tools work before a long run is started. Rust<->Rust, S1, no impairment. `closewait 0` for the same reason the soak sets it, the server's 30 s default would leave every finished stream's file descriptor open.",
   "config": "s1",
   "netem": "clean",
   "pairs": [["rust", "rust"]],

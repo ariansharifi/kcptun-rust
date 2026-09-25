@@ -1,6 +1,6 @@
 //! Tests of the session, ported from `reference/latest/smux/session_test.go` (the parts that do
 //! not need `Stream::read`/`Stream::write`, which arrive in 06.4) plus cases that pin down what
-//! `recvLoop` does with hand-built frames — Go has no test for the V01 length validation, for
+//! `recvLoop` does with hand-built frames: Go has no test for the V01 length validation, for
 //! the token bucket, or for the class ordering as it appears on the wire.
 //!
 //! Most tests drive one Rust session against a hand-written peer over [`tokio::io::duplex`], so
@@ -484,7 +484,7 @@ async fn socket_read_error_reaches_open_stream() {
     assert_eq!(err.to_string(), "EOF");
 }
 
-/// Go: `TestRandomFrame` — random bytes may kill the session, but must never make it panic or
+/// Go: `TestRandomFrame`, random bytes may kill the session, but must never make it panic or
 /// wedge, and writing on the dead session still returns promptly.
 #[tokio::test]
 async fn test_random_frame() {
@@ -784,7 +784,7 @@ async fn test_write_frame_internal_payload_length() {
     assert_eq!(header.cmd(), CMD_FIN);
 }
 
-/// Go: `TestWriteStreamAfterConnectionClose` — a failing connection surfaces as the stored
+/// Go: `TestWriteStreamAfterConnectionClose`, a failing connection surfaces as the stored
 /// write error and stops the send loop.
 #[tokio::test]
 async fn test_write_stream_after_connection_close() {
@@ -836,7 +836,7 @@ async fn test_write_frame_internal_deadline() {
     assert_eq!(err, Error::Timeout);
 }
 
-/// Go: the last block of `TestWriteFrameInternal` — a session that dies while a write is
+/// Go: the last block of `TestWriteFrameInternal`, a session that dies while a write is
 /// waiting releases the writer with `io.ErrClosedPipe`.
 #[tokio::test]
 async fn test_write_frame_internal_released_by_close() {
@@ -1020,7 +1020,7 @@ async fn test_keep_alive_timeout() {
     .await;
 }
 
-/// Go: `TestKeepAliveBlockWriteTimeout` — a keepalive stuck in `Write` must still time the
+/// Go: `TestKeepAliveBlockWriteTimeout`, a keepalive stuck in `Write` must still time the
 /// session out, because the frame's deadline is the ping ticker itself.
 ///
 /// The assertion is a *bound*, not a poll: the session must be gone one keepalive timeout after
@@ -1192,7 +1192,7 @@ async fn dropping_the_session_closes_it() {
 // Addresses and bulk traffic
 // ---------------------------------------------------------------------------------------
 
-/// Go: `TestSessionAddrNonNetConn` / `TestStreamAddrNonNetConn` — a connection with no address
+/// Go: `TestSessionAddrNonNetConn` / `TestStreamAddrNonNetConn`, a connection with no address
 /// reports none.
 #[tokio::test]
 async fn test_session_addr_non_net_conn() {

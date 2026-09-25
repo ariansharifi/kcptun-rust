@@ -835,7 +835,7 @@ async fn recv_loop<C: SmuxConn>(shared: Arc<SessionShared>, conn: Arc<C>) {
         // Mark the session as active.
         shared.session_is_active.store(true, Ordering::Release);
 
-        // Validate the protocol version, the command, and — per DECISIONS V01 — the payload
+        // Validate the protocol version, the command, and (per DECISIONS V01) the payload
         // length. Go spreads these over the version check and the command switch; every branch
         // ends in the same `ErrInvalidProtocol` and the same shutdown.
         let header = RawHeader::from_array(hdr);
@@ -1006,7 +1006,7 @@ async fn keepalive<C: SmuxConn>(shared: Arc<SessionShared>, conn: Arc<C>) {
     loop {
         tokio::select! {
             _ = ping.tick() => {
-                // Go: `writeFrameInternal(newFrame(...), tickerPing.C, CLSCTRL)` — the deadline
+                // Go: `writeFrameInternal(newFrame(...), tickerPing.C, CLSCTRL)`, the deadline
                 // *is* the ping ticker's channel, so a keepalive write that cannot get through
                 // gives up at the next ping tick **and consumes that tick**. Racing the write
                 // against `ping.tick()` reproduces both halves. Consuming the tick matters: an

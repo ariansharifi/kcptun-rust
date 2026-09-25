@@ -1,4 +1,4 @@
-//! `pingpong` — the workload driver for the Step 11 network lab.
+//! `pingpong`: the workload driver for the Step 11 network lab.
 //!
 //! It runs on the lab host, on both sides of the tunnel:
 //!
@@ -33,7 +33,7 @@ use kcptun_pingpong::args::Args;
 const BOOL_FLAGS: &[&str] = &["verify", "help"];
 
 const USAGE: &str = "\
-pingpong — lab workload driver (development only)
+pingpong: lab workload driver (development only)
 
 usage:
   pingpong serve  --listen ADDR [--duration S] [--report-interval S] [--threads N] [--seed N]
@@ -51,7 +51,7 @@ Sizes accept k/m/g suffixes (`--max-bytes 1m`). `--duration 0` means \"until kil
 only `serve` should ever be given. Every run prints one `RESULT {…}` line when it finishes.
 
 `ping --size` is capped at 1 MiB: ECHO is lock-step, so a request larger than the tunnel's
-in-flight window deadlocks both ends — use `bulk` for large transfers.
+in-flight window deadlocks both ends: use `bulk` for large transfers.
 ";
 
 fn main() -> ExitCode {

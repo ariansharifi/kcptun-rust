@@ -10,7 +10,7 @@ set -euo pipefail
 . "$(dirname "$0")/lab-common.sh"
 
 # The "unreachable target" of Step 11.5: a route in the SERVER namespace for an address nothing
-# answers at, whose next hop is the CLIENT namespace — which does not forward, so the SYN is
+# answers at, whose next hop is the CLIENT namespace, which does not forward, so the SYN is
 # dropped rather than refused. That distinction is the whole of the case: a closed port returns
 # an RST in microseconds, while a blackholed one has to wait out kcptun's 10 s dialTimeout
 # (reference/kcptun/server/main.go:488). TEST-NET-2 (RFC 5737) is reserved for documentation, so

@@ -13,8 +13,8 @@
 //! the output callback, [`TxPipeline::run`] is the consumer task.
 //!
 //! **Deviation V18.** The one thing the port does not copy is *what happens when the channel is
-//! full*. Dropping there is invisible to KCP — the segment has already been counted as
-//! transmitted — so every dropped packet of a burst costs a retransmission timeout. Instead
+//! full*. Dropping there is invisible to KCP: the segment has already been counted as
+//! transmitted, so every dropped packet of a burst costs a retransmission timeout. Instead
 //! [`TxHandle::capacity`] reports the free slots, `Kcp::flush` stops emitting before it touches a
 //! segment that would not fit, and the rest goes out on the next flush. [`SendOutcome::Dropped`]
 //! is still possible (an OOB packet, or a race with another producer), just no longer the way a
@@ -35,7 +35,7 @@
 //! its output callback and `SendOOB` select `<-s.die` against the channel send, so once `die` is
 //! closed each queued packet has about an even chance of being dropped instead. [`TxHandle::send`]
 //! has no such race, so the final flush is queued deterministically. The other half of the
-//! deviation — queueing that flush before signalling `die` — belongs to the session (05.4).
+//! deviation (queueing that flush before signalling `die`) belongs to the session (05.4).
 //!
 //! Not ported: Go's `s.kcp.debugLog(IKCP_LOG_OUTPUT, …)` after each batch. The trace logger lives
 //! in the `Kcp`, which is behind the session mutex here (Go reads it from this goroutine without
@@ -63,7 +63,7 @@ use crate::snmp::DEFAULT_SNMP;
 // Go: kcp-go/v5@v5.6.66 sess.go:maxBatchSize
 pub const MAX_BATCH_SIZE: usize = 64;
 
-/// Depth of a session's packet channel — Go's value.
+/// Depth of a session's packet channel: Go's value.
 ///
 /// One `flush()` can emit up to a full send window of packets, so with kcptun's production
 /// profile (`-sndwnd 8192`) a burst is four times this bound. Go drops the surplus in its output
@@ -226,10 +226,10 @@ impl TxHandle {
     /// session mutex.
     ///
     /// Go's output callback drops the packet when the channel is full and recycles its buffer;
-    /// so does this, by dropping `request` — but `Kcp::flush` stops before it gets that far
+    /// so does this, by dropping `request`, but `Kcp::flush` stops before it gets that far
     /// (Deviation V18, module docs), so a full channel no longer costs a retransmission timeout.
     /// Go additionally races `die` against the send, which loses the final flush about half the
-    /// time — see Deviation V05 in the module docs.
+    /// time, see Deviation V05 in the module docs.
     // Go: kcp-go/v5@v5.6.66 sess.go:newUDPSession() (the `NewKCP` output closure)
     pub fn send(&self, request: SendRequest) -> SendOutcome {
         match self.tx.try_send(request) {

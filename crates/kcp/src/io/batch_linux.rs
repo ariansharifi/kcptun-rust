@@ -146,7 +146,7 @@ pub(crate) struct SendBatch {
     names: Vec<SockAddr>,
 }
 
-// SAFETY: as for `RecvScratch` — the raw pointers are rewritten before every syscall and never
+// SAFETY: as for `RecvScratch`, the raw pointers are rewritten before every syscall and never
 // read after a move; `SockAddr` is plain data.
 unsafe impl Send for SendBatch {}
 

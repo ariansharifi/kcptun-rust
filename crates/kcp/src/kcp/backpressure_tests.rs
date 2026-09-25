@@ -3,25 +3,25 @@
 //!
 //! The session hands every packet to a bounded channel ([`crate::tx`]). Go drops what does not
 //! fit, *after* KCP has marked the segment as transmitted, so each dropped packet of a burst
-//! costs a retransmission timeout — with `-sndwnd 8192` one `flush()` can emit four times the
+//! costs a retransmission timeout, with `-sndwnd 8192` one `flush()` can emit four times the
 //! channel's depth. `flush` therefore stops before touching a segment it cannot hand over, and
 //! keeps the acks and probe bits it could not write out.
 //!
 //! The tests here model that channel exactly ([`TxChannel`]): a queue of at most `limit`
-//! packets, drained by a "tx task" at a fixed rate, with the three policies that matter —
+//! packets, drained by a "tx task" at a fixed rate, with the three policies that matter,
 //! [`Policy::Unbounded`] (every other `Output` in the crate, which never drops and reports
 //! [`usize::MAX`]), [`Policy::Drop`] (Go's, and this port's before V18) and
 //! [`Policy::Backpressure`] (V18).
 //!
 //! Three things are checked:
 //!
-//! 1. **Inertness** — a channel that never fills up must behave exactly like no channel at all:
+//! 1. **Inertness**: a channel that never fills up must behave exactly like no channel at all:
 //!    the same packets, byte for byte, and the same state after randomised two-endpoint traces
 //!    over a lossy, reordering link (DECISIONS D25; the golden traces of [`super::trace_tests`]
 //!    and the pinned summaries of [`super::sim_tests`] cover the same ground against Go).
-//! 2. **Nothing is lost** — an ack, a window probe or a segment that does not fit is deferred,
+//! 2. **Nothing is lost**: an ack, a window probe or a segment that does not fit is deferred,
 //!    not dropped, and a deferred segment is left bit-for-bit as it was.
-//! 3. **The cliff is gone** — the same bulk transfer that spends its time in retransmission
+//! 3. **The cliff is gone**: the same bulk transfer that spends its time in retransmission
 //!    timeouts under [`Policy::Drop`] runs without a single retransmission under
 //!    [`Policy::Backpressure`].
 
@@ -64,7 +64,7 @@ struct ChannelState {
     dropped: u64,
     /// Deepest the queue ever got.
     high_water: usize,
-    /// PUSH sequence numbers `output` has seen, and how many it saw twice — KCP's own view of
+    /// PUSH sequence numbers `output` has seen, and how many it saw twice: KCP's own view of
     /// a retransmission, which counts the packets the channel then threw away too.
     push_sns: HashSet<u32>,
     retrans: u64,
@@ -249,7 +249,7 @@ fn acks_that_do_not_fit_are_kept_for_the_next_flush() {
 }
 
 /// The same flush with Go's policy: the surplus acks are written into packets that the channel
-/// throws away, and `acklist` is cleared regardless — the peer never hears about them.
+/// throws away, and `acklist` is cleared regardless: the peer never hears about them.
 #[test]
 fn go_drops_the_acks_that_do_not_fit() {
     let _g = snmp_read();
@@ -326,8 +326,8 @@ fn window_probes_that_do_not_fit_keep_their_bit() {
 // Segments
 // ---------------------------------------------------------------------------------------
 
-/// A segment that does not fit is left **untouched** — no `xmit`, no `rto`, no `resendts`, no
-/// `ts` — so the next flush sends it as the initial transmit it still is.
+/// A segment that does not fit is left **untouched**, no `xmit`, no `rto`, no `resendts`, no
+/// `ts`, so the next flush sends it as the initial transmit it still is.
 #[test]
 fn a_deferred_segment_is_not_marked_as_transmitted() {
     let _g = snmp_read();
@@ -387,7 +387,7 @@ fn a_deferred_segment_is_not_marked_as_transmitted() {
 }
 
 /// Go's policy on the same trace: the segments the channel refuses are marked as transmitted
-/// and their `resendts` is set, so they are only sent again a retransmission timeout later —
+/// and their `resendts` is set, so they are only sent again a retransmission timeout later,
 /// and then count as losses.
 #[test]
 fn go_marks_dropped_segments_as_transmitted() {
@@ -577,7 +577,7 @@ pub(super) struct SimResult {
     pub(super) end_ms: u64,
     pub(super) wire: [Vec<Vec<u8>>; 2],
     pub(super) state: [[u32; 32]; 2],
-    /// Per endpoint: the whole state, segment by segment — what Decision D31's `parse_ack`
+    /// Per endpoint: the whole state, segment by segment, what Decision D31's `parse_ack`
     /// and `parse_fastack` write, which the scalar words above do not cover.
     pub(super) digest: [u64; 2],
     pub(super) retrans: [u64; 2],
@@ -587,7 +587,7 @@ pub(super) struct SimResult {
     pub(super) scan_skipped: [(u64, u64); 2],
     /// Per endpoint: what the ACK path made of `snd_buf` (Decision D31).
     pub(super) ack_index: [AckIndex; 2],
-    /// Per endpoint: what every `flush` returned, in order — the scheduling hint, which the
+    /// Per endpoint: what every `flush` returned, in order, the scheduling hint, which the
     /// D29 skip must reproduce exactly.
     pub(super) next_update: [Vec<u32>; 2],
 }

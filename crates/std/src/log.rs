@@ -1,17 +1,17 @@
 //! Logging in the format of Go's standard `log` package, as the kcptun binaries produce it.
 //!
 //! Go sources:
-//! - Go standard library `log/log.go` (Go 1.27.1) — the flag bits, [`format_header`]'s layout
+//! - Go standard library `log/log.go` (Go 1.27.1): the flag bits, [`format_header`]'s layout
 //!   and `Logger.Output`'s "append a newline unless the message already has one" rule;
-//! - `kcptun/client/main.go:60-64`, `kcptun/server/main.go:65-69` —
+//! - `kcptun/client/main.go:60-64`, `kcptun/server/main.go:65-69`,
 //!   `log.SetFlags(log.LstdFlags | log.Lshortfile)` when `VERSION == "SELFBUILD"`, plain
 //!   `LstdFlags` otherwise (Go's default);
-//! - `kcptun/client/main.go:305-311`, `kcptun/server/main.go:290-296` — the `-log` file,
+//! - `kcptun/client/main.go:305-311`, `kcptun/server/main.go:290-296`: the `-log` file,
 //!   `os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)` followed by `log.SetOutput(f)`;
-//! - `kcptun/client/main.go:checkError`, `kcptun/server/main.go:checkError` — `log.Printf("%+v\n",
+//! - `kcptun/client/main.go:checkError`, `kcptun/server/main.go:checkError`: `log.Printf("%+v\n",
 //!   err)` and `os.Exit(-1)`, which is status **255** on unix;
 //! - `fatih/color@v1.18.0 color.go:Red`, `colorPrint`, `Color.Set`/`Unset` and the `NoColor`
-//!   initialiser — the red QPP and `scavengettl` warnings.
+//!   initialiser: the red QPP and `scavengettl` warnings.
 //!
 //! The two message shapes Go uses are `log.Println` (operands joined with single spaces, newline
 //! appended) and `log.Printf` (a format string, newline only when it is missing); they are
@@ -33,19 +33,19 @@ use crate::config::go_error_text;
 // Flags
 // ---------------------------------------------------------------------------------------
 
-/// `2009/01/23` — the date in the local time zone.
+/// `2009/01/23`: the date in the local time zone.
 // Go: log/log.go:Ldate
 pub const LDATE: u32 = 1 << 0;
-/// `01:23:23` — the time in the local time zone.
+/// `01:23:23`: the time in the local time zone.
 // Go: log/log.go:Ltime
 pub const LTIME: u32 = 1 << 1;
-/// `01:23:23.123123` — microsecond resolution. Assumes [`LTIME`].
+/// `01:23:23.123123`: microsecond resolution. Assumes [`LTIME`].
 // Go: log/log.go:Lmicroseconds
 pub const LMICROSECONDS: u32 = 1 << 2;
-/// `/a/b/c/d.rs:23` — the full file name and the line number.
+/// `/a/b/c/d.rs:23`: the full file name and the line number.
 // Go: log/log.go:Llongfile
 pub const LLONGFILE: u32 = 1 << 3;
-/// `d.rs:23` — the final file name element and the line number; overrides [`LLONGFILE`].
+/// `d.rs:23`: the final file name element and the line number; overrides [`LLONGFILE`].
 // Go: log/log.go:Lshortfile
 pub const LSHORTFILE: u32 = 1 << 4;
 /// Use UTC rather than the local time zone for [`LDATE`] and [`LTIME`].
@@ -131,7 +131,7 @@ impl Time {
         } else {
             self.unix_secs.saturating_add(i64::from(self.offset_secs))
         };
-        // Out of chrono's range (year ±262143) — no real clock reaches it; keep the epoch rather
+        // Out of chrono's range (year ±262143), no real clock reaches it; keep the epoch rather
         // than panicking, since a logger must never take the process down.
         let t = chrono::DateTime::from_timestamp(secs, 0)
             .unwrap_or(chrono::DateTime::UNIX_EPOCH)
@@ -277,7 +277,7 @@ pub struct LogFileError {
 // Go: kcptun/client/main.go:305-311, kcptun/server/main.go:290-296
 pub fn set_output_file(path: &str) -> Result<(), LogFileError> {
     let mut opts = std::fs::OpenOptions::new();
-    // Go: os.O_RDWR|os.O_CREATE|os.O_APPEND — `append` implies write, and `read` makes it O_RDWR.
+    // Go: os.O_RDWR|os.O_CREATE|os.O_APPEND, `append` implies write, and `read` makes it O_RDWR.
     opts.read(true).append(true).create(true);
     #[cfg(unix)]
     {
@@ -323,7 +323,7 @@ fn short_file(file: &str) -> &str {
     file
 }
 
-/// Writes the header — prefix, date, time, file and line — in Go's order.
+/// Writes the header (prefix, date, time, file and line) in Go's order.
 // Go: log/log.go:formatHeader
 fn format_header(buf: &mut String, t: Time, prefix: &str, flag: u32, file: &str, line: u32) {
     if flag & LMSGPREFIX == 0 {
@@ -483,15 +483,15 @@ macro_rules! logf {
 ///
 /// There is no `fatalf!` macro: the only `log.Fatalf` call site uses `%+v`, which is the same as
 /// `%v` for the values it sees (see [`check_error`]), so `format!` at the call site suffices.
-// Go: log/log.go:Fatal — Output(2, fmt.Sprint(v...)) then os.Exit(1)
+// Go: log/log.go:Fatal, Output(2, fmt.Sprint(v...)) then os.Exit(1)
 #[track_caller]
 pub fn fatal(msg: &str) -> ! {
     let caller = Location::caller();
     output(caller.file(), caller.line(), msg);
     // Go's `postProcess` runs on the signal path only, so a `log.Fatal` there leaves tcpraw's
     // iptables rules behind. This port runs the registered exit hooks on every exit path it
-    // controls (step 10.4); with none registered — every test, and every binary
-    // before `signal::register_iptables_reset()` — it does nothing.
+    // controls (step 10.4); with none registered: every test, and every binary
+    // before `signal::register_iptables_reset()`: it does nothing.
     crate::signal::post_process();
     std::process::exit(EXIT_FATAL)
 }
@@ -500,7 +500,7 @@ pub fn fatal(msg: &str) -> ! {
 ///
 /// Go prints the error with `%+v`. Most call sites (`client/main.go:293,308,324,326,329,331`,
 /// `server/main.go:282,293`) hand it a plain `os`, `net` or `encoding/json` error, where `%+v` is
-/// the same as `%v` — which is what this port's error types render, since their `Display` carries
+/// the same as `%v`, which is what this port's error types render, since their `Display` carries
 /// Go's exact text.
 ///
 /// `server/main.go:383,394` are different: `kcp.ServeConn` and `kcp.ListenWithOptions` return
@@ -516,7 +516,7 @@ pub fn check_error<T, E: Display>(result: Result<T, E>) -> T {
         Ok(value) => value,
         Err(err) => {
             let caller = Location::caller();
-            // Go: log.Printf("%+v\n", err) — the trailing newline is already there, so Output
+            // Go: log.Printf("%+v\n", err), the trailing newline is already there, so Output
             // adds none.
             output(caller.file(), caller.line(), &format!("{err}\n"));
             // As in `fatal`: the exit hooks run on this path too, so a server that already has
@@ -565,7 +565,7 @@ fn no_color() -> bool {
 /// when standard output is a pipe, when `NO_COLOR` is set or when `TERM=dumb`.
 ///
 /// `colorPrint` passes the message to `Print` (not `Printf`) when it has no operands, so a `%` in
-/// the message is never interpreted — as here.
+/// the message is never interpreted, as here.
 // Go: fatih/color@v1.18.0 color.go:colorPrint + Color.Print (Set, Fprint, unset)
 fn color_red_bytes(msg: &str, no_color: bool) -> String {
     let mut out = String::with_capacity(msg.len() + RED.len() + RESET.len() + 1);

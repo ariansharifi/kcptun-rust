@@ -2,7 +2,7 @@
 //!
 //! Go passes a `net.PacketConn` around (`sess.go`), and on Linux additionally asks it for the
 //! batch interface `batchConn` (`platform_linux.go`), which is `x/net/ipv4.PacketConn`'s
-//! `ReadBatch`/`WriteBatch` — `recvmmsg`/`sendmmsg` under the hood. Everything that is not a UDP
+//! `ReadBatch`/`WriteBatch`: `recvmmsg`/`sendmmsg` under the hood. Everything that is not a UDP
 //! socket (notably `tcpraw`) goes through the per-packet path instead.
 //!
 //! [`PacketConn`] merges the two into a single batch interface, so that the session and the
@@ -31,13 +31,13 @@ pub const BATCH_SIZE: usize = 256;
 
 /// The 12.3c fix depends on a full batch being a *large* allocation: glibc's default `mmap`
 /// threshold is 128 kB, and only above it does `calloc` hand back a fresh anonymous mapping it
-/// already knows to be zero, instead of a binned block it has to memset — which faults every page
+/// already knows to be zero, instead of a binned block it has to memset, which faults every page
 /// of an idle session's batch. Shrinking [`BATCH_SIZE`] below that line would silently undo the
 /// 435 kB → 55 kB result with the whole test suite still green, so it fails the build instead.
 /// See `docs/benchmarks/memory.md` §7.
 const _: () = assert!(
     BATCH_SIZE * MTU_LIMIT >= 128 * 1024,
-    "the batch must stay above glibc's default mmap threshold or calloc memsets it again — docs/benchmarks/memory.md §7"
+    "the batch must stay above glibc's default mmap threshold or calloc memsets it again: docs/benchmarks/memory.md §7"
 );
 
 /// A boxed future, as returned by the I/O methods of [`PacketConn`].
@@ -67,7 +67,7 @@ struct SlotMeta {
 /// Go allocates exactly the same 256 × 1500 bytes and pays almost none of it, because its
 /// allocator knows a freshly mapped span is already zero and skips the clear (`runtime.mallocgc`,
 /// `needzero`): the pages stay untouched until a datagram lands in one, and RSS counts resident,
-/// not allocated. A 1500-byte `vec![0u8; _]` gets no such treatment — `calloc` of a small block
+/// not allocated. A 1500-byte `vec![0u8; _]` gets no such treatment: `calloc` of a small block
 /// is served from the allocator's bins and memset, which faults every page of all 256 buffers
 /// immediately.
 ///
@@ -83,8 +83,8 @@ struct SlotMeta {
 /// **Static musl (mallocng) and mimalloc are measured counterexamples**: mallocng memsets every
 /// `calloc` at every size, and mimalloc commits the segment a large object lands in, which makes
 /// the single big allocation worse than the 256 small ones. glibc's threshold is dynamic as well
-/// (freeing a large mapped chunk raises it), so a batch that is freed and re-allocated — session
-/// churn — need not be treated like the first one.
+/// (freeing a large mapped chunk raises it), so a batch that is freed and re-allocated: session
+/// churn: need not be treated like the first one.
 ///
 /// The measurement, and the allocators this does *not* fix, are in
 /// `docs/benchmarks/memory.md` §7: 435 kB → 55 kB of RSS per idle client session on glibc (Go
@@ -123,7 +123,7 @@ impl RecvBatch {
 
     /// How many slots the batch has.
     ///
-    /// This is exactly the number of slots [`iter_mut`](Self::iter_mut) yields — see there.
+    /// This is exactly the number of slots [`iter_mut`](Self::iter_mut) yields, see there.
     pub fn len(&self) -> usize {
         self.meta.len()
     }
@@ -421,7 +421,7 @@ mod tests {
     }
 
     /// **The 12.3c fix.** Every slot's buffer is a window into one allocation, laid out back to
-    /// back with no gap — which is what makes the batch a single `MTU_LIMIT * slots` `calloc`
+    /// back with no gap, which is what makes the batch a single `MTU_LIMIT * slots` `calloc`
     /// that the allocator serves from a fresh anonymous mapping and never touches (see
     /// [`RecvBatch`]). Per-slot `vec![0u8; MTU_LIMIT]`s would be 256 separate small blocks,
     /// memset one by one, and would fault 384 kB per session before a single datagram arrived.

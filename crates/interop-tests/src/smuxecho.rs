@@ -309,7 +309,7 @@ where
 /// When the Rust client half-closes its write side.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CloseWriteOrder {
-    /// Right after the last byte has been sent — kcptun's `std.Pipe` order, and what
+    /// Right after the last byte has been sent: kcptun's `std.Pipe` order, and what
     /// `smuxecho client -early-closewrite` does. This is the order that loses data in Go
     /// (deviation V11).
     Early,

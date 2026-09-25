@@ -116,7 +116,7 @@ def parse_options(help_text: str) -> "dict[str, Option]":
 def cell(value: "str | None") -> str:
     """A default value as a table cell. `None` means the flag takes no value."""
     if value is None:
-        return "—"
+        return "-"
     return f"`{value}`"
 
 
@@ -125,7 +125,7 @@ def flags_table(bin_dir: Path) -> str:
     server = parse_options(run_help(bin_dir / "kcptun-server"))
 
     # The client's order (its help is the longer one), with the server-only flags spliced in at
-    # the first flag the two share — which puts `--listen`/`--target` next to the client's
+    # the first flag the two share, which puts `--listen`/`--target` next to the client's
     # `--localaddr`/`--remoteaddr` instead of stranding them at the end of the table.
     server_only = [k for k in server if k not in client]
     keys: list[str] = []

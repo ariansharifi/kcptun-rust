@@ -1,4 +1,4 @@
-//! `pingpong serve` — the target behind the tunnel.
+//! `pingpong serve`: the target behind the tunnel.
 //!
 //! This is what the kcptun server's `-t` points at when a scenario's workload is `ping`, `bulk`
 //! or `churn` (a scenario that runs `iperf3` points `-t` at `iperf3 -s` instead). It answers the
@@ -155,7 +155,7 @@ async fn sleep_until(deadline: Option<Instant>) {
     }
 }
 
-/// One progress line per interval — bounded output for an unattended run.
+/// One progress line per interval: bounded output for an unattended run.
 async fn progress(
     counters: Arc<Counters>,
     every: Duration,

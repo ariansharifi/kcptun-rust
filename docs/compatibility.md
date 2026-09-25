@@ -14,11 +14,11 @@ The port is written and tested against a pinned Go reference:
 Later upstream fixes to kcp-go and smux that do not change the wire format are adopted
 ([V01](differences.md)).
 
-**What "compatible" rests on.** Not an assertion — these are the tests:
+**What "compatible" rests on.** Not an assertion: these are the tests:
 
 * **The Go ↔ Rust interop matrix** ([docs/interop-matrix.md](interop-matrix.md)): 32
-  configurations — every `-crypt` mode, a pairwise cover of compression × smux version × FEC × QPP ×
-  mode × `-conn` × MTU, plus a production profile — each run in all four pairings, `go→rs`, `rs→go`
+  configurations: every `-crypt` mode, a pairwise cover of compression × smux version × FEC × QPP ×
+  mode × `-conn` × MTU, plus a production profile: each run in all four pairings, `go→rs`, `rs→go`
   and both controls. Every run moves 20 MB in each direction on one stream, 100 concurrent streams,
   and a half-close probe, all SHA-256 verified, with both processes' logs scanned afterwards.
   **128/128 passed on macOS/arm64 and 128/128 on Linux/aarch64.**
@@ -38,6 +38,6 @@ Practical consequences for a mixed deployment:
   sides.
 * The flags that must match on both ends are Go's: `-key`, `-crypt`, `-QPP` and `-QPPCount`,
   `-nocomp`, `-smuxver`.
-* JSON configuration files are interchangeable — same keys, same "`-c` overrides the command line"
+* JSON configuration files are interchangeable: same keys, same "`-c` overrides the command line"
   semantics.
 * `KCPTUN_KEY` behaves the same way.

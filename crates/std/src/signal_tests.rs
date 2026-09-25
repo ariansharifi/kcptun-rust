@@ -3,12 +3,12 @@
 //! The termination path is exercised through the [`ExitActions`] seam, so a test can watch the
 //! process re-raise `SIGTERM` without being terminated by it.
 //!
-//! The two tests that want the *real* handlers and a real signal — `test_sigterm_…` and
-//! `test_sigusr1_…` — re-exec this binary and signal the child. Neither may call [`install`] in
+//! The two tests that want the *real* handlers and a real signal: `test_sigterm_…` and
+//! `test_sigusr1_…`: re-exec this binary and signal the child. Neither may call [`install`] in
 //! the test process: tokio never unregisters the libc handler it installs (tokio-1.53.1
 //! `src/signal/unix.rs`: "the libc signal handler is never unregistered"), so once the test's
 //! runtime is dropped, `SIGUSR1`, `SIGTERM` and `SIGINT` would be caught with nothing draining
-//! tokio's signal pipe — the test binary would ignore Ctrl-C and any harness `SIGTERM` from then
+//! tokio's signal pipe: the test binary would ignore Ctrl-C and any harness `SIGTERM` from then
 //! on, and would need `SIGKILL`.
 
 use std::sync::{Arc, Mutex};
@@ -54,7 +54,7 @@ impl ExitActions for Recorder {
 }
 
 /// Go's `postProcess()` body: the tcpraw reset goes into the registry like any other hook, and
-/// running it with no fake-TCP connection open does nothing at all — the state of every kcptun
+/// running it with no fake-TCP connection open does nothing at all: the state of every kcptun
 /// process started without `--tcp`, and of every process on a platform without raw sockets.
 #[test]
 fn test_register_iptables_reset() {
@@ -154,7 +154,7 @@ const PANIC_CHILD_TEST: &str = "signal::tests::test_a_panic_runs_the_exit_hooks"
 /// stdout, so the parent can check both that the exit hooks ran and that they ran *after* the
 /// hook that was already there.
 ///
-/// Everything here is process-global — the panic hook, the exit-hook registry — which is why it
+/// Everything here is process-global (the panic hook, the exit-hook registry) which is why it
 /// lives in a child and not in the shared test process: `HOOK_LOCK` serialises the exit-hook
 /// tests, but nothing stops the other ~500 tests in this binary from panicking while a
 /// replacement panic hook is installed, and such a panic would lose its
@@ -324,7 +324,7 @@ fn test_sigterm_terminates_with_the_signal() {
         rest.iter().any(|line| line == "hook ran"),
         "the exit hooks run before the process dies: {rest:?}"
     );
-    // Go: signal.Stop(ch) + Kill(getpid(), SIGTERM) — the status says "killed by SIGTERM", not
+    // Go: signal.Stop(ch) + Kill(getpid(), SIGTERM), the status says "killed by SIGTERM", not
     // "exited with 0".
     assert_eq!(
         std::os::unix::process::ExitStatusExt::signal(&status),

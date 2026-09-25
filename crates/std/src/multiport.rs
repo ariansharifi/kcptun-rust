@@ -10,7 +10,7 @@
 //!   `.*`: `host:80:90` has the host `host:80`, `junk a:1-2` the host `junk a`, and trailing
 //!   text after the ports is ignored;
 //! - at most five digits are taken per port, so `host:123456` parses as minport 12345 and
-//!   maxport 6 — and is then rejected by the range check;
+//!   maxport 6, and is then rejected by the range check;
 //! - `-?` is *outside* the third group, so `a:1-` is a valid single port.
 //!
 //! Go's `regexp` and the Rust `regex` crate implement the same leftmost-first semantics on the
@@ -67,7 +67,7 @@ pub enum MultiPortError {
 /// Parses a multiport listener or dialer address.
 // Go: kcptun/std/multiport.go:ParseMultiPort
 pub fn parse(addr: &str) -> Result<MultiPort, MultiPortError> {
-    // Go: matches := remoteAddrMatcher.FindStringSubmatch(addr); if len(matches) >= 4 — the
+    // Go: matches := remoteAddrMatcher.FindStringSubmatch(addr); if len(matches) >= 4, the
     // pattern has three groups, so a match always has four entries and a miss none.
     if let Some(matches) = REMOTE_ADDR_MATCHER.captures(addr) {
         // Go: strconv.Atoi. Both groups are one to five decimal digits, so neither call can

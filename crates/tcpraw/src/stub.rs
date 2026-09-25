@@ -28,7 +28,7 @@ pub async fn listen(_network: &str, _address: &str) -> io::Result<TcpConn> {
 
 /// Nothing to reset: no connection was ever made, so no rule was ever installed.
 ///
-/// Go has no counterpart at all — `clear.go` is `//go:build linux` — so the caller would not
+/// Go has no counterpart at all (`clear.go` is `//go:build linux`) so the caller would not
 /// compile there. kcptun's exit path is shared across platforms, so it gets a no-op here.
 // Go: tcpraw@v1.2.32 clear.go:IPTablesReset() (Linux only)
 pub fn iptables_reset() {}

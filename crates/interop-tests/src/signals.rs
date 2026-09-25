@@ -16,14 +16,14 @@
 //!
 //! Go's side of all three:
 //!
-//! - `kcptun/std/signal.go` — `sigHandler()` logs `KCP SNMP:%+v` on `SIGUSR1`, and on
+//! - `kcptun/std/signal.go`: `sigHandler()` logs `KCP SNMP:%+v` on `SIGUSR1`, and on
 //!   `SIGTERM`/`SIGINT` runs `postProcess()` and then kills itself **with `SIGTERM`**, so the
 //!   process is *signalled*, never *exited*, in both cases. `EXIT_WAIT` (5 s) is the fallback
-//!   `os.Exit(0)` that only runs if the re-raise did not end the process — reaching it is a
+//!   `os.Exit(0)` that only runs if the re-raise did not end the process: reaching it is a
 //!   failure, which is why [`Termination::elapsed`] is asserted against [`EXIT_WAIT`].
-//! - `kcp-go/v5 snmp.go` — `Snmp.Header()`/`ToSlice()` (the CSV columns) and the struct field
+//! - `kcp-go/v5 snmp.go`: `Snmp.Header()`/`ToSlice()` (the CSV columns) and the struct field
 //!   order (the `%+v` order); the two differ, and [`kcptun_kcp::snmp`] keeps both.
-//! - `kcptun/std/snmp.go` — `SnmpLogger`/`writeSnmpRecord`: a header in an empty file, then one
+//! - `kcptun/std/snmp.go`: `SnmpLogger`/`writeSnmpRecord`: a header in an empty file, then one
 //!   record per tick, into `filepath.Split(path)`'s directory plus the *formatted* file name.
 //!
 //! An [`Instance`] is configured so that it needs no peer: the client dials nothing until an
@@ -55,7 +55,7 @@ pub const EXIT_WAIT: Duration = Duration::from_secs(5);
 
 /// The last line of both implementations' start-up block; after it the signal handler, the SNMP
 /// logger and the listeners are all up.
-// Go: kcptun/client/main.go, server/main.go — log.Println("key derivation done") right before
+// Go: kcptun/client/main.go, server/main.go, log.Println("key derivation done") right before
 // the SnmpLogger goroutine is started.
 const READY: &str = "key derivation done";
 
@@ -75,7 +75,7 @@ const POLL: Duration = Duration::from_millis(20);
 pub const KEY: &str = "kcptun-rust 09.6";
 
 /// The prefix of the line `SIGUSR1` produces.
-// Go: kcptun/std/signal.go:sigHandler() — log.Printf("KCP SNMP:%+v", kcp.DefaultSnmp.Copy())
+// Go: kcptun/std/signal.go:sigHandler(), log.Printf("KCP SNMP:%+v", kcp.DefaultSnmp.Copy())
 pub const SNMP_MARKER: &str = "KCP SNMP:";
 
 /// The `-snmplog` argument every instance is given: Go's reference layout for `YYYYMMDD`, so the
@@ -487,7 +487,7 @@ impl Snapshot {
             .collect()
     }
 
-    /// Checks that this is all 30 counters, named and ordered as Go's struct declares them —
+    /// Checks that this is all 30 counters, named and ordered as Go's struct declares them,
     /// which is the order `%+v` prints and therefore the whole content of the `SIGUSR1` line.
     // Go: kcp-go/v5@v5.6.66 snmp.go:Snmp (field order), fmt %+v
     pub fn check_go_shape(&self) -> Result<(), String> {

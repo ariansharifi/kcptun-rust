@@ -279,7 +279,7 @@ impl<T> RingBuffer<T> {
             return None;
         }
         // `head < elements.len()` and `index < len() <= elements.len()`, so one subtraction
-        // brings the sum back into the array — cheaper than a `%` on a runtime divisor.
+        // brings the sum back into the array: cheaper than a `%` on a runtime divisor.
         let mut i = self.head + index;
         if i >= self.elements.len() {
             i -= self.elements.len();
@@ -303,7 +303,7 @@ impl<T> RingBuffer<T> {
     /// [`iter_mut`](Self::iter_mut) stopped after `n` elements (`n` at or above
     /// [`len`](Self::len) yields all of them).
     ///
-    /// Not in Go, whose `ForEach` stops by returning `false` from the callback — a test the
+    /// Not in Go, whose `ForEach` stops by returning `false` from the callback: a test the
     /// loop then runs on every element. `Kcp::parse_fastack` knows from the sequence number
     /// how many segments it has to touch (Decision D31), so it takes that test out of the
     /// loop body. The counterpart of [`iter_mut_from`](Self::iter_mut_from).
@@ -764,7 +764,7 @@ mod tests {
         assert_eq!(r.peek(), Some(&1));
     }
 
-    /// Shrinking drops the elements the ring no longer has room for — there are none, so
+    /// Shrinking drops the elements the ring no longer has room for: there are none, so
     /// nothing is dropped, but the vacated slots really do release their values.
     #[test]
     fn shrink_to_drops_the_vacated_slots() {
@@ -819,7 +819,7 @@ mod tests {
     }
 
     /// `iter_mut_from` yields exactly what `iter_mut().skip(n)` would, for every offset and on
-    /// both sides of the wrap — including the two degenerate ends, an offset of 0 and one past
+    /// both sides of the wrap, including the two degenerate ends, an offset of 0 and one past
     /// the last element.
     #[test]
     fn iter_mut_from_skips_exactly_n_elements() {
@@ -845,8 +845,8 @@ mod tests {
         }
     }
 
-    /// `get`/`get_mut` address exactly what `iter().nth(i)` yields, for every ring layout —
-    /// including every place the ring can wrap — and answer `None` past the end.
+    /// `get`/`get_mut` address exactly what `iter().nth(i)` yields, for every ring layout,
+    /// including every place the ring can wrap, and answer `None` past the end.
     #[test]
     fn get_addresses_the_same_element_as_walking_to_it() {
         for head in 0..12usize {

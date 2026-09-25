@@ -94,8 +94,8 @@ impl SegmentHeap {
     /// Releases the capacity a burst of out-of-order segments left behind, and reports whether
     /// anything was given up. The contents and the heap order are untouched.
     ///
-    /// `rcv_buf` grows to hold the whole receive window while a burst is being reassembled — up
-    /// to `-rcvwnd` 8192 entries, 512 kB of `Segment` plus the `marks` set — and neither `Vec`
+    /// `rcv_buf` grows to hold the whole receive window while a burst is being reassembled: up
+    /// to `-rcvwnd` 8192 entries, 512 kB of `Segment` plus the `marks` set, and neither `Vec`
     /// nor `HashSet` gives that back on its own. Go's do not either, but there the replaced
     /// arrays become garbage that the collector and the scavenger return (plan 12.3,
     /// `docs/benchmarks/memory.md` §4).
