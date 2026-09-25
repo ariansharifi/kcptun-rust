@@ -72,15 +72,22 @@ done
 # ---------------------------------------------------------------------------------------------
 # 2. release.yml cannot fire by accident and cannot publish by accident.
 # ---------------------------------------------------------------------------------------------
-log "release.yml is manual-only and still gated"
+log "release.yml fires only on a version tag or a manual run, and is still gated"
 
-# The trigger block is everything from `on:` to the first following top-level key.
-triggers="$(awk '/^on:/{i=1;next} /^[a-z]/{i=0} i' "$WF/release.yml" | grep -E '^  [a-z_]+:' | sed 's/[: ]//g' | sort -u)"
-if [[ "$triggers" != "workflow_dispatch" ]]; then
-  err "release.yml must be triggered by workflow_dispatch only, found: $(echo "$triggers" | tr '\n' ' ')"
+# Releasing on a version tag is intended (the repository owner asked for it): `git push --tags`
+# is the normal way to cut one. What must stay true is that NOTHING ELSE can trigger it, that the
+# tag pattern is specific rather than a catch-all, and that publishing still depends on the
+# RELEASE_PUBLISH_ENABLED switch - so there remains exactly one place to turn releases off.
+triggers="$(awk '/^on:/{i=1;next} /^[a-z]/{i=0} i' "$WF/release.yml" | grep -E '^  [a-z_]+:' | sed 's/[: ]//g' | sort -u | tr '\n' ' ' | sed 's/ $//')"
+if [[ "$triggers" != "push workflow_dispatch" ]]; then
+  err "release.yml must be triggered by a tag push and workflow_dispatch only, found: $triggers"
 fi
-if grep -qE '^[[:space:]]*tags(-ignore)?:' "$WF/release.yml"; then
-  err "release.yml has a tag filter: a pushed tag must never be able to publish a release"
+# A tag trigger with no filter, or a wildcard one, would let any tag publish.
+if ! grep -qE '^[[:space:]]+- "v\[0-9\]' "$WF/release.yml"; then
+  err "release.yml's tag filter must be a specific vN.N.N pattern, not a catch-all"
+fi
+if grep -qE '^[[:space:]]+- .\*.?$' "$WF/release.yml"; then
+  err "release.yml has a catch-all tag filter: any tag would publish a release"
 fi
 if ! grep -qF "vars.RELEASE_PUBLISH_ENABLED == 'true'" "$WF/release.yml"; then
   err "release.yml has lost the RELEASE_PUBLISH_ENABLED kill switch on the publish job's 'if:'"

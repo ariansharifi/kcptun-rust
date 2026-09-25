@@ -6,7 +6,8 @@
 # # The user has not approved a public release, and this repository has no remote yet. Four  #
 # # independent things stand between a run of this workflow and a public GitHub release:     #
 # #                                                                                          #
-# #   1. Trigger.    `workflow_dispatch` only - there is deliberately no `on: push: tags`,   #
+# #   1. Trigger.    A version tag (`v1.2.3`) or a manual run. A tag implies                 #
+# #                  mode=public-release with the version taken from the tag.                 #
 # #                  so pushing a tag never starts a release.                                #
 # #   2. Kill switch. The `publish` job requires the repository variable                     #
 # #                  `RELEASE_PUBLISH_ENABLED` to be exactly `true`. The variable does not   #
@@ -50,6 +51,14 @@
 name: release
 
 on:
+  # A tag push is the normal way to cut a release: `git tag vX.Y.Z && git push --tags`.
+  # It implies mode=public-release with the version taken from the tag, so there is no second
+  # field to type and nothing to mistype. RELEASE_PUBLISH_ENABLED still has to be `true`, so the
+  # repository owner keeps one switch that disables publishing entirely.
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
   workflow_dispatch:
     inputs:
       version:
@@ -76,7 +85,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.event.inputs.version }}
+  group: release-${{ github.event.inputs.version || github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -92,17 +101,32 @@ jobs:
     outputs:
       publish: ${{ steps.decide.outputs.publish }}
       draft: ${{ steps.decide.outputs.draft }}
+      # Every later job reads the version from here, not from `inputs`, because a tag push has
+      # no inputs at all.
+      version: ${{ steps.decide.outputs.version }}
+      mode: ${{ steps.decide.outputs.mode }}
     steps:
       - name: Decide whether this run may publish
         id: decide
         env:
-          VERSION: ${{ inputs.version }}
-          CONFIRM: ${{ inputs.confirm_version }}
-          MODE: ${{ inputs.mode }}
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
+          IN_VERSION: ${{ inputs.version }}
+          IN_CONFIRM: ${{ inputs.confirm_version }}
+          IN_MODE: ${{ inputs.mode }}
           # Undefined repository variable -> empty string -> never equal to "true".
           ENABLED: ${{ vars.RELEASE_PUBLISH_ENABLED }}
         run: |
           set -euo pipefail
+
+          # Resolve the two triggers into one shape. A tag push carries its own confirmation -
+          # you had to name the version to create the tag - so it needs no confirm field.
+          if [ "$EVENT" = "push" ]; then
+            VERSION="$TAG"; MODE="public-release"; CONFIRM="$TAG"
+            echo "triggered by tag $TAG: treating as mode=public-release"
+          else
+            VERSION="$IN_VERSION"; MODE="$IN_MODE"; CONFIRM="$IN_CONFIRM"
+          fi
 
           # A version is needed in every mode: it is baked into the binaries as KCPTUN_VERSION
           # (D18), which is what `-v` prints and what turns SELFBUILD file:line logging off.
@@ -110,6 +134,9 @@ jobs:
             v[0-9]*.[0-9]*.[0-9]*) ;;
             *) echo "::error::version must look like v1.2.3 (got '$VERSION')"; exit 1 ;;
           esac
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
 
           publish=false
           draft=true
@@ -197,7 +224,7 @@ jobs:
 
       - name: Build
         env:
-          KCPTUN_VERSION: ${{ inputs.version }}
+          KCPTUN_VERSION: ${{ needs.guard.outputs.version }}
         run: tools/release.sh --strict "$KCPTUN_VERSION" linux-gnu linux-musl freebsd
 
       # A workflow artifact, not a release: visible only to people who can already see the
@@ -205,7 +232,7 @@ jobs:
       - name: Upload the build output
         uses: actions/upload-artifact@v4
         with:
-          name: kcptun-rust-${{ inputs.version }}-linux
+          name: kcptun-rust-${{ needs.guard.outputs.version }}-linux
           path: build/
           if-no-files-found: error
           retention-days: 14
@@ -228,13 +255,13 @@ jobs:
 
       - name: Build
         env:
-          KCPTUN_VERSION: ${{ inputs.version }}
+          KCPTUN_VERSION: ${{ needs.guard.outputs.version }}
         run: tools/release.sh --strict "$KCPTUN_VERSION" macos
 
       - name: Upload the build output
         uses: actions/upload-artifact@v4
         with:
-          name: kcptun-rust-${{ inputs.version }}-macos
+          name: kcptun-rust-${{ needs.guard.outputs.version }}-macos
           path: build/
           if-no-files-found: error
           retention-days: 14
@@ -260,7 +287,7 @@ jobs:
       # files of the same name would otherwise overwrite one another silently.
       - uses: actions/download-artifact@v4
         with:
-          pattern: kcptun-rust-${{ inputs.version }}-*
+          pattern: kcptun-rust-${{ needs.guard.outputs.version }}-*
           path: halves
       - name: Merge the two halves into build/
         run: |
@@ -284,7 +311,7 @@ jobs:
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ needs.guard.outputs.version }}
           DRAFT: ${{ needs.guard.outputs.draft }}
         run: |
           set -euo pipefail
@@ -371,7 +398,7 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
-          build-args: KCPTUN_VERSION=${{ inputs.version }}
+          build-args: KCPTUN_VERSION=${{ needs.guard.outputs.version }}
           provenance: false
           outputs: type=image,name=${{ steps.name.outputs.image }},push-by-digest=true,name-canonical=true,push=true
       - name: Save the digest
@@ -409,8 +436,8 @@ jobs:
       - name: Create and push the manifest list
         env:
           IMAGE: ${{ needs.image.outputs.image }}
-          VERSION: ${{ inputs.version }}
-          MODE: ${{ inputs.mode }}
+          VERSION: ${{ needs.guard.outputs.version }}
+          MODE: ${{ needs.guard.outputs.mode }}
         run: |
           set -euo pipefail
           cd /tmp/digests
