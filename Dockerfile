@@ -14,6 +14,22 @@
 #   docker run -d -p 12948:12948 kcptun-rust /bin/client -r "SERVER:29900" -l ":12948" \
 #       -mode fast3 -key PASSWORD
 #
+# OPEN FILES (DECISIONS D34). There is no Dockerfile instruction for ulimits - they are a
+# runtime setting - and none is needed for the usual case: the binaries raise their own
+# RLIMIT_NOFILE soft limit to the hard limit at start-up, which is what the *Go runtime* does
+# before main and is why Go kcptun never needed this either. Under Docker's common default of
+# soft 1024 / hard 1048576, `/proc/1/limits` reads 1048576 for both images. This is not a
+# nicety: without it a busy server hits `accept: too many open files` at 1024 descriptors,
+# because `-closewait` holds each finished connection for 30 s (Go's server default too), and
+# the tunnel flaps. If the *hard* limit is also capped on your host, no process can raise itself
+# past it and it must be set on the container:
+#
+#   docker run --ulimit nofile=1048576:1048576 ...
+#
+# and in compose, `ulimits: { nofile: { soft: 1048576, hard: 1048576 } }`. The `dist` job of
+# .github/workflows/ci.yml starts a server under `--ulimit nofile=1024:1048576` and fails if the
+# process did not raise itself, so this cannot regress unnoticed.
+#
 # Differences from the Go image, all deliberate:
 #
 #   * it builds the *build context* instead of `git clone`ing the upstream repository, so the

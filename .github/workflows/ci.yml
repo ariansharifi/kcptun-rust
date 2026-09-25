@@ -197,6 +197,26 @@ jobs:
               exit 1
               ;;
           esac
+          # D34: the Go runtime raises RLIMIT_NOFILE from the soft to the hard limit before
+          # main, so Go kcptun gets it free; a Rust binary gets nothing, and under Docker's
+          # common soft-1024 default this port once ran a production fleet out of descriptors
+          # while the Go binaries beside it had 1048576. The binaries raise it themselves now,
+          # and this is the guard: start one under the exact limits that caused the incident and
+          # read back what the process really got.
+          cid="$(docker run -d --ulimit nofile=1024:1048576 kcptun-rust:ci \
+                   /bin/server -t 127.0.0.1:1 -l :29900 -key ci-smoke)"
+          soft=""
+          for _ in $(seq 20); do
+            soft="$(docker exec "$cid" awk '/open files/ {print $4}' /proc/1/limits 2>/dev/null || true)"
+            [ -n "$soft" ] && break
+            sleep 0.5
+          done
+          docker rm -f "$cid" >/dev/null
+          echo "nofile soft limit inside the container: ${soft:-unknown}"
+          [ "${soft:-0}" -gt 1024 ] || {
+            echo "::error::the server did not raise its open-file limit (soft=${soft:-unknown}, expected the hard limit 1048576) - DECISIONS D34"
+            exit 1
+          }
           # The licence texts the GPL-3.0 qpp crate obliges the image to ship (D19).
           docker run --rm kcptun-rust:ci ls /usr/share/licenses/kcptun-rust
 

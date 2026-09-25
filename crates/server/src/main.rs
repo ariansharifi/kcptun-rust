@@ -51,6 +51,12 @@ enum TargetType {
 // ---------------------------------------------------------------------------------------
 
 fn main() {
+    // D34: the Go runtime raises the open-file soft limit to the hard limit in a `syscall`
+    // package `init()`, before `main`; nothing does that for a Rust binary, so a container
+    // started with Docker's common soft-1024 default ran this port at 1024 descriptors while a
+    // Go kcptun beside it had 1048576. First thing in `main`, before the tokio runtime opens
+    // any of its own. Silent and unconditional, exactly as in Go.
+    kcptun_kcp::rlimit::raise_nofile();
     // Go: `log.SetFlags(log.LstdFlags | log.Lshortfile)` when VERSION == "SELFBUILD". The
     // logger of this port starts with exactly those flags (`log::default_flags()`), so there is
     // nothing to set here.

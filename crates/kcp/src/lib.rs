@@ -31,6 +31,7 @@ pub mod memory;
 pub mod packet_conn;
 pub mod rate;
 pub mod ringbuffer;
+pub mod rlimit;
 pub mod rs;
 pub mod segment;
 pub mod session;

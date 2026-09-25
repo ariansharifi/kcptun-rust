@@ -55,6 +55,21 @@ tests; see the [README](README.md#status) for what is not finished.
   [troubleshooting](docs/troubleshooting.md), [interop matrix](docs/interop-matrix.md),
   [benchmark reports](docs/benchmarks/) and the [porting guide](docs/porting-guide.md).
 
+### Fixed
+
+* **The binaries raise their own open-file limit, as the Go ones do** ([D34]). The Go *runtime*
+  raises `RLIMIT_NOFILE` from the soft limit to the hard limit before `main` runs — kcptun's own
+  source has no rlimit code at all — so Go kcptun gets it for free and this port got nothing.
+  Under Docker's common `nofile` default of soft 1024 / hard 1048576 that left this port with
+  1024 descriptors beside a Go kcptun with 1048576; on a busy server, where `-closewait` holds
+  each finished connection for 30 s (Go's server default too), the ceiling arrives in minutes and
+  `accept` starts failing with `too many open files`. Found in production, on a fleet that had
+  moved two servers across. Both binaries now do what the Go runtime does, unconditionally and
+  silently, and the `dist` CI job starts a server under `--ulimit nofile=1024:1048576` and fails
+  if the process did not raise itself.
+
+[D34]: docs/DECISIONS.md
+
 ### Verified against Go
 
 * 128/128 interop runs green on macOS/arm64 and 128/128 on Linux/aarch64, across 32 configurations

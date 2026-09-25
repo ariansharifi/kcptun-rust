@@ -207,6 +207,46 @@ SHA-256-verified data through a real tunnel in all four pairings against the ups
 for both smux versions, and `tools/check-dist.sh` holds both runtime stages to the drop-in
 contract and pins each one's libc.
 
+#### Open-file limits
+
+**Nothing to configure — the binaries raise their own limit, as the Go ones do.** This is worth
+knowing because it was a real outage before it was a fix. The Go *runtime* raises `RLIMIT_NOFILE`
+from the soft limit to the hard limit before `main` runs, so Go kcptun gets that for free; kcptun's
+own source contains no rlimit code at all. A Rust binary gets nothing, so under Docker's common
+`nofile` default — **soft 1024, hard 1048576** — this port ran with 1024 descriptors beside a Go
+kcptun running with 1048576. On a busy server that ceiling arrives quickly: `-closewait` holds each
+finished connection for 30 s on the server (Go's default too), so tens of connections a second is a
+steady state of hundreds of descriptors, and past the limit `accept` fails with `EMFILE` and the
+tunnel flaps with `too many open files`.
+
+Since 0.2.0 both binaries do what the Go runtime does, unconditionally and silently ([D34]). In a
+container started with `--ulimit nofile=1024:1048576`, `/proc/1/limits` now reads:
+
+| | soft | hard |
+|---|---|---|
+| the container's shell | 1024 | 1048576 |
+| Go kcptun (`aguegu/kcptun`) | **1048576** | 1048576 |
+| this port, client and server | **1048576** | 1048576 |
+
+That covers the usual case, where only the *soft* limit is low. **If your host also caps the hard
+limit**, no process can raise itself past it and it has to be set on the container:
+
+```sh
+docker run --ulimit nofile=1048576:1048576 ...
+```
+
+```yaml
+services:
+  kcptun:
+    ulimits:
+      nofile: { soft: 1048576, hard: 1048576 }
+```
+
+Check what a running container actually has with
+`docker exec <name> cat /proc/1/limits | grep 'open files'`.
+
+[D34]: docs/DECISIONS.md
+
 ### Cargo features
 
 | Feature | Default | Effect |
