@@ -366,8 +366,6 @@ jobs:
             platform: linux/arm64
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 90
-    outputs:
-      image: ${{ steps.name.outputs.image }}
     steps:
       - uses: actions/checkout@v4
       - name: Resolve the image name
@@ -433,13 +431,37 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Resolved here rather than read from the `image` job. `needs.<job>.outputs` is not
+      # aggregated reliably across the legs of a MATRIX job - it is whichever leg finished last,
+      # and it commonly arrives empty. It did here: v0.1.2's builds both pushed their digests and
+      # this job then failed, because an empty name makes every reference invalid (`@sha256:...`,
+      # `-t :v0.1.2`). Recomputing it costs nothing and cannot be empty by accident.
+      - name: Resolve the image name
+        id: name
+        env:
+          CONFIGURED: ${{ vars.DOCKERHUB_IMAGE }}
+          USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          if [ -n "$CONFIGURED" ]; then image="$CONFIGURED"
+          elif [ -n "$USERNAME" ]; then image="$USERNAME/kcptun-rust"
+          else
+            echo "::error::set the DOCKERHUB_USERNAME secret, or the DOCKERHUB_IMAGE variable."
+            exit 1
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "image: $image"
       - name: Create and push the manifest list
         env:
-          IMAGE: ${{ needs.image.outputs.image }}
+          IMAGE: ${{ steps.name.outputs.image }}
           VERSION: ${{ needs.guard.outputs.version }}
           MODE: ${{ needs.guard.outputs.mode }}
         run: |
           set -euo pipefail
+          if [ -z "$IMAGE" ]; then
+            echo "::error::the image name resolved empty; refusing to build a reference like '@sha256:...'."
+            exit 1
+          fi
           cd /tmp/digests
           refs=()
           for d in *; do refs+=("$IMAGE@sha256:$d"); done
