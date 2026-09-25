@@ -74,7 +74,7 @@ that matters is the server's `-sndwnd` and the client's `-rcvwnd`.
 window of packets at once. In Go, anything that does not fit the internal send queue is dropped and
 costs a retransmission timeout, which is why large windows there can be *slower* than small ones;
 this port applies backpressure instead and leaves the surplus for the next flush
-([V18](../README.md#full-list)). Large windows are therefore safe here, but they still cost memory —
+([V18](differences.md#full-list)). Large windows are therefore safe here, but they still cost memory —
 see [Memory](#memory).
 
 ## Latency
@@ -143,7 +143,7 @@ can reconstruct up to `parityshard` losses within a group without a retransmissi
 
 **Limit:** `datashard + parityshard` must be at most 256. Go silently switches to a different
 erasure code above that and produces parity no kcptun receiver can use; this port refuses the
-configuration at startup instead ([V07](../README.md#full-list)).
+configuration at startup instead ([V07](differences.md#full-list)).
 
 FEC costs roughly 0.3–0.4 µs of CPU per packet on an ARM server core and less on a modern x86 or
 Apple core, with vectorised (NEON / AVX2 / SSSE3) Reed-Solomon kernels chosen at run time. On a CPU
@@ -187,7 +187,7 @@ usual choice for interactive traffic, if the network between the two hosts honou
 
 This port writes the mark into the IPv6 traffic class shifted the same way as into the IPv4 TOS
 byte. Go writes the raw value on IPv6, which shifts the class and sets stray ECN bits
-([V03](../README.md#full-list)).
+([V03](differences.md#full-list)).
 
 ## Encryption
 
@@ -231,7 +231,7 @@ Two notes specific to this port:
 
 * `-QPPCount` above 65535 is refused at startup. Go truncates it to 16 bits, where `65536` becomes
   zero and crashes on the first byte of traffic and `65537` silently becomes a single pad, skipping
-  Go's own safety warnings ([V15](../README.md#full-list)).
+  Go's own safety warnings ([V15](differences.md#full-list)).
 * QPP support comes from the GPL-3.0 `crates/qpp`, which the default build includes. See the
   [licence note](../README.md#licence) if you plan to distribute binaries.
 
@@ -266,7 +266,7 @@ direction uses smux's own `WriteTo` and takes none; the pooled 4 KiB `bufSize` i
 `std/copy.go` is only the fallback path, when neither fast path applies).
 
 A single flush can emit a whole send window, so `-sndwnd` also sets the worst-case burst held in
-the send queue. With backpressure ([V18](../README.md#full-list)) that peak is about a quarter of
+the send queue. With backpressure ([V18](differences.md#full-list)) that peak is about a quarter of
 what the same configuration held before, roughly 3 MB per session at `-sndwnd 8192`.
 
 On a memory-constrained device, lower `-smuxbuf` (it trades concurrency for memory), lower the
@@ -335,7 +335,7 @@ errors, connection counts.
 * **`-snmplog ./snmp-20060102.log -snmpperiod 60`** appends them to a CSV file; the file name is a
   Go time layout, so the example rotates daily. (A layout containing the `MST` token renders
   differently here — a numeric offset rather than a zone abbreviation, see
-  [V14](../README.md#full-list). Every other token is exact.)
+  [V14](differences.md#full-list). Every other token is exact.)
 
 Retransmission and FEC counters are the ones to watch while tuning: rising `RetransSegs` with flat
 `FECRecovered` means more parity would help; rising `InErrs` means the kernel is dropping, so raise
@@ -347,7 +347,7 @@ Retransmission and FEC counters are the ones to watch while tuning: rising `Retr
 (`cargo build --release --features pprof`, Unix only) it serves a CPU profile at
 `http://<host>:6060/debug/pprof/profile?seconds=30` in the protobuf format `go tool pprof` reads.
 Without the feature the flag logs one line and does nothing else
-([V21](../README.md#full-list)).
+([V21](differences.md#full-list)).
 
 ```sh
 go tool pprof -http=: 'http://127.0.0.1:6060/debug/pprof/profile?seconds=30'

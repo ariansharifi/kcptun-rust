@@ -732,7 +732,7 @@ is actually selling.
 Both flavours are still built and published, so the option cannot rot and the documentation
 offering it cannot start lying. The full decision and its evidence are
 [D07](../DECISIONS.md); the operational consequences are in the
-[README](../../README.md#which-linux-artifact-to-take).
+[README](../../README.md#binaries).
 
 **Host tuning matters more than the choice of implementation on an untuned box.** If
 `net.core.rmem_max` is below your `-sockbuf`, the kernel silently clamps it, and at S1's window that

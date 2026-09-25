@@ -83,10 +83,8 @@ tests; see the [README](README.md#status) for what is not finished.
 ### Differences from Go kcptun
 
 Twenty-two intentional deviations (V01–V23, of which V13 was superseded by V18), all
-wire-compatible,
-are listed in the
-[README](README.md#differences-from-go) and registered with their evidence in
-[`docs/DECISIONS.md`](docs/DECISIONS.md). The ones a user notices:
+wire-compatible, are listed in [`docs/differences.md`](docs/differences.md) and registered with
+their evidence in [`docs/DECISIONS.md`](docs/DECISIONS.md). The ones a user notices:
 
 * half-closed connections return complete responses, where Go can truncate them (V11, V04);
 * a usage error exits 2 instead of 0 (V06);

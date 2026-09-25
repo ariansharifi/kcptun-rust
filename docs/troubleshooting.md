@@ -11,7 +11,7 @@ Useful first moves:
 * Run without `-quiet` so `stream opened` / `stream closed` lines are visible.
 * An unstamped build (`-v` prints `SELFBUILD`) prefixes every log line with `file:line`, as an
   unstamped Go build does. The file names are Rust ones
-  ([V08](../README.md#full-list)).
+  ([V08](differences.md#full-list)).
 
 ## The tunnel comes up but no data flows
 
@@ -43,17 +43,17 @@ the underlying error, with Go's own wording. Common ones:
 | `dial(): malformed address:…` | `-r` is not `host:port` or `host:min-max`. |
 | `dial(): lookup …: no such host` | DNS failure for the remote host. |
 | `dial(): tcpraw.Dial(): dial ip:tcp <remote ip>: socket: operation not permitted` (Linux) | `-tcp` needs `CAP_NET_RAW` for its raw socket (and `iptables`, i.e. `CAP_NET_ADMIN`, to suppress the kernel's own segments). Run the client as root or give the binary `setcap cap_net_raw,cap_net_admin+ep`. Identical in Go. |
-| `dial(): tcpraw.Dial(): os not supported` (not Linux) | Go's fake TCP is Linux-only and this port says the same thing everywhere else. See [Status](../README.md#status). |
-| `-tcp` tunnel carries nothing, and the **Go** client's `SIGUSR1` dump shows `InErrs` climbing with `InPkts:0` | Not fixable from this side: kcp-go's read loop demands a `*net.UDPAddr` and tcpraw hands it a `*net.TCPAddr`, so a Go `-tcp` client drops every inbound packet — against a Go server too ([V22](../README.md#full-list)). Use this port's client for `-tcp`. |
+| `dial(): tcpraw.Dial(): os not supported` (not Linux) | Go's fake TCP is Linux-only and this port says the same thing everywhere else. See [Status](status.md). |
+| `-tcp` tunnel carries nothing, and the **Go** client's `SIGUSR1` dump shows `InErrs` climbing with `InPkts:0` | Not fixable from this side: kcp-go's read loop demands a `*net.UDPAddr` and tcpraw hands it a `*net.TCPAddr`, so a Go `-tcp` client drops every inbound packet — against a Go server too ([V22](differences.md#full-list)). Use this port's client for `-tcp`. |
 | A `-A OUTPUT … -m ttl --ttl-eq 1 … -j DROP` rule is left behind | The process was `SIGKILL`ed (or the machine lost power): no process can catch that signal, so nothing removed the rule. Go behaves identically. Remove it with the `-D` form of the same rule, e.g. `iptables -D OUTPUT -s <local> -d <remote> -p tcp -m ttl --ttl-eq 1 -m tcp --sport <port> --dport <port> -j DROP` (`--sport <port>` alone for a server's rule); `iptables -S OUTPUT` lists them. Every other exit path — `SIGINT`, `SIGTERM`, a normal close — removes them. |
-| `BuildSmuxConfig(): keep-alive interval must be positive` | `-keepalive` is negative. Go would instead pass validation and panic when the session opens ([V12](../README.md#full-list)). |
+| `BuildSmuxConfig(): keep-alive interval must be positive` | `-keepalive` is negative. Go would instead pass validation and panic when the session opens ([V12](differences.md#full-list)). |
 | `BuildSmuxConfig(): keep-alive timeout must be larger than keep-alive interval` | `-keepalive` is greater than 30. smux's keep-alive *timeout* is fixed at 30 s and kcptun never changes it, so no session can be built and the client retries forever. Identical in Go. |
 
 ## The process exits immediately
 
 | Exit status | Meaning |
 |---|---|
-| `2` | Usage error. `Incorrect Usage. flag provided but not defined: -nosuchflag`, followed by the help text. Go prints the same text and exits **0** ([V06](../README.md#full-list)). |
+| `2` | Usage error. `Incorrect Usage. flag provided but not defined: -nosuchflag`, followed by the help text. Go prints the same text and exits **0** ([V06](differences.md#full-list)). |
 | `1` | A fatal error: the message is the last log line. |
 
 Fatal errors you may hit, all reported before any traffic:
@@ -67,17 +67,17 @@ listen udp :29900: bind: address already in use
 ```
 
 The first three are configurations Go accepts and then breaks on — a silently undecodable erasure
-code, or a division by zero at the first connection ([V07](../README.md#full-list),
-[V19](../README.md#full-list), [V15](../README.md#full-list)). Fix the value; no configuration that
+code, or a division by zero at the first connection ([V07](differences.md#full-list),
+[V19](differences.md#full-list), [V15](differences.md#full-list)). Fix the value; no configuration that
 works under Go is refused here, with one exception: a `-QPPCount` above 65535 that does not truncate
 to zero (`65537` and friends) becomes a single pad in Go, with no warning at all, and runs —
-insecurely. It is refused here ([V15](../README.md#full-list)).
+insecurely. It is refused here ([V15](differences.md#full-list)).
 
 `QPP: not available in this build` means the binary was built with `--no-default-features`, without
 the GPL-3.0 QPP crate. Rebuild with default features, or drop `-QPP`.
 
 Unlike Go, a fatal error prints **one line and no stack trace**
-([V20](../README.md#full-list)). The line itself is byte-identical to Go's first line.
+([V20](differences.md#full-list)). The line itself is byte-identical to Go's first line.
 
 ## The binary will not start at all on Linux: `GLIBC_2.x not found`, or `No such file or directory`
 
@@ -96,7 +96,7 @@ Take the default archive instead: `kcptun-rust-linux-<arch>-<version>.tar.gz` is
 against musl and has no runtime dependency of any kind. It is also the smaller resident set at a
 typical tunnel workload. The only thing you give up is the one reason to take the `-gnu-` archive:
 a static build cannot hand a traffic burst's memory back and holds its high-water mark until it
-restarts ([README](../README.md#memory)).
+restarts ([README](benchmarks/REPORT.md#memory)).
 
 ## `SetReadBuffer` / `SetWriteBuffer` errors at startup
 
@@ -147,7 +147,7 @@ and dialling UDP does not fail.
 If the truncation happens with a **Go client** (against either server), it is Go's
 half-close data loss: Go's smux discards data that arrived but has not been read once the peer's FIN
 completes the half-close. It is reproducible with Go on both ends, and it is fixed in this port's
-client ([V11](../README.md#full-list), [V04](../README.md#full-list) with `-QPP`). The interop
+client ([V11](differences.md#full-list), [V04](differences.md#full-list) with `-QPP`). The interop
 matrix records exactly this: a Rust client is held to a complete response, a Go client is not.
 
 If the truncation happens with a **Rust client**, that is a bug — please report it with the flags
@@ -173,7 +173,7 @@ pprof: not available in this build
 
 The profiling endpoint is behind an optional cargo feature. Rebuild with
 `cargo build --release --features pprof` (Unix only). The flag is always accepted, so a Go command
-line keeps working either way ([V21](../README.md#full-list)).
+line keeps working either way ([V21](differences.md#full-list)).
 
 ## Signals
 

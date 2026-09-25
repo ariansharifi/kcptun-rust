@@ -1,611 +1,104 @@
 # kcptun-rust
 
-A Rust re-implementation of [kcptun](https://github.com/xtaci/kcptun): a TCP-over-KCP tunnel that
-carries TCP connections over reliable UDP, with stream multiplexing, forward error correction,
-encryption and compression. It is built to be a **drop-in replacement** for the Go binaries — same
-wire protocol, same flags, same defaults, same JSON config keys, same log lines — so an existing
-deployment can swap one side, both sides, or neither.
+A Rust port of [kcptun](https://github.com/xtaci/kcptun) — a tunnel that carries TCP connections
+over reliable UDP, with multiplexing, forward error correction, encryption and compression.
+
+**It is a drop-in replacement for the Go binaries.** Same wire protocol, same flags, same JSON
+config keys, same log lines — so a Rust client talks to a Go server, a Go client talks to a Rust
+server, and you can swap one side, both, or neither.
 
 ```
  your app ──TCP──▶ kcptun-client ══KCP over UDP══▶ kcptun-server ──TCP──▶ target service
 ```
 
-Upstream kcptun is archived and its repository no longer serves code. This port is built against the
-last full-code version of it (see [Compatibility](#compatibility)) and reproduces that behaviour
-deliberately, quirks included — every intentional difference is listed under
-[Differences from Go](#differences-from-go).
+It is also **faster and much lighter**: roughly 1.5–1.8× the goodput at about half the CPU, and a
+client that idles at 3.5 MB where Go's uses 16.7. [Full report, caveats included →](docs/benchmarks/REPORT.md)
 
-**Contents:** [Status](#status) · [Compatibility](#compatibility) · [Quickstart](#quickstart) ·
-[Building](#building-from-source) · [Flags](#flags) · [Differences from Go](#differences-from-go) ·
-[Performance](#performance) · [Documentation](#documentation) · [Licence](#licence)
+## Run it
 
-## Status
+### Docker
 
-**Pre-release. Nothing has been published.** There is no release, no crates.io package, no container
-image on any registry and no CI run: the repository has no remote yet, so the workflows under
-`.github/` have never executed. Build it yourself — it is one `cargo build` — and treat it as
-software you are evaluating rather than software you are adopting.
-
-What is finished and tested:
-
-| Area | State |
-|---|---|
-| KCP ARQ, FEC / Reed-Solomon, all 15 `-crypt` modes, smux v1 and v2, snappy, QPP | Ported and verified against golden vectors generated from the Go code |
-| `kcptun-client` / `kcptun-server` | Complete: flags, JSON config, presets, logging, SNMP, signals, port ranges, Unix-socket targets |
-| Go ↔ Rust interop | 128/128 runs green on macOS/arm64 and on Linux/aarch64 ([matrix](docs/interop-matrix.md)) |
-| Startup-log and CLI behaviour | Differential-tested against the Go binaries across 50 command lines, with a closed allow-list of known differences |
-| Packaging | Cross-build script, Dockerfile, systemd units, sysctl drop-ins, example configurations |
-
-What is **not** finished:
-
-* **`-tcp` (fake TCP) is wired up but not yet verified.** The transport and both binaries' `-tcp`
-  paths are complete — the client dials through it, the server adds a fake-TCP listener next to its
-  UDP one, and the `filter/OUTPUT` rules are removed on every exit path but `SIGKILL` (which no
-  process can catch; Go leaves the rules behind there too, and after a panic as well) — but the
-  privileged Linux tests (raw sockets, `iptables`, Go interop in `-tcp` mode) have not been run
-  yet, so treat it as unverified.
-  Off Linux nothing changes: Go's fake TCP is Linux-only and this port reports its `os not
-  supported` in the same places. If you depend on `-tcp` in production, stay on Go for now.
-* **Failure-mode testing.** The network-impairment matrix, the WAN runs and a six-hour soak are
-  done ([lab results](docs/lab-results/)); the deliberate failure-mode suite — peer restarts,
-  half-open paths, clock jumps — is not.
-* **The performance programme is partial, and knowing which parts is the point.** The measurements
-  are real and end to end, but three of seven metric families, two of four configurations and 16 of
-  28 impairment cells were never run, and idle CPU cost, startup time and the QPP scenario have no
-  harness at all. [`docs/benchmarks/REPORT.md`](docs/benchmarks/REPORT.md) says exactly what was
-  measured, on what, and what was not.
-* **Windows is not supported and not built.** This is a Linux project; macOS works and is the
-  development host. Windows is not in the release archives, not in CI and not maintained.
-
-## Compatibility
-
-The port is written and tested against a pinned Go reference:
-
-| Component | Version |
-|---|---|
-| kcptun | `v0.0.0-20260208051026-39935d5307f0` (commit `39935d5`, the last full-code version) |
-| kcp-go | v5.6.66 |
-| smux | v1.5.55 |
-| qpp | v1.1.25 |
-| tcpraw | v1.2.32 |
-| klauspost/reedsolomon v1.13.0, golang/snappy v1.0.0 | as vendored by that kcptun commit |
-
-Later upstream fixes to kcp-go and smux that do not change the wire format are adopted
-([V01](#full-list)).
-
-**What "compatible" rests on.** Not an assertion — these are the tests:
-
-* **The Go ↔ Rust interop matrix** ([docs/interop-matrix.md](docs/interop-matrix.md)): 32
-  configurations — every `-crypt` mode, a pairwise cover of compression × smux version × FEC × QPP ×
-  mode × `-conn` × MTU, plus a production profile — each run in all four pairings, `go→rs`, `rs→go`
-  and both controls. Every run moves 20 MB in each direction on one stream, 100 concurrent streams,
-  and a half-close probe, all SHA-256 verified, with both processes' logs scanned afterwards.
-  **128/128 passed on macOS/arm64 and 128/128 on Linux/aarch64.**
-* **Golden vectors generated by the Go code** for everything byte-level: each cipher, key
-  derivation, KCP packet traces, FEC encoder and decoder sequences, Reed-Solomon matrices, smux
-  frames, snappy framing, QPP pads, flag parsing and JSON configuration.
-* **A live differential against the Go binaries**: `-h`, `-v`, startup logs, usage errors, exit
-  codes and files left behind, across 50 command lines, with a closed allow-list of the differences
-  documented below. The help output is byte-identical except for the program name in the usage line,
-  which both implementations take from `argv[0]`.
-* **Interop against the real Go libraries** at each layer boundary: raw KCP, smux, snappy and QPP
-  peers built from the pinned modules.
-
-Practical consequences for a mixed deployment:
-
-* A Rust client talks to a Go server and a Go client to a Rust server, with the same flags on both
-  sides.
-* The flags that must match on both ends are Go's: `-key`, `-crypt`, `-QPP` and `-QPPCount`,
-  `-nocomp`, `-smuxver`.
-* JSON configuration files are interchangeable — same keys, same "`-c` overrides the command line"
-  semantics.
-* `KCPTUN_KEY` behaves the same way.
-
-## Quickstart
-
-The commands are Go kcptun's. On the server host, publishing a TCP service on port 9000:
+The image is **[`ariyansharifi/kcptun-rust`](https://hub.docker.com/r/ariyansharifi/kcptun-rust)**
+(`latest`, plus a tag per release; `linux/amd64` and `linux/arm64`).
 
 ```sh
-kcptun-server -t "127.0.0.1:9000" -l ":29900" -mode fast3 -nocomp -sockbuf 16777217 -dscp 46
+# server — publishes the service at 127.0.0.1:9000 to the tunnel
+docker run -d -p 29900:29900/udp ariyansharifi/kcptun-rust \
+    /bin/server -t "127.0.0.1:9000" -l ":29900" -mode fast3 -key "YOUR_KEY"
+
+# client — applications now connect to 127.0.0.1:9000 and come out at the target
+docker run -d -p 9000:9000 ariyansharifi/kcptun-rust \
+    /bin/client -r "SERVER_IP:29900" -l ":9000" -mode fast3 -key "YOUR_KEY"
 ```
 
-On the client host:
+### Binaries
 
-```sh
-kcptun-client -r "SERVER_IP:29900" -l ":9000" -mode fast3 -nocomp -autoexpire 900 \
-    -sockbuf 16777217 -dscp 46
-```
-
-Applications then connect to `127.0.0.1:9000` on the client host and reach the target service:
-
-> Application → **kcptun-client (9000/tcp) → kcptun-server (29900/udp)** → target (9000/tcp)
-
-Set `-key` (or `KCPTUN_KEY`) on both sides: the default pre-shared secret is upstream's, `it's a
-secrect`, and it is public. `-key`, `-crypt`, `-nocomp`, `-smuxver`, `-QPP` and `-QPPCount` must be
-identical on both ends.
-
-Before anything serious, raise the file-descriptor and socket-buffer limits — `ulimit -n 65535` plus
-the settings in [`dist/linux/sysctl_linux`](dist/linux/sysctl_linux) — exactly as for Go kcptun.
-Those are kernel limits and have nothing to do with the language the tunnel is written in. The
-[tuning guide](docs/tuning.md) covers the rest.
-
-A JSON configuration file works as it does in Go, and overrides the command line:
-
-```sh
-kcptun-client -c /etc/kcptun-client.json
-```
-
-Ready-made packaging is in [`dist/`](dist/README.md): systemd units, FreeBSD rc files, sysctl
-drop-ins, and upstream's example configuration files, which this port parses with the same keys.
-
-## Building from source
-
-Rust 1.98.1 (pinned by `rust-toolchain.toml`, edition 2024) and nothing else — no C toolchain, no
-system libraries.
+Download from [Releases](https://github.com/ariansharifi/kcptun-rust/releases), or build:
 
 ```sh
 cargo build --release -p kcptun-client -p kcptun-server
-# binaries: target/release/kcptun-client, target/release/kcptun-server
 ```
 
-Stamp a version the way Go's `-ldflags "-X main.VERSION=…"` does. Without it the binaries report
-`SELFBUILD` and, like an unstamped Go build, prefix every log line with `file:line`:
+**Set `-key` on both ends** — the default secret is upstream's and is public. `-key`, `-crypt`,
+`-nocomp`, `-smuxver`, `-QPP` and `-QPPCount` must be identical on both sides.
 
-```sh
-KCPTUN_VERSION=v0.1.0 cargo build --release -p kcptun-client -p kcptun-server
-```
+**Raise `net.core.rmem_max` before anything serious.** `setsockopt(SO_RCVBUF)` is silently clamped
+to it, and the stock value costs both this port and Go roughly half their throughput.
+[`dist/linux/sysctl_linux`](dist/linux/sysctl_linux) is the drop-in. (Open-file limits need nothing
+— the binaries raise their own, as the Go ones do.)
 
-[`tools/release.sh`](tools/release.sh) cross-builds the release archives for every supported target
-(Linux x86_64, aarch64, armv7, armv6 and i686; macOS; FreeBSD) using
-[`cargo-zigbuild`](https://github.com/rust-cross/cargo-zigbuild):
+→ [Docker in detail](docs/docker.md) · [all flags](docs/flags.md) · [tuning](docs/tuning.md) ·
+[troubleshooting](docs/troubleshooting.md) · [service files and examples](dist/README.md)
 
-```sh
-tools/release.sh v0.1.0          # archives and SHA256SUMS in build/
-tools/release.sh --list          # the target table
-tools/release.sh v0.1.0 linux-musl   # the static fallback — read the warning first
-```
+## Compatible with Go kcptun
 
-Each archive carries the binaries under both the cargo names and Go's names (`client_linux_amd64`,
-`server_linux_arm64`, …), so existing scripts and unit files keep working.
+Built against kcptun `39935d5` (kcp-go v5.6.66, smux v1.5.55) — the last full-code version, since
+upstream is archived. Compatibility is tested, not asserted: **128/128 interop runs green** in all
+four Go/Rust pairings on two platforms, plus golden vectors generated from the Go code for every
+byte-level layer.
 
-### Which Linux artifact to take
+Behaviour is reproduced quirks included, so the differences are few and each one is deliberate.
 
-The **default Linux artifacts are glibc** (`kcptun-rust-linux-<arch>-<version>.tar.gz`, built
-against glibc 2.17, which is old enough for anything still running). Static musl artifacts are
-published beside them as a fallback, under a marked name
-(`kcptun-rust-linux-<arch>-musl-<version>.tar.gz`).
+→ [What "compatible" rests on](docs/compatibility.md) ·
+[every difference from Go](docs/differences.md) · [interop matrix](docs/interop-matrix.md)
 
-> ### ⚠ Take the static musl build only if you have to
->
-> Under sustained traffic a static musl build **does not give memory back, at all**, and it does
-> not merely keep its high-water mark: it **ramps 32–45 MiB/h and had not flattened after six
-> hours (79 → 253 MiB)**. On a 1 GB box that is an out-of-memory kill within a day.
->
-> This is measured, not inferred. One box, one kernel, one netem profile, one set of flags, one
-> churn seed, only the allocator changed: musl peaked at **253 MiB and released 0 %**, still
-> climbing at **+44,860 kB/h**, where glibc peaked at **50 MiB**, fell to **13.6 MiB** within two
-> minutes and had a *negative* slope. Both arms carried the same 36.7 Mbit/s at the same latency
-> and the same CPU. musl's `mallocng` has no `malloc_trim` entry point at all, so there is
-> nothing for the tunnel's idle-trim to call and no amount of idling helps.
-> [`docs/benchmarks/memory.md`](docs/benchmarks/memory.md) §8 has the run.
->
-> Take musl when a single static file that runs on any Linux matters more than the process ever
-> giving memory back: a host with no usable glibc, or a tunnel short-lived enough that a monotone
-> ramp never reaches the ceiling.
+## Status
 
-The `Dockerfile` keeps the upstream image's contract — binaries at `/bin/client` and `/bin/server`,
-no `ENTRYPOINT`, `EXPOSE 29900/udp 12948` — so `docker run` command lines written for the Go image
-work unchanged. It builds the same two flavours, and the default is glibc for the reason above:
-
-```sh
-docker build -t kcptun-rust .                      # DEFAULT: debian:bookworm-slim, glibc
-docker build --target musl -t kcptun-rust:musl .   # the fallback: alpine:3.21, static musl
-```
-
-Both images are exercised rather than only linted: `tools/image-interop.sh` pushes 20 MB of
-SHA-256-verified data through a real tunnel in all four pairings against the upstream Go image,
-for both smux versions, and `tools/check-dist.sh` holds both runtime stages to the drop-in
-contract and pins each one's libc.
-
-#### Open-file limits
-
-**Nothing to configure — the binaries raise their own limit, as the Go ones do.** This is worth
-knowing because it was a real outage before it was a fix. The Go *runtime* raises `RLIMIT_NOFILE`
-from the soft limit to the hard limit before `main` runs, so Go kcptun gets that for free; kcptun's
-own source contains no rlimit code at all. A Rust binary gets nothing, so under Docker's common
-`nofile` default — **soft 1024, hard 1048576** — this port ran with 1024 descriptors beside a Go
-kcptun running with 1048576. On a busy server that ceiling arrives quickly: `-closewait` holds each
-finished connection for 30 s on the server (Go's default too), so tens of connections a second is a
-steady state of hundreds of descriptors, and past the limit `accept` fails with `EMFILE` and the
-tunnel flaps with `too many open files`.
-
-Since 0.2.0 both binaries do what the Go runtime does, unconditionally and silently ([D34]). In a
-container started with `--ulimit nofile=1024:1048576`, `/proc/1/limits` now reads:
-
-| | soft | hard |
-|---|---|---|
-| the container's shell | 1024 | 1048576 |
-| Go kcptun (`aguegu/kcptun`) | **1048576** | 1048576 |
-| this port, client and server | **1048576** | 1048576 |
-
-That covers the usual case, where only the *soft* limit is low. **If your host also caps the hard
-limit**, no process can raise itself past it and it has to be set on the container:
-
-```sh
-docker run --ulimit nofile=1048576:1048576 ...
-```
-
-```yaml
-services:
-  kcptun:
-    ulimits:
-      nofile: { soft: 1048576, hard: 1048576 }
-```
-
-Check what a running container actually has with
-`docker exec <name> cat /proc/1/limits | grep 'open files'`.
-
-[D34]: docs/DECISIONS.md
-
-### Cargo features
-
-| Feature | Default | Effect |
-|---|---|---|
-| `qpp` | **on** | Quantum Permutation Pad support (`-QPP`). Pulls in the GPL-3.0 `kcptun-qpp` crate — see [Licence](#licence). Without it `-QPP` exits with `QPP: not available in this build`. |
-| `pprof` | off | Serves a CPU profile for `--pprof` at `http://<host>:6060/debug/pprof/profile?seconds=30`, in the protobuf `go tool pprof` reads (Unix only). As in Go a missing or unusable `?seconds=` means 30 s; unlike Go the window is capped at one hour. Without the feature the flag is still accepted and logs one line saying the profiler is not in this build. |
-
-## Flags
-
-Both binaries take Go kcptun's flags with Go's parsing rules: `-flag value` and `--flag=value` are
-equivalent, `-nocomp` is a boolean flag, integers are parsed base-0 (so `01350` is octal), `--`
-terminates the flags, and a JSON file given with `-c` overrides the command line.
-
-The table is generated from the binaries' own `-h` output by
-[`tools/check-docs.py`](tools/check-docs.py), which also fails if this file and the binaries ever
-disagree. "n/a" means the flag does not exist on that side; "—" means it takes no value.
-
-<!-- BEGIN generated: flags (tools/check-docs.py) -->
-| Flag | Client default | Server default | Meaning |
-|---|---|---|---|
-| `--localaddr value, -l value` | `":12948"` | n/a | local listen address |
-| `--remoteaddr value, -r value` | `"vps:29900"` | n/a | kcp server address, eg: "IP:29900" a for single port, "IP:minport-maxport" for port range |
-| `--listen value, -l value` | n/a | `":29900"` | kcp server listen address, eg: "IP:29900" for a single port, "IP:minport-maxport" for port range |
-| `--target value, -t value` | n/a | `"127.0.0.1:12948"` | target server address, or path/to/unix_socket |
-| `--key value` | `"it's a secrect"` | `"it's a secrect"` | pre-shared secret between client and server. Also read from `$KCPTUN_KEY`. |
-| `--crypt value` | `"aes"` | `"aes"` | aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, sm4, none, null |
-| `--mode value` | `"fast"` | `"fast"` | profiles: fast3, fast2, fast, normal, manual |
-| `--QPP` | — | — | enable Quantum Permutation Pads(QPP) |
-| `--QPPCount value` | `61` | `61` | the prime number of pads to use for QPP: The more pads you use, the more secure the encryption. Each pad requires 256 bytes. |
-| `--conn value` | `1` | n/a | set num of UDP connections to server |
-| `--autoexpire value` | `0` | n/a | set auto expiration time(in seconds) for a single UDP connection, 0 to disable |
-| `--scavengettl value` | `600` | n/a | set how long an expired connection can live (in seconds) |
-| `--mtu value` | `1350` | `1350` | set maximum transmission unit for UDP packets |
-| `--ratelimit value` | `0` | `0` | set maximum outgoing speed (in bytes per second) for a single KCP connection, 0 to disable. Also known as packet pacing |
-| `--sndwnd value` | `128` | `1024` | set send window size(num of packets) |
-| `--rcvwnd value` | `512` | `1024` | set receive window size(num of packets) |
-| `--datashard value, --ds value` | `10` | `10` | set reed-solomon erasure coding - datashard |
-| `--parityshard value, --ps value` | `3` | `3` | set reed-solomon erasure coding - parityshard |
-| `--dscp value` | `0` | `0` | set DSCP(6bit) |
-| `--nocomp` | — | — | disable compression |
-| `--sockbuf value` | `4194304` | `4194304` | per-socket buffer in bytes |
-| `--smuxver value` | `2` | `2` | specify smux version, available 1,2 |
-| `--smuxbuf value` | `4194304` | `4194304` | the overall de-mux buffer in bytes |
-| `--framesize value` | `8192` | `8192` | smux max frame size |
-| `--streambuf value` | `2097152` | `2097152` | per stream receive buffer in bytes, smux v2+ |
-| `--keepalive value` | `10` | `10` | seconds between heartbeats |
-| `--closewait value` | `0` | `30` | the seconds to wait before tearing down a connection |
-| `--snmplog value` | — | — | collect snmp to file, aware of timeformat in golang, like: ./snmp-20060102.log |
-| `--snmpperiod value` | `60` | `60` | snmp collect period, in seconds |
-| `--log value` | — | — | specify a log file to output, default goes to stderr |
-| `--quiet` | — | — | to suppress the 'stream open/close' messages |
-| `--tcp` | — | — | to emulate a TCP connection(linux) |
-| `-c value` | — | — | config from json file, which will override the command from shell |
-| `--pprof` | — | — | start profiling server on :6060 |
-| `--help, -h` | — | — | show help |
-| `--version, -v` | — | — | print the version |
-<!-- END generated: flags -->
-
-`-mode manual` unlocks `-nodelay`, `-interval`, `-resend` and `-nc`, and `-acknodelay` is accepted in
-any mode — all five are hidden from `-h` exactly as in Go, and all five are printed in the startup
-block.
-
-`-tcp` needs `CAP_NET_RAW` and `iptables` and works on Linux only, exactly as in Go; it is
-implemented but not yet verified in the lab — see [Status](#status).
-
-Two environment variables matter and have no flag:
-
-| Variable | Effect |
-|---|---|
-| `KCPTUN_KEY` | The pre-shared secret, exactly as in Go. |
-| `GOMAXPROCS` | Number of worker threads, read with Go's own rules (a decimal `int32` greater than zero; anything else is ignored). Unset means one per available CPU. In a container with a *fractional* CPU limit this lands lower than Go's count, which rounds the cgroup limit up and never goes below 2 — set `GOMAXPROCS` explicitly there if it matters. |
-
-`GOGC` does nothing: there is no garbage collector. The [tuning guide](docs/tuning.md#memory)
-explains what bounds memory instead.
-
-## Differences from Go
-
-Behaviour was ported as it stands, quirks included, so this list is short and every entry is
-deliberate. The register is [`docs/DECISIONS.md`](docs/DECISIONS.md); the table below is its
-user-facing summary and `tools/check-docs.py` fails if the two ever disagree about which
-deviations exist.
-
-### The ones most likely to affect you
-
-* **Configurations that Go accepts and then dies on are refused at startup**, with exit status 1 and
-  a message naming the flag: FEC with more than 256 total shards (**V07**), and `-QPPCount` or
-  `-conn` values that overflow Go's internal `uint16` cast (**V15**, **V19**). In each case Go
-  either panics on the first packet or silently runs in a state its own validation did not intend.
-  A negative `-keepalive` (**V12**) is likewise reported — with smux's own error, when the session
-  is built — instead of panicking. No configuration that *works* under Go is refused, with one
-  exception: a `-QPPCount` above 65535 that does **not** truncate to zero (`65537` and friends)
-  truncates in Go to a single pad, with no warning of any kind, and runs — insecurely. That is
-  refused here too (**V15**).
-* **A usage error exits with status 2, not 0** (**V06**), so supervisors and deployment scripts can
-  tell a typo from a clean exit.
-* **Half-closed connections get complete responses** (**V11**, **V04**). A client that calls
-  `shutdown(SHUT_WR)` and then reads the answer — HTTP/1.0-shaped traffic, many RPC clients — can
-  receive a **truncated** answer through Go kcptun, because Go's smux discards received-but-unread
-  data when the peer's FIN arrives. That is fixed here, invisibly to the wire, and it shows up in
-  the interop matrix: a Rust client is held to a byte-complete response against either server, while
-  the `go→go` control truncates.
-* **Fatal errors print one line, not a Go stack trace** (**V20**). The first line — what a human or
-  a log scraper actually reads — is byte-identical to Go's.
-* **`--pprof` in a default build logs one extra line** saying the profiler is not compiled in
-  (**V21**). Build with `--features pprof` for Go's behaviour.
-* **A peer may answer from a different address** (**V23**), which Go drops. Multi-homed and anycast
-  servers, direct-return load balancers and multi-WAN clients all send from one address and answer
-  from another; under Go's rule the tunnel simply stalls. Only what we *accept* widens — the address
-  we *send* to never moves, so a spoofed source cannot redirect a session. With `-crypt null` there
-  is no integrity check to fall back on, so prefer a real cipher (any of them checks a CRC32; AES
-  checks an AEAD tag). `-strictsource` puts Go's rule back, and the flag only helps when **both**
-  ends run this port: a Go server opens a fresh session for a new address regardless.
-
-### Full list
-
-| ID | Area | Go | kcptun-rust |
-|---|---|---|---|
-| **V01** | Upstream bug fixes published after the pin | Pinned kcp-go v5.6.66 and smux v1.5.55, bugs included | Adopts the fixes up to kcp-go v5.6.72 and smux v1.5.57 that do not touch the wire format: salsa20 short-packet guard, empty-packet guards, ring-buffer `Discard` wrap fix, no panic out of the rate limiter, smux rejecting malformed frame lengths |
-| **V02** | `-ratelimit` with an oversized batch | Asking the limiter for more than its burst returns an error: v5.6.66 **panics**, later versions send unpaced | The limiter allows debt, so pacing still holds and nothing crashes |
-| **V03** | `-dscp` over IPv6 | Writes the raw DSCP into the IPv6 traffic class, so the marking is shifted and DSCP's low bits show up as **ECN** | `TCLASS = dscp << 2`, matching the IPv4 path |
-| **V04** | `-QPP` with a half-close | The QPP stream has no `CloseWrite`, so kcptun closes the whole stream and the reverse direction is lost | Forwards the half-close (an smux FIN); the response completes |
-| **V05** | Session close | The final flush races the shutdown signal, so the last packets are sent about half the time | The final flush is always queued and the sender drains before exiting |
-| **V06** | Command-line usage error | Prints `Incorrect Usage` plus the help, exits **0** | Same text, exits **2** |
-| **V07** | `-datashard` + `-parityshard` above 256 | The sender silently switches to a different erasure code that **no kcptun receiver can decode**; receivers reject the parameters outright, so the tunnel is broken without a word | Refused at startup, naming both flags |
-| **V08** | `file:line` prefix in unstamped builds | Go source file and line | Rust source file and line. Unavoidable; the rest of the format is identical |
-| **V09** | Unix-socket `-l`/`-t` on Windows | Supported on Windows 10+ | Unix platforms only. Windows is not a supported platform here at all (D22) |
-| **V10** | `-tcp` TCP timestamp option | v1.2.32 emits a malformed timestamp option | Emits the standard option, as upstream tcpraw does now. Interoperates with both, because payloads are located by the data offset |
-| **V11** | Half-close with unread data | The peer's FIN discards data that has arrived but not yet been read, cutting the answer short | Buffered data stays readable: the reader drains it, then sees EOF |
-| **V12** | Negative `-keepalive` | Passes validation, then **panics** when the first session opens | The session is refused with smux's own message, `keep-alive interval must be positive` |
-| **V13** | Session send-queue depth | — | **Superseded by V18** |
-| **V14** | `MST` inside a `-snmplog` file name | Renders the local zone's abbreviation, so `-snmplog snmp-MST.log` writes `snmp-CEST.log` | Renders Go's own numeric fallback, `snmp-+0200.log`. A limitation, not an improvement; only a file *name* is affected, and only when it contains that token |
-| **V15** | `-QPPCount` above 65535 | Truncated to 16 bits: `65536` becomes 0 and panics on the first byte of traffic, `65537` becomes one pad with **no warning at all** | Refused at startup, naming the value it would truncate to |
-| **V16** | Write pattern for an uncompressed chunk | Two writes on the inner connection, header then body | One write. The byte stream is identical |
-| **V17** | QPP short writes | Returns the inner connection's short count for a buffer it already encrypted in place, so the caller retries ciphertext | Keeps the unwritten ciphertext queued instead. Required rather than preferred: re-encrypting a tail would desynchronise the peer. Wire bytes identical |
-| **V18** | Send queue full | The KCP output callback **drops** the packet; the segment is already marked as sent, so every drop costs a retransmission timeout — and one flush of the production window is four times the queue's depth | Backpressure: the flush stops before the queue fills, having mutated nothing, and the rest goes out on the next flush. Nothing KCP emits is dropped locally, and worst-case burst memory is quartered |
-| **V19** | `-conn` at a multiple of 65536 | Passes validation, prints the whole startup block, then **divides by zero** on the first accepted connection | Refused at startup, naming the flag. Every other value behaves exactly as in Go |
-| **V20** | Fatal errors | The message, then a Go stack trace | The message line only, byte-identical to Go's first line |
-| **V21** | `--pprof` without the `pprof` feature | Always ships the profiler and logs nothing extra | The flag is accepted and one line records that the profiler is not in this build. With `--features pprof` the output is byte-identical to Go's |
-| **V22** | `-tcp` (fake-TCP) **client** | kcp-go filters inbound packets by Go type as well as by address, and a fake-TCP connection reports its peers as `*net.TCPAddr` while the session's remote is a `*net.UDPAddr` — so every inbound packet is counted as an error and dropped, and the Go `-tcp` client receives nothing. A Go `-tcp` *server* is unaffected | One address type, so the same filter compares addresses only and `-tcp` works in both directions |
-| **V23** | Where a peer may answer from | Both ends require every datagram to come from the address they send to: the client counts anything else as `InErrs` and drops it, and the server keys sessions by address, so a second source address opens a **second session** and the tunnel stalls | A peer may answer from, or send from, an address other than the one we send to. What we accept widens; where we send never moves. On by default; `-strictsource` restores Go's rule. Only helps Rust↔Rust — a Go server still opens a fresh session for a new address |
-
-Two further limitations are not deviations from Go's behaviour but are worth knowing: `-tcp` is not
-wired up yet (see [Status](#status)), and on Windows signals and Unix-socket endpoints are
-unavailable.
-
-## Performance
-
-**Full report, with every caveat and every gap: [`docs/benchmarks/REPORT.md`](docs/benchmarks/REPORT.md).**
-What follows is its summary.
-
-**Read the conditions, not just the ratios.** Go and Rust runs were always interleaved, so a ratio
-is valid *inside* the session that produced it and nowhere else. Most of the end-to-end work puts
-both tunnel ends on one host in network namespaces: that measures what the two implementations
-**cost**, not what a link will deliver. One campaign ran over a real Internet path, and its numbers
-carry a provenance caveat that the report states in full.
-
-### End to end, at the production profile
-
-`-mode normal -crypt xor -mtu 1390 -sndwnd 8192 -rcvwnd 8192 -smuxver 2 -smuxbuf 16777216
--streambuf 16777216 -datashard 0 -parityshard 0 -nocomp`, client `-conn 4 -sockbuf 8388608`,
-server `-sockbuf 67108868`. Both tunnel ends in
-network namespaces on one host, five repetitions per pair per cell, interleaved
-([x86_64 page](docs/benchmarks/2026-09-24-lab-x86-1-netns-clean-s1-sockbuf.md),
-[aarch64 page](docs/benchmarks/2026-09-24-lab-arm64-netns-clean.md) — the two may not be compared
-with each other):
-
-| | 1 vCPU x86_64 | 2 vCPU aarch64 |
-|---|---|---|
-| goodput, up / down | **1.66× / 1.52×** Go | **1.74× / 1.79×** Go |
-| CPU per GB, both ends | **0.56× / 0.61×** | **0.54× / 0.54×** |
-| RSS under load, client / server | 0.20× / 0.29× | 0.50× / 0.29× |
-| latency p50 / p99, idle tunnel | **0.55× / 0.48×** | 0.68× / 0.73× |
-| latency p50 / p99, under a competing flow | **29.2× (worse)** / 0.60× | **1.17× (worse)** / 0.50× |
-
-At kcptun's own defaults the same grids give 1.66–2.34× goodput and 0.44–0.58× CPU per GB.
-
-**Where this port loses** is in that table, not in a footnote: **median latency through a tunnel
-that is already saturated**, on both boxes. On the 2-vCPU box the probe's p50 is 0.63 ms against
-Go's 0.54 and its p90 2.81 against 2.68. On the 1-vCPU box it is far worse — **15.04 ms against
-Go's 0.52** — while the competing flow carries 1.97× the traffic and the *tail* still goes the
-other way (p99 36.3 ms against 61.0, max 49.3 against 121.1). The shape says a standing queue rather
-than stalls, which is the trade `-sndwnd 8192` asks for, and it is an open question rather than a
-settled cost: it needs a run in which both implementations carry the same load. Idle-tunnel latency
-is unaffected.
-
-The x86_64 S1 row was re-taken after the first measurement turned out to have been made on a host
-whose `net.core.rmem_max` silently clamped `-sockbuf` — see the tuning note below, which is not a
-footnote either.
-
-### Under impairment, and over a real path
-
-Across netem profiles (100–160 ms RTT, 0.2–19 % loss, bursty loss, a rate cap), production-profile
-goodput is **1.13–1.65× Go's** on the cells the campaign took at its own socket-buffer ceiling
-(`lan`, `wan50`, `lossy2`; the `ratelimited` cell is 1.00× because both implementations deliver the
-100 Mbit/s cap exactly, so its interesting column is cost). The `clean`, `lossy10` and `burst` cells read **0.80–0.97×** at that
-ceiling and **1.09–1.45×** in a separate controlled re-run with the host's `net.core.rmem_max`
-raised to what `-sockbuf` asks for. Those are two different sessions and must not be merged into one
-range. **Tunnel CPU per delivered bit is 0.38–0.49× Go's on the five degraded S1 profiles** (`lan`,
-at 1 ms delay, is 0.69×; the impaired S2/S3/S4 cells are 0.50–0.63×) — the port is
-relatively cheapest exactly where the path is worst
-([details](docs/lab-results/11.2-netem-matrix.md)). Idle latency at those RTTs is indistinguishable
-from Go's, as it should be: the path dominates.
-
-**Tune `net.core.rmem_max` before you compare anything.** `setsockopt(SO_RCVBUF)` is silently
-clamped to it, so a host at the stock 212,992 B gives S1's `-sockbuf 8388608` a fortieth of what it
-asked for and drops a quarter to a half of arriving datagrams. That alone decided three cells of the
-impairment matrix — and when the unimpaired x86_64 S1 grid was re-taken with the ceiling raised,
-**both implementations roughly doubled** (Go 147.9 → 316.5 Mbit/s, this port 182.1 → 526.6) and this
-port's retransmitted share of `OutSegs` went from 34.2 % to **0.0 %**. Passing no `-sockbuf` is not
-an escape: kcptun's flag defaults to 4 MiB and is always applied, which is still 20× the stock
-ceiling. `dist/linux/sysctl_linux` ships the drop-in.
-
-Over a real 95 ms Internet path, with every binary on both ends stamped and hash-verified:
-**no deficit on the S1 upload** (1.17× on the pair medians, 1.03× pooled by sender, inside a ±20 %
-within-pair spread — the honest claim there is "no deficit, and no reliable advantage either") and
-**1.68× on the download** (±2–3 % spread on the Go-sending arm, ±8 % on the Rust-sending one — the
-separation is far outside both), and a mixed interactive-plus-bulk workload
-better at p50, p90, p99 **and** max while carrying 43 % more bulk on 45 % of the CPU per gigabyte
-([details](docs/lab-results/11.3b-wan-matrix.md)). An earlier session on a 131 ms rung measured a
-single-stream upload at **0.75× Go** — that session's server binary is **not provably a build of
-this tree**, the result did not reproduce when the question was re-taken with provenance, and it is
-retracted as a property of this port while the record is kept
-([caveat](docs/lab-results/11.3-wan-matrix.md)). A real path is never reproducible between
-sessions, so neither set of absolute numbers may be compared with the other.
-
-### Six hours of churn
-
-The same scenario on two near-identical 1-vCPU boxes, same six hours, Rust on one and Go on the
-other ([details](docs/lab-results/11.4-soak.md)). 432,284 streams churned with **zero errors and
-zero timeouts**, RSS and descriptor counts flat after warm-up on both sides:
-
-| | this port | Go |
-|---|---:|---:|
-| client RSS, end of run / max | **42.1 / 43.5 MiB** | 222.8 / 222.8 MiB |
-| server RSS, end of run / max | **47.6 / 49.6 MiB** | 235.8 / 261.7 MiB |
-| CPU over six hours, client | **1,476 s** | 6,822 s |
-| delivered | 36.8 Mbit/s | 36.7 Mbit/s |
-
-The Go box was CPU-saturated and the Rust box was not, so the memory, descriptor and CPU rows are
-the comparable ones and the latency percentiles from that run are indicative only.
-
-### Memory
-
-Measured on aarch64 against the Go binaries on the same host
-([docs/benchmarks/memory.md](docs/benchmarks/memory.md)):
-
-| | this port (glibc) | Go | |
-|---|---:|---:|---|
-| client idle RSS | **3.48 MB** | 16.73 MB | 4.8× smaller |
-| server idle RSS | **4.37 MB** | 17.23 MB | 3.9× smaller |
-| per idle stream | **4.6 kB** | 22.5 kB | 5× smaller |
-| per idle session, client | **55 kB** (about 375 kB once sessions churn) | 243 kB | |
-| peak under load, then two minutes after it stops | **50.3 → 13.6 MiB** | measured separately — see below | 73 % returned |
-
-The idle floor is what scales: a fleet of mostly-idle tunnels is dominated by the per-process cost.
-For a 27-client, 3-server mesh the measured slopes project roughly **550 MB → 110–150 MB**.
-
-The release figures in the last row are this port's own, from the soak run; Go's release curve was
-taken with a different harness and the two must not be put in one row (memory.md says which is
-which). What matters is that an earlier caveat is now fixed and the fix is verified at soak scale:
-this port used to hold its high-water mark for ever, and on a glibc build it now gives it back on
-the first quiet tick. **On a
-static musl build it still does not** — see
-[Which Linux artifact to take](#which-linux-artifact-to-take), which is the most important
-operational paragraph in this file.
-
-### Components
-
-Whole-packet encryption and decryption at 1350 bytes
-([full tables and method](docs/benchmarks/crypto.md)):
-
-| `-crypt` | M5 encrypt / decrypt ×Go | N1 encrypt / decrypt ×Go |
-|---|---|---|
-| `aes-128` | 1.15× / 6.10× | 1.57× / 4.07× |
-| `salsa20` | 1.51× / 1.47× | 2.41× / 2.44× |
-| `xor` | 1.23× / 1.22× | 1.49× / 1.51× |
-| `aes-128-gcm` | 0.77× / 0.76× | 0.69× / 0.68× |
-
-The large CFB decrypt ratios come from pipelining the keystream. **`aes-128-gcm` is the one mode
-that is slower than Go**, on both machines: three alternative AES-GCM backends were built and
-measured against it and all were rejected, the closest one because it would have added tens of
-megabytes of vendored C and a mandatory C toolchain to an otherwise pure-Rust project, for a single
-cipher. It stays an open item, written up in
-[docs/benchmarks/crypto.md](docs/benchmarks/crypto.md) and recorded as D27 in
-[docs/DECISIONS.md](docs/DECISIONS.md).
-
-FEC at the default 10 data / 3 parity shards ([details](docs/benchmarks/fec.md)) runs at 1.2–2.1×
-Go per packet, and the Reed-Solomon codec at 1.4–1.9× per group. The KCP core
-([details](docs/benchmarks/kcp.md)) is 1.0–3.0× faster than Go on the same inputs, and two
-algorithmic changes replace its O(window) scans: **D29 makes `flush` O(1) in the send window** — at
-`-sndwnd 8192` it is 408× its own previous cost and 902× Go's — and **D31 makes the ACK path O(1) in
-it** (1.7× its own previous cost, 4.8× Go's). Both are held to emitting identical packets by a
-differential oracle that is the same code path with those fast paths switched off, and by Go golden
-traces. The accepted cost of D29's trade — a full scan is 9–30 % dearer, depending
-on the machine — has been shown not to surface against Go in deployment, but it has never been
-isolated on its own; the report says so.
-
-### What is not measured
-
-Stated here rather than buried, because the grids are partial:
-
-* Multi-stream goodput (`iperf3 -P 8`), the 1k/5k concurrent-stream scale figures and two of the
-  four benchmark configurations were **never run** end to end.
-* **Idle CPU cost, startup time and the QPP scenario have no harness at all** — they are not slow,
-  they are unmeasured.
-* 16 of the 28 impairment cells and four of the six WAN rungs were not run; of the two that were,
-  only the 95.3 ms one has provenanced binaries.
-* The optional advanced I/O work (UDP GSO/GRO, connected sockets, `SO_REUSEPORT`) was not attempted.
-* `-tcp` is functionally unverified (see [Status](#status)) and nothing here exercises it.
-
-Structurally: packet buffers come from a pool of fixed 1500-byte buffers, an idle proxied connection
-holds no copy buffer at all, and the send queue's worst case is bounded by **V18**. `-sndwnd`,
-`-rcvwnd`, `-smuxbuf` and `-streambuf` bound memory here exactly as they do in Go.
+Released and in use, but young. **`-tcp` (fake TCP) is unverified** and **Windows is not
+supported**. → [What is finished, and what is not](docs/status.md)
 
 ## Documentation
 
-| Document | What it covers |
+| | |
 |---|---|
-| [docs/tuning.md](docs/tuning.md) | Throughput, latency, head-of-line blocking, FEC, pacing, choosing a cipher, memory, slow devices, SNMP |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | What the common failures look like and what they mean |
-| [docs/interop-matrix.md](docs/interop-matrix.md) | Go ↔ Rust interop results per platform, with the exact binaries and workloads |
-| [docs/benchmarks/REPORT.md](docs/benchmarks/REPORT.md) | **The performance report**: Go vs Rust end to end, under impairment, over a real path and over six hours — with every caveat and every unmeasured row |
-| [docs/benchmarks/](docs/benchmarks/) | The measurements behind it: [crypto](docs/benchmarks/crypto.md), [FEC](docs/benchmarks/fec.md), [KCP core](docs/benchmarks/kcp.md), [session](docs/benchmarks/session.md), [smux](docs/benchmarks/smux.md), [memory](docs/benchmarks/memory.md), [index](docs/benchmarks/micro.md) |
-| [docs/lab-results/](docs/lab-results/) | Lab sessions: the netem impairment matrix, the WAN matrix, the soak and the allocator comparison |
-| [docs/porting-guide.md](docs/porting-guide.md) | How the port is written: fidelity rules, provenance comments, test conventions |
-| [dist/README.md](dist/README.md) | Service files, sysctl, example configurations, the container image |
-| [CHANGELOG.md](CHANGELOG.md) | What has changed |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Every architecture decision (D-xx) and behaviour deviation (V-xx), with its evidence |
-| [docs/WIRE-FORMAT.md](docs/WIRE-FORMAT.md) | The byte-level protocol, extracted from the Go source |
-
-The port was written step by step against the pinned Go reference. The conventions that govern it —
-source of truth, fidelity rules, provenance comments, error and integer semantics, test rules and the
-commit gate — are in [docs/porting-guide.md](docs/porting-guide.md). Commit subjects carry the step
-number they belong to (`[NN.M] scope: summary`), so `git log --oneline --grep='\[03.4\]'` finds the
-work behind any one of them.
+| [Docker](docs/docker.md) | The published image, building it yourself, open-file limits |
+| [Flags](docs/flags.md) | Every flag of both binaries, with defaults |
+| [Tuning](docs/tuning.md) | Throughput, latency, FEC, ciphers, memory, kernel limits |
+| [Troubleshooting](docs/troubleshooting.md) | What the common failures look like and what they mean |
+| [Compatibility](docs/compatibility.md) | The pinned Go reference and how it is verified |
+| [Differences from Go](docs/differences.md) | All 23, with what Go does and why this differs |
+| [Status](docs/status.md) | What is finished and what is not |
+| [Performance report](docs/benchmarks/REPORT.md) | Go vs Rust, end to end — with every gap stated |
+| [Interop matrix](docs/interop-matrix.md) | Go ↔ Rust results per platform |
+| [Packaging](dist/README.md) | systemd units, sysctl drop-ins, example configurations |
+| [Changelog](CHANGELOG.md) | What has changed |
+| [Decisions](docs/DECISIONS.md) · [wire format](docs/WIRE-FORMAT.md) · [porting guide](docs/porting-guide.md) | For anyone reading or changing the code |
 
 ## Licence
 
-**MIT, except `crates/qpp`, which is GPL-3.0.**
+**MIT, except [`crates/qpp`](crates/qpp/LICENSE), which is GPL-3.0** — it is a port of
+[xtaci/qpp](https://github.com/xtaci/qpp) and inherits its licence.
 
-`crates/qpp` is a port of [xtaci/qpp](https://github.com/xtaci/qpp), which is GPL-3.0, so that crate
-inherits the licence. The `qpp` cargo feature is **on by default**, for parity with the Go binaries.
-That means:
+The `qpp` feature is **on by default**, for parity with the Go binaries, so a default build is a
+combined work and may only be distributed under the **GPL-3.0** — exactly the position Go kcptun is
+in, since it links the same library. `cargo build --no-default-features` gives an **MIT-only**
+binary; everything works except `-QPP`.
 
-* **A default build of `kcptun-client` or `kcptun-server` is a combined work, and you may only
-  distribute it under the GPL-3.0** — source included, on request. This is exactly the position the
-  Go kcptun binaries are in today, since they link the same library.
-* **`cargo build --no-default-features` produces an MIT-only binary.** Everything works except
-  `-QPP`, which then exits with `QPP: not available in this build`. Use it if you want to ship
-  binaries without GPL obligations.
-
-Everything else derives from MIT-licensed code (kcptun, kcp-go, smux, tcpraw) or reproduces the
-behaviour of BSD-3-Clause and Apache-2.0 code with attribution. What this project is derived from,
-piece by piece, is listed in [NOTICE.md](NOTICE.md); the texts are in [LICENSE](LICENSE) and
-[crates/qpp/LICENSE](crates/qpp/LICENSE).
+Full attribution, piece by piece: [NOTICE.md](NOTICE.md) · [LICENSE](LICENSE)
 
 ## Credits
 
 The design, and most of the behaviour reproduced here, is [xtaci](https://github.com/xtaci)'s:
 kcptun, kcp-go, smux, qpp and tcpraw, on top of [skywind3000](https://github.com/skywind3000)'s KCP
-protocol and [klauspost](https://github.com/klauspost)'s Reed-Solomon work. This is a port, not a new
-protocol.
+protocol and [klauspost](https://github.com/klauspost)'s Reed-Solomon work. This is a port, not a
+new protocol.

@@ -3,27 +3,29 @@
 
 Usage:
     tools/check-docs.py                 # check everything, exit non-zero on a mismatch
-    tools/check-docs.py --write         # regenerate the generated blocks in README.md
+    tools/check-docs.py --write         # regenerate the generated blocks in docs/flags.md
     tools/check-docs.py --print-flags   # print the flags table and exit
     tools/check-docs.py --bin-dir DIR   # where kcptun-client/kcptun-server live
                                         # (default: target/release)
 
 Three things are checked:
 
-  1. **The flags table in README.md is the real `-h` output.** It is parsed out of the two
+  1. **The flags table in docs/flags.md is the real `-h` output.** It is parsed out of the two
      binaries rather than copied by hand, so a flag, a default or a description can never be
      documented as something the program does not print. Build first:
      `cargo build --release -p kcptun-client -p kcptun-server`.
-  2. **The "Differences from Go" table in README.md lists every deviation.** `docs/DECISIONS.md`
-     is the register of intentional behaviour deviations (V-xx); every id in it must appear in
-     the README table and vice versa, so a new deviation cannot be added without telling users
-     about it.
+  2. **The table in docs/differences.md lists every deviation.** The *table rows* are what
+     is read, so a passing mention in prose cannot stand in for a row. `docs/DECISIONS.md` is the
+     register of intentional behaviour deviations (V-xx); every id in it must appear in
+     docs/differences.md and vice versa, so a new deviation cannot be added without telling users
+     about it. (README.md carries only a short summary and is deliberately not checked, so that
+     it can stay readable.)
   3. **Relative links in the Markdown files resolve.** A link to a file that does not exist is an
      error.
 
-Deliberately *not* checked: the wording of the README's difference summaries. They are written for
-a reader who does not know the codebase, while DECISIONS.md is written for the porter; keeping the
-ids in step is what matters mechanically.
+Deliberately *not* checked: the wording of the difference summaries. They are written for a reader
+who does not know the codebase, while DECISIONS.md is written for the porter; keeping the ids in
+step is what matters mechanically.
 
 Python 3.9+, standard library only (macOS ships 3.9; the repository's other helper scripts make
 the same assumption).
@@ -40,6 +42,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
 DECISIONS = ROOT / "docs" / "DECISIONS.md"
+DIFFERENCES = ROOT / "docs" / "differences.md"
+FLAGS = ROOT / "docs" / "flags.md"
 
 FLAGS_BEGIN = "<!-- BEGIN generated: flags (tools/check-docs.py) -->"
 FLAGS_END = "<!-- END generated: flags -->"
@@ -160,9 +164,9 @@ def replace_block(text: str, begin: str, end: str, body: str) -> str:
     return text[:start] + "\n" + body + "\n" + text[stop:]
 
 
-def extract_block(text: str, begin: str, end: str, what: str) -> str:
+def extract_block(text: str, begin: str, end: str, what: str, where: str) -> str:
     if begin not in text or end not in text:
-        sys.exit(f"README.md has no {what} block ({begin} … {end})")
+        sys.exit(f"{where} has no {what} block ({begin} … {end})")
     start = text.index(begin) + len(begin)
     stop = text.index(end)
     return text[start:stop].strip("\n")
@@ -172,24 +176,30 @@ def decision_ids(text: str) -> "list[str]":
     return re.findall(r"^\| (V\d\d) \|", text, re.MULTILINE)
 
 
-def check_differences(readme: str) -> "list[str]":
+def check_differences() -> "list[str]":
     problems = []
     declared = decision_ids(DECISIONS.read_text())
     if not declared:
         problems.append("docs/DECISIONS.md has no V-xx rows; the parser is wrong")
         return problems
-    documented = set(re.findall(r"\*\*(V\d\d)\*\*", readme))
+    # The *table rows*, not merely a mention: a prose bullet elsewhere on the page must not
+    # be able to satisfy the check for a deviation that was dropped from the list.
+    documented = set(
+        re.findall(r"^\| \*\*(V\d\d)\*\* \|", DIFFERENCES.read_text(), re.MULTILINE)
+    )
     missing = [v for v in declared if v not in documented]
     extra = sorted(documented - set(declared))
     if missing:
         problems.append(
-            "README.md's differences table is missing "
+            "docs/differences.md is missing "
             + ", ".join(missing)
             + " (every V-xx in docs/DECISIONS.md must be listed for users)"
         )
     if extra:
         problems.append(
-            "README.md documents " + ", ".join(extra) + ", which docs/DECISIONS.md does not define"
+            "docs/differences.md documents "
+            + ", ".join(extra)
+            + ", which docs/DECISIONS.md does not define"
         )
     return problems
 
@@ -235,24 +245,27 @@ def main() -> int:
         print(flags_table(bin_dir))
         return 0
 
-    readme = README.read_text()
+    flags_doc = FLAGS.read_text()
 
     if args.write:
-        updated = replace_block(readme, FLAGS_BEGIN, FLAGS_END, flags_table(bin_dir))
-        if updated != readme:
-            README.write_text(updated)
-            print("README.md: flags table updated")
+        updated = replace_block(flags_doc, FLAGS_BEGIN, FLAGS_END, flags_table(bin_dir))
+        if updated != flags_doc:
+            FLAGS.write_text(updated)
+            print("docs/flags.md: flags table updated")
         else:
-            print("README.md: flags table already up to date")
-        readme = updated
+            print("docs/flags.md: flags table already up to date")
+        flags_doc = updated
 
     problems = []
-    if extract_block(readme, FLAGS_BEGIN, FLAGS_END, "flags") != flags_table(bin_dir):
+    if (
+        extract_block(flags_doc, FLAGS_BEGIN, FLAGS_END, "flags", "docs/flags.md")
+        != flags_table(bin_dir)
+    ):
         problems.append(
-            "README.md's flags table does not match the binaries' -h output; "
+            "docs/flags.md's flags table does not match the binaries' -h output; "
             "run tools/check-docs.py --write"
         )
-    problems += check_differences(readme)
+    problems += check_differences()
     problems += check_links()
 
     for problem in problems:
