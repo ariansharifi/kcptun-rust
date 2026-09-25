@@ -1,0 +1,312 @@
+# Release build.
+#
+# ############################################################################################
+# # THIS WORKFLOW CANNOT PUBLISH ANYTHING AS IT STANDS, BY DESIGN.                           #
+# #                                                                                          #
+# # The user has not approved a public release, and this repository has no remote yet. Four  #
+# # independent things stand between a run of this workflow and a public GitHub release:     #
+# #                                                                                          #
+# #   1. Trigger.    `workflow_dispatch` only - there is deliberately no `on: push: tags`,   #
+# #                  so pushing a tag never starts a release.                                #
+# #   2. Kill switch. The `publish` job requires the repository variable                     #
+# #                  `RELEASE_PUBLISH_ENABLED` to be exactly `true`. The variable does not   #
+# #                  exist, and an undefined variable is the empty string, so the job is     #
+# #                  skipped no matter what is typed into the form.                          #
+# #   3. Input.      The run must be started with `mode` set to `draft-release` or           #
+# #                  `public-release`; the default is `artifacts-only`, which uploads build  #
+# #                  output as a workflow artifact visible only to people who can already    #
+# #                  see the repository.                                                     #
+# #   4. Confirmation. `confirm_version` must repeat `version` exactly. (`public-release`    #
+# #                  also runs in the `release` environment, but that is only a gate once    #
+# #                  required reviewers are added to it - see the note on the publish job.)  #
+# #                                                                                          #
+# # To make it publish for real (do this only when the user asks):                           #
+# #   a. create the repository variable RELEASE_PUBLISH_ENABLED = true                       #
+# #      (`gh variable set RELEASE_PUBLISH_ENABLED --body true`);                            #
+# #   b. create the `release` environment and give it required reviewers, so that a          #
+# #      public-release run waits for a human (Settings -> Environments -> release);         #
+# #   c. run the workflow with mode=public-release and confirm_version=<the same version>.   #
+# # Adding a tag trigger, or removing any of (1)-(4), needs the user's explicit say-so.      #
+# ############################################################################################
+#
+# The actual cross-build lives in `tools/release.sh` (plan step 13.1). This workflow is only the
+# gating, the artifact handling and the release note.
+#
+# It builds in two halves, and that is not a matter of taste: **cargo-zigbuild cannot produce the
+# macOS artifacts on Linux.** Measured on 2026-09-23 (zig 0.16.0, cargo-zigbuild 0.23.4, the
+# host's Xcode hidden so that zig sees no SDK): everything compiles, and the link then fails with
+#
+#     error: unable to find framework 'CoreFoundation'
+#
+# because Rust's apple targets link `-framework CoreFoundation -liconv -lSystem`, while zig only
+# bundles `libSystem.tbd`. Pointing SDKROOT at a real macOS SDK would work, but redistributing
+# Apple's SDK to a CI runner is Apple's licence question, not ours - so the macOS half runs on a
+# macos runner, which has the SDK already, and `publish` merges the two artifact sets.
+#
+# NOTE: no run of this workflow has ever happened - there is nowhere to run it. It was validated
+# locally with `actionlint` and `tools/check-workflows.sh` only; `tools/release.sh` itself was
+# run for real on the development machine (every Linux musl target, both macOS targets and
+# FreeBSD x86_64).
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, e.g. v0.1.0 (becomes KCPTUN_VERSION and the tag name)"
+        required: true
+        type: string
+      mode:
+        description: "artifacts-only = build and keep the artifacts in the run (default, publishes nothing)"
+        required: true
+        default: artifacts-only
+        type: choice
+        options:
+          - artifacts-only
+          - draft-release
+          - public-release
+      confirm_version:
+        description: "Repeat the version exactly; required for draft-release and public-release"
+        required: false
+        default: ""
+        type: string
+
+# Read-only by default. Only the `publish` job raises this, and only for itself.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.inputs.version }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  # Everything that decides whether anything may be published is in one place, in plain shell, so
+  # it can be read and audited without knowing GitHub's expression rules.
+  guard:
+    name: guard
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+      draft: ${{ steps.decide.outputs.draft }}
+    steps:
+      - name: Decide whether this run may publish
+        id: decide
+        env:
+          VERSION: ${{ inputs.version }}
+          CONFIRM: ${{ inputs.confirm_version }}
+          MODE: ${{ inputs.mode }}
+          # Undefined repository variable -> empty string -> never equal to "true".
+          ENABLED: ${{ vars.RELEASE_PUBLISH_ENABLED }}
+        run: |
+          set -euo pipefail
+
+          # A version is needed in every mode: it is baked into the binaries as KCPTUN_VERSION
+          # (D18), which is what `-v` prints and what turns SELFBUILD file:line logging off.
+          case "$VERSION" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::version must look like v1.2.3 (got '$VERSION')"; exit 1 ;;
+          esac
+
+          publish=false
+          draft=true
+          case "$MODE" in
+            artifacts-only)
+              echo "mode=artifacts-only: building only, nothing will be published."
+              ;;
+            draft-release|public-release)
+              if [ "$ENABLED" != "true" ]; then
+                echo "::error::publishing is disabled: the repository variable RELEASE_PUBLISH_ENABLED is not 'true'."
+                echo "::error::See the header of .github/workflows/release.yml before changing this."
+                exit 1
+              fi
+              if [ "$CONFIRM" != "$VERSION" ]; then
+                echo "::error::confirm_version ('$CONFIRM') does not match version ('$VERSION')."
+                exit 1
+              fi
+              publish=true
+              if [ "$MODE" = "public-release" ]; then
+                draft=false
+              fi
+              ;;
+            *)
+              echo "::error::unknown mode '$MODE'"; exit 1 ;;
+          esac
+
+          {
+            echo "publish=$publish"
+            echo "draft=$draft"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### release guard"
+            echo "- version: \`$VERSION\`"
+            echo "- mode: \`$MODE\`"
+            echo "- publish: \`$publish\` (draft: \`$draft\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Half one: everything that cross-builds from Linux with zig as the linker - both Linux
+  # flavours (D22) and FreeBSD. `linux-gnu` first because those are the **default** artifacts
+  # (D07, settled 2026-09-24 by 11.4b's controlled same-box run: static musl peaks at 253 MiB
+  # and releases 0 %, ramping +44,860 kB/h, where glibc peaks at 50 MiB and falls to 13.6 MiB),
+  # and `linux-musl` because the static artifacts stay published as the documented fallback for
+  # a host with no usable glibc. **Both flavours are asked for on purpose**: whichever one is
+  # not the default must keep being built and published, or it rots and the option the docs
+  # offer is a lie. That is also why this line survived the default moving three times.
+  # `--strict` makes a skipped or best-effort target fail the job: on a runner nothing may be
+  # quietly missing from a release. That also means a target that does not build yet has to be
+  # removed from the list here, deliberately, rather than disappearing from the artifacts
+  # unnoticed. Windows is NOT built: D22 drops it entirely (user, 2026-09-23 - this is a Linux
+  # project). If a target ever stops building, take it off the line below deliberately and
+  # record it in the changelog - never by dropping `--strict`.
+  #
+  # The output directory is build/, not dist/: since 13.2, dist/ is a *tracked* directory of
+  # packaging files (systemd units, sysctl, example configs) that must never be attached to a
+  # release. Go's own build-release.sh uses build/ for the same reason.
+  build-linux:
+    name: build artifacts (linux, freebsd)
+    needs: guard
+    runs-on: ubuntu-latest
+    # 150, not 90: this job builds 11 targets (linux-gnu + linux-musl + freebsd) rather than 6,
+    # and each is a full fat-LTO / one-codegen-unit release build of both binaries (D24). On a
+    # cold rust-cache key the doubled work can pass 90 minutes, and under --strict a timeout
+    # fails the whole release rather than skipping a target. Which flavour is the default does
+    # not change how many are built, so this budget is independent of D07's verdict.
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      # `rustup toolchain install` with no argument reads rust-toolchain.toml and installs the
+      # pinned channel and components; `rustup show` alone only reports (rustup >= 1.28).
+      - name: Install the pinned toolchain
+        run: rustup toolchain install && rustup show && cargo --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-linux
+
+      # zig is the cross-linker for every target in this half; cargo-zigbuild drives it.
+      # Both are pinned to the versions the script was developed and run against (2026-09-23).
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild@0.23.4
+
+      - name: Build
+        env:
+          KCPTUN_VERSION: ${{ inputs.version }}
+        run: tools/release.sh --strict "$KCPTUN_VERSION" linux-gnu linux-musl freebsd
+
+      # A workflow artifact, not a release: visible only to people who can already see the
+      # repository's Actions tab, and it expires. This is what `artifacts-only` produces.
+      - name: Upload the build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: kcptun-rust-${{ inputs.version }}-linux
+          path: build/
+          if-no-files-found: error
+          retention-days: 14
+
+  # Half two: macOS, which needs a macOS host. See the header - zig can link Mach-O but has no
+  # frameworks, and Rust's apple std needs CoreFoundation. No zig here: the system linker
+  # cross-builds x86_64 from an arm64 runner (and the other way round) on its own.
+  build-macos:
+    name: build artifacts (macos)
+    needs: guard
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain
+        run: rustup toolchain install && rustup show && cargo --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-macos
+
+      - name: Build
+        env:
+          KCPTUN_VERSION: ${{ inputs.version }}
+        run: tools/release.sh --strict "$KCPTUN_VERSION" macos
+
+      - name: Upload the build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: kcptun-rust-${{ inputs.version }}-macos
+          path: build/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: publish (guarded)
+    needs: [guard, build-linux, build-macos]
+    # Belt and braces: the guard job's decision *and*, independently, the repository variable.
+    # Either one being absent or false skips this job entirely.
+    if: needs.guard.outputs.publish == 'true' && vars.RELEASE_PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    # Give this environment required reviewers so a public release waits for a human. Note that
+    # GitHub creates an unprotected environment on first use, so this line is a place to hang the
+    # protection rule on, not a guard by itself - the guard job and the repository variable are.
+    environment: release
+    permissions:
+      # The only place in the whole CI setup with write access, and only to create the release.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      # The two build halves each upload their own build/ directory, SHA256SUMS included. They
+      # are downloaded side by side and merged here rather than into one directory, because two
+      # files of the same name would otherwise overwrite one another silently.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: kcptun-rust-${{ inputs.version }}-*
+          path: halves
+      - name: Merge the two halves into build/
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          # Archives first; then one SHA256SUMS made of both halves', sorted by file name so the
+          # order does not depend on which job finished first.
+          find halves -type f ! -name SHA256SUMS -exec mv -n -t build {} +
+          cat halves/*/SHA256SUMS | sort -k2 > build/SHA256SUMS
+          # Every line of the merged sums file must name a file that is really there, and every
+          # archive must be named by it: a half that uploaded nothing would otherwise pass.
+          cd build
+          sha256sum -c SHA256SUMS
+          listed="$(wc -l < SHA256SUMS)"
+          present="$(find . -type f ! -name SHA256SUMS | wc -l)"
+          if [ "$listed" -ne "$present" ]; then
+            echo "::error::SHA256SUMS lists $listed file(s) but build/ holds $present"
+            exit 1
+          fi
+          cat SHA256SUMS
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          DRAFT: ${{ needs.guard.outputs.draft }}
+        run: |
+          set -euo pipefail
+          args=(--target "$GITHUB_SHA" --title "$VERSION" --generate-notes)
+          # `draft` is true for anything but an explicit public-release run: the release exists
+          # but is not visible to anyone without write access until a human publishes it.
+          if [ "$DRAFT" = "true" ]; then
+            args+=(--draft)
+          fi
+          # `gh release create` accepts files only, so collect them explicitly instead of globbing
+          # build/: a directory in the asset list would fail here, at the very end of a full
+          # cross-build. tools/release.sh writes one flat archive per target plus SHA256SUMS and
+          # removes its staging tree, so this is a list of exactly the release assets. An empty
+          # build/ is an error too, rather than a release with no assets.
+          files=()
+          while IFS= read -r -d '' f; do
+            files+=("$f")
+          done < <(find build -type f -print0 | sort -z)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::build/ holds no files - tools/release.sh produced nothing to attach."
+            exit 1
+          fi
+          printf 'attaching %d asset(s):\n' "${#files[@]}"
+          printf '  %s\n' "${files[@]}"
+          gh release create "$VERSION" "${args[@]}" "${files[@]}"

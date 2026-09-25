@@ -1,0 +1,36 @@
+# cargo-fuzz targets for kcptun-std (plan steps 07.1 and 08.2). Not a workspace member: it has
+# its own workspace and lock file, needs nightly, and is run from crates/std with
+#   cargo +nightly fuzz run -s none -a config_json fuzz/corpus/config_json fuzz/seeds/config_json
+# (see README.md).
+[package]
+name = "kcptun-std-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+kcptun-std = { path = "..", default-features = false, features = ["internals"] }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "config_json"
+path = "fuzz_targets/config_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "snappy_reader"
+path = "fuzz_targets/snappy_reader.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1

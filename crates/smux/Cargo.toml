@@ -1,0 +1,37 @@
+[package]
+name = "kcptun-smux"
+description = "Rust port of xtaci/smux: stream multiplexing (protocol v1 and v2)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Hidden, unstable access to smux internals (the fuzz harness) for the cargo-fuzz crate in
+# `fuzz/`. Not part of the public API.
+[features]
+internals = []
+
+[dependencies]
+bytes = { workspace = true }
+thiserror = { workspace = true }
+tokio-util = { workspace = true }
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "time",
+    "sync",
+    "macros",
+] }
+
+[dev-dependencies]
+# Self dev-dependency: turns `internals` on for this crate's own tests, so they run the fuzz
+# harness over the committed seed corpus (same pattern as crates/kcp).
+kcptun-smux = { path = ".", features = ["internals"] }
+hex = { workspace = true }
+kcptun-testkit = { workspace = true }
+serde = { workspace = true }
+
+[lints]
+workspace = true

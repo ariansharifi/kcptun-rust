@@ -1,0 +1,46 @@
+[package]
+name = "kcptun-tcpraw"
+description = "Rust port of xtaci/tcpraw: fake-TCP packet transport (Linux)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Hidden, unstable access to tcpraw internals (the fuzz harness) for the cargo-fuzz crate in
+# `fuzz/`. Not part of the public API.
+[features]
+internals = []
+
+[dependencies]
+# `PacketConn`, the transport a KCP session or listener runs on. `--tcp` hands one of these
+# connections to `kcp::new_conn`/`kcp::serve_conn` where a UDP socket would otherwise go
+# (step 10.4); `kcptun-kcp` knows nothing of this crate, so there is no cycle.
+kcptun-kcp = { workspace = true }
+# The flow table, the raw handles, the rule list and the connection list are `std::sync::Mutex`es
+# (Go's `flowsLock` / `connListMu`), held for a few field assignments and never across an
+# `.await` — the same lock, and the same poison-ignoring helper, as the rest of the workspace.
+# TSval needs a random boot offset (tcpraw@cbf9635 init(), Deviation V10).
+rand = { workspace = true }
+# Raw sockets (`socket(AF_INET, SOCK_RAW, IPPROTO_TCP)`) and the `setsockopt` calls Go makes
+# through `syscall.SetsockoptInt` (IP_TTL, IPV6_UNICAST_HOPS, SO_RCVBUF, SO_SNDBUF).
+socket2 = { workspace = true, features = ["all"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["net", "rt", "time", "sync", "macros"] }
+tokio-util = { workspace = true }
+
+# `flock(2)` on /var/run/xtables.lock, which go-iptables takes when the `iptables` binary is too
+# old for `--wait` (go-iptables@v0.8.0 lock.go).
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[dev-dependencies]
+# Self dev-dependency: turns `internals` on for this crate's own tests, so they run the fuzz
+# harness over the committed seed corpus (same pattern as crates/kcp and crates/smux).
+kcptun-tcpraw = { path = ".", features = ["internals"] }
+hex = { workspace = true }
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-util"] }
+
+[lints]
+workspace = true

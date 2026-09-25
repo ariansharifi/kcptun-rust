@@ -1,0 +1,136 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/kcp",
+    "crates/smux",
+    "crates/qpp",
+    "crates/tcpraw",
+    "crates/std",
+    "crates/client",
+    "crates/server",
+    "crates/testkit",
+    "crates/interop-tests",
+    # Development-only lab tools (Step 11): never shipped, but in the workspace so the gate
+    # covers them — the 11.4 soak runs them unattended for six hours.
+    "tools/pingpong",
+]
+# cargo-fuzz crates have their own workspace (nightly only, run with `cargo +nightly fuzz`).
+# tools/bench/aes-gcm-eval is the 12.2b AES-GCM backend comparison; it is excluded so that its
+# `ring` and `aws-lc-sys` dependencies never reach the workspace build, tests or `cargo deny`.
+exclude = [
+    "crates/kcp/fuzz",
+    "crates/smux/fuzz",
+    "crates/std/fuzz",
+    "crates/tcpraw/fuzz",
+    "tools/bench/aes-gcm-eval",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+repository = "https://github.com/ariansharifi/kcptun-rust"
+
+# All third-party versions live here; member crates use `dep = { workspace = true }`
+# and add features locally where needed.
+[workspace.dependencies]
+# internal crates
+kcptun-kcp = { path = "crates/kcp", version = "0.1.0" }
+kcptun-smux = { path = "crates/smux", version = "0.1.0" }
+kcptun-qpp = { path = "crates/qpp", version = "0.1.0" }
+kcptun-tcpraw = { path = "crates/tcpraw", version = "0.1.0" }
+kcptun-std = { path = "crates/std", version = "0.1.0", default-features = false }
+kcptun-testkit = { path = "crates/testkit" }
+
+# async runtime and I/O
+tokio = { version = "1.53", default-features = false }
+tokio-util = "0.7.19"
+bytes = "1.12"
+socket2 = "0.6.5"
+libc = "0.2.189"
+# Signals: only `low_level::emulate_default_handler` is used (restore the default disposition and
+# re-raise, like Go's signal.Stop + syscall.Kill). It is a safe wrapper, so kcptun-std keeps
+# `#![forbid(unsafe_code)]`.
+signal-hook = { version = "0.3.18", default-features = false }
+
+# synchronisation and data structures
+parking_lot = "0.12.5"
+crossbeam-queue = "0.3.14"
+
+# randomness
+rand = "0.10"
+getrandom = "0.4"
+
+# crypto (RustCrypto, all on cipher 0.5 / digest 0.11)
+aes = "0.9.3"
+aes-gcm = "0.11.1"
+cipher = "0.5"
+salsa20 = "0.11"
+blowfish = "0.10"
+twofish = "0.8"
+cast5 = "0.12"
+des = "0.9"
+sm4 = "0.6"
+pbkdf2 = "0.13"
+hmac = "0.13"
+sha1 = "0.11"
+sha2 = "0.11"
+
+# checksums and compression
+crc32fast = "1.5"
+crc32c = "0.6.8"
+snap = "1.1"
+
+# configuration, CLI and logging
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1.13"
+chrono = { version = "0.4.45", default-features = false }
+thiserror = "2"
+# Heap profiler for the 12.3 memory work: `memprobe --features dhat` installs it as the global
+# allocator, so live heap bytes can be compared with RSS at the same instant.
+dhat = "0.3.3"
+
+# profiling: the `pprof` feature of kcptun-std/client/server (D23). `protobuf-codec` produces the
+# same protobuf `go tool pprof` reads from Go's /debug/pprof/profile; the default `cpp` feature
+# (C++ symbol demangling) is not needed here.
+pprof = { version = "0.15", default-features = false, features = ["protobuf-codec"] }
+
+# development only
+criterion = { version = "0.8", default-features = false }
+proptest = "1.11"
+reed-solomon-erasure = "6"
+hex = "0.4"
+tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "warn"
+unwrap_used = "warn"
+dbg_macro = "warn"
+todo = "warn"
+
+[profile.dev]
+opt-level = 1
+
+# Crypto, compression and test dependencies are much faster optimised; keeps test runs quick.
+[profile.dev.package."*"]
+opt-level = 3
+
+# D24 (proposed; confirmed or revised with Step 12 benchmarks).
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Release optimisation with symbols, for perf/samply profiling.
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false

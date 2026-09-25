@@ -1,0 +1,60 @@
+[package]
+name = "kcptun-interop-tests"
+description = "Go <-> Rust interoperability tests for kcptun-rust (not published)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+# The QPP interop suite (`tests/qpp.rs`) needs `kcptun-std`'s QPP wrapper, which pulls in the
+# GPL-3.0 `kcptun-qpp` crate (D19). On by default, like kcptun's own `-QPP` support; turn it off
+# with `--no-default-features` for a build that links no GPL code at all.
+default = ["qpp"]
+qpp = ["kcptun-std/qpp"]
+# plan 12.3b: `memprobe --features dhat` installs the dhat heap profiler as the global allocator,
+# so that live heap bytes and RSS can be read at the same instant (and `dhat-heap.json` names the
+# retaining call sites). Off by default: dhat takes a backtrace per allocation.
+dhat = ["dep:dhat"]
+
+[dependencies]
+dhat = { workspace = true, optional = true }
+kcptun-smux = { workspace = true }
+# The Rust side of the kcp interop suite runs in-process: a `kcptun-kcp` session or listener
+# talks to the Go `kcpecho` peer, configured through `kcptun-std`'s `-crypt` selection so both
+# ends derive the same key exactly as kcptun does.
+kcptun-kcp = { workspace = true }
+kcptun-std = { workspace = true, default-features = false }
+kcptun-testkit = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "time",
+    "sync",
+    "macros",
+] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+# The 12.3 memory probe: live heap versus RSS across a burst (see its module docs).
+[[bin]]
+name = "memprobe"
+path = "src/bin/memprobe.rs"
+
+# The Rust counterpart of the Go `smuxecho` interop peer: same flags, same JSON report and the
+# same `listening on:` line, so a Rust<->Rust run is shaped exactly like a Go<->Go one (two
+# processes, smux over TCP). Named `kcptun-<name>` so `bins::rust_bin("smuxecho")` finds it.
+[[bin]]
+name = "kcptun-smuxecho"
+path = "src/bin/smuxecho.rs"
+
+[lints]
+workspace = true

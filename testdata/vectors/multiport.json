@@ -1,0 +1,587 @@
+{
+  "generator": "govectors",
+  "go": "go1.27.1",
+  "modules": {
+    "github.com/cpuguy83/go-md2man/v2": "v2.0.7",
+    "github.com/golang/snappy": "v1.0.0",
+    "github.com/klauspost/cpuid/v2": "v2.3.0",
+    "github.com/klauspost/reedsolomon": "v1.13.0",
+    "github.com/pkg/errors": "v0.9.1",
+    "github.com/russross/blackfriday/v2": "v2.1.0",
+    "github.com/tjfoc/gmsm": "v1.4.1",
+    "github.com/urfave/cli": "v1.22.17",
+    "github.com/xtaci/kcp-go/v5": "v5.6.66",
+    "github.com/xtaci/qpp": "v1.1.25",
+    "github.com/xtaci/smux": "v1.5.55",
+    "golang.org/x/crypto": "v0.47.0",
+    "golang.org/x/net": "v0.49.0",
+    "golang.org/x/sys": "v0.40.0",
+    "golang.org/x/time": "v0.14.0"
+  },
+  "area": "multiport",
+  "cases": [
+    {
+      "name": "parse/:29900",
+      "func": "ParseMultiPort",
+      "addr": ":29900",
+      "ok": true,
+      "minport": 29900,
+      "maxport": 29900
+    },
+    {
+      "name": "parse/1.2.3.4:3000-4000",
+      "func": "ParseMultiPort",
+      "addr": "1.2.3.4:3000-4000",
+      "ok": true,
+      "host": "1.2.3.4",
+      "minport": 3000,
+      "maxport": 4000
+    },
+    {
+      "name": "parse/[::1]:1-2",
+      "func": "ParseMultiPort",
+      "addr": "[::1]:1-2",
+      "ok": true,
+      "host": "[::1]",
+      "minport": 1,
+      "maxport": 2
+    },
+    {
+      "name": "parse/vps:29900",
+      "func": "ParseMultiPort",
+      "addr": "vps:29900",
+      "ok": true,
+      "host": "vps",
+      "minport": 29900,
+      "maxport": 29900
+    },
+    {
+      "name": "parse/host:123456",
+      "func": "ParseMultiPort",
+      "addr": "host:123456",
+      "ok": false,
+      "err": "invalid port range specified: minport:12345 -> maxport 6"
+    },
+    {
+      "name": "parse/a:0",
+      "func": "ParseMultiPort",
+      "addr": "a:0",
+      "ok": false,
+      "err": "invalid port range specified: minport:0 -> maxport 0"
+    },
+    {
+      "name": "parse/a:5-3",
+      "func": "ParseMultiPort",
+      "addr": "a:5-3",
+      "ok": false,
+      "err": "invalid port range specified: minport:5 -> maxport 3"
+    },
+    {
+      "name": "parse/nocolon",
+      "func": "ParseMultiPort",
+      "addr": "nocolon",
+      "ok": false,
+      "err": "malformed address:nocolon"
+    },
+    {
+      "name": "parse/x:65536",
+      "func": "ParseMultiPort",
+      "addr": "x:65536",
+      "ok": false,
+      "err": "invalid port range specified: minport:65536 -> maxport 65536"
+    },
+    {
+      "name": "parse/",
+      "func": "ParseMultiPort",
+      "addr": "",
+      "ok": false,
+      "err": "malformed address:"
+    },
+    {
+      "name": "parse/:",
+      "func": "ParseMultiPort",
+      "addr": ":",
+      "ok": false,
+      "err": "malformed address::"
+    },
+    {
+      "name": "parse/a:",
+      "func": "ParseMultiPort",
+      "addr": "a:",
+      "ok": false,
+      "err": "malformed address:a:"
+    },
+    {
+      "name": "parse/a:1",
+      "func": "ParseMultiPort",
+      "addr": "a:1",
+      "ok": true,
+      "host": "a",
+      "minport": 1,
+      "maxport": 1
+    },
+    {
+      "name": "parse/a:65535",
+      "func": "ParseMultiPort",
+      "addr": "a:65535",
+      "ok": true,
+      "host": "a",
+      "minport": 65535,
+      "maxport": 65535
+    },
+    {
+      "name": "parse/a:1-65535",
+      "func": "ParseMultiPort",
+      "addr": "a:1-65535",
+      "ok": true,
+      "host": "a",
+      "minport": 1,
+      "maxport": 65535
+    },
+    {
+      "name": "parse/a:5-5",
+      "func": "ParseMultiPort",
+      "addr": "a:5-5",
+      "ok": true,
+      "host": "a",
+      "minport": 5,
+      "maxport": 5
+    },
+    {
+      "name": "parse/a:012",
+      "func": "ParseMultiPort",
+      "addr": "a:012",
+      "ok": true,
+      "host": "a",
+      "minport": 12,
+      "maxport": 12
+    },
+    {
+      "name": "parse/a:00",
+      "func": "ParseMultiPort",
+      "addr": "a:00",
+      "ok": false,
+      "err": "invalid port range specified: minport:0 -> maxport 0"
+    },
+    {
+      "name": "parse/a:0-1",
+      "func": "ParseMultiPort",
+      "addr": "a:0-1",
+      "ok": false,
+      "err": "invalid port range specified: minport:0 -> maxport 1"
+    },
+    {
+      "name": "parse/a:1-0",
+      "func": "ParseMultiPort",
+      "addr": "a:1-0",
+      "ok": false,
+      "err": "invalid port range specified: minport:1 -> maxport 0"
+    },
+    {
+      "name": "parse/a:1-",
+      "func": "ParseMultiPort",
+      "addr": "a:1-",
+      "ok": true,
+      "host": "a",
+      "minport": 1,
+      "maxport": 1
+    },
+    {
+      "name": "parse/a:1-2-3",
+      "func": "ParseMultiPort",
+      "addr": "a:1-2-3",
+      "ok": true,
+      "host": "a",
+      "minport": 1,
+      "maxport": 2
+    },
+    {
+      "name": "parse/a:1-2junk",
+      "func": "ParseMultiPort",
+      "addr": "a:1-2junk",
+      "ok": true,
+      "host": "a",
+      "minport": 1,
+      "maxport": 2
+    },
+    {
+      "name": "parse/junk a:1-2",
+      "func": "ParseMultiPort",
+      "addr": "junk a:1-2",
+      "ok": true,
+      "host": "junk a",
+      "minport": 1,
+      "maxport": 2
+    },
+    {
+      "name": "parse/host:80:90",
+      "func": "ParseMultiPort",
+      "addr": "host:80:90",
+      "ok": true,
+      "host": "host:80",
+      "minport": 90,
+      "maxport": 90
+    },
+    {
+      "name": "parse/[2001:db8::1]:443",
+      "func": "ParseMultiPort",
+      "addr": "[2001:db8::1]:443",
+      "ok": true,
+      "host": "[2001:db8::1]",
+      "minport": 443,
+      "maxport": 443
+    },
+    {
+      "name": "parse/2001:db8::1:443",
+      "func": "ParseMultiPort",
+      "addr": "2001:db8::1:443",
+      "ok": true,
+      "host": "2001:db8::1",
+      "minport": 443,
+      "maxport": 443
+    },
+    {
+      "name": "parse/unix:/tmp/kcptun.sock",
+      "func": "ParseMultiPort",
+      "addr": "unix:/tmp/kcptun.sock",
+      "ok": false,
+      "err": "malformed address:unix:/tmp/kcptun.sock"
+    },
+    {
+      "name": "parse//tmp/kcptun.sock",
+      "func": "ParseMultiPort",
+      "addr": "/tmp/kcptun.sock",
+      "ok": false,
+      "err": "malformed address:/tmp/kcptun.sock"
+    },
+    {
+      "name": "parse/sub.domain.example:443",
+      "func": "ParseMultiPort",
+      "addr": "sub.domain.example:443",
+      "ok": true,
+      "host": "sub.domain.example",
+      "minport": 443,
+      "maxport": 443
+    },
+    {
+      "name": "parse/HOST:80",
+      "func": "ParseMultiPort",
+      "addr": "HOST:80",
+      "ok": true,
+      "host": "HOST",
+      "minport": 80,
+      "maxport": 80
+    },
+    {
+      "name": "parse/héllo:80",
+      "func": "ParseMultiPort",
+      "addr": "héllo:80",
+      "ok": true,
+      "host": "héllo",
+      "minport": 80,
+      "maxport": 80
+    },
+    {
+      "name": "parse/a\nb:80",
+      "func": "ParseMultiPort",
+      "addr": "a\nb:80",
+      "ok": true,
+      "host": "b",
+      "minport": 80,
+      "maxport": 80
+    },
+    {
+      "name": "parse/a:80\n",
+      "func": "ParseMultiPort",
+      "addr": "a:80\n",
+      "ok": true,
+      "host": "a",
+      "minport": 80,
+      "maxport": 80
+    },
+    {
+      "name": "parse/a:1234567",
+      "func": "ParseMultiPort",
+      "addr": "a:1234567",
+      "ok": false,
+      "err": "invalid port range specified: minport:12345 -> maxport 67"
+    },
+    {
+      "name": "parse/a:99999",
+      "func": "ParseMultiPort",
+      "addr": "a:99999",
+      "ok": false,
+      "err": "invalid port range specified: minport:99999 -> maxport 99999"
+    },
+    {
+      "name": "parse/-5:80",
+      "func": "ParseMultiPort",
+      "addr": "-5:80",
+      "ok": true,
+      "host": "-5",
+      "minport": 80,
+      "maxport": 80
+    },
+    {
+      "name": "parse/a:-1",
+      "func": "ParseMultiPort",
+      "addr": "a:-1",
+      "ok": false,
+      "err": "malformed address:a:-1"
+    },
+    {
+      "name": "parse/::80",
+      "func": "ParseMultiPort",
+      "addr": "::80",
+      "ok": true,
+      "host": ":",
+      "minport": 80,
+      "maxport": 80
+    },
+    {
+      "name": "parse/a:1e2",
+      "func": "ParseMultiPort",
+      "addr": "a:1e2",
+      "ok": true,
+      "host": "a",
+      "minport": 1,
+      "maxport": 1
+    },
+    {
+      "name": "splithostport/:29900",
+      "func": "SplitHostPort",
+      "addr": ":29900",
+      "ok": true,
+      "port": "29900"
+    },
+    {
+      "name": "splithostport/127.0.0.1:12948",
+      "func": "SplitHostPort",
+      "addr": "127.0.0.1:12948",
+      "ok": true,
+      "host": "127.0.0.1",
+      "port": "12948"
+    },
+    {
+      "name": "splithostport/vps:29900",
+      "func": "SplitHostPort",
+      "addr": "vps:29900",
+      "ok": true,
+      "host": "vps",
+      "port": "29900"
+    },
+    {
+      "name": "splithostport/1.2.3.4:3000-4000",
+      "func": "SplitHostPort",
+      "addr": "1.2.3.4:3000-4000",
+      "ok": true,
+      "host": "1.2.3.4",
+      "port": "3000-4000"
+    },
+    {
+      "name": "splithostport/[::1]:80",
+      "func": "SplitHostPort",
+      "addr": "[::1]:80",
+      "ok": true,
+      "host": "::1",
+      "port": "80"
+    },
+    {
+      "name": "splithostport/[fe80::1%eth0]:80",
+      "func": "SplitHostPort",
+      "addr": "[fe80::1%eth0]:80",
+      "ok": true,
+      "host": "fe80::1%eth0",
+      "port": "80"
+    },
+    {
+      "name": "splithostport/[2001:db8::1]:443",
+      "func": "SplitHostPort",
+      "addr": "[2001:db8::1]:443",
+      "ok": true,
+      "host": "2001:db8::1",
+      "port": "443"
+    },
+    {
+      "name": "splithostport/host:",
+      "func": "SplitHostPort",
+      "addr": "host:",
+      "ok": true,
+      "host": "host"
+    },
+    {
+      "name": "splithostport/host:port",
+      "func": "SplitHostPort",
+      "addr": "host:port",
+      "ok": true,
+      "host": "host",
+      "port": "port"
+    },
+    {
+      "name": "splithostport/nocolon",
+      "func": "SplitHostPort",
+      "addr": "nocolon",
+      "ok": false,
+      "err": "address nocolon: missing port in address"
+    },
+    {
+      "name": "splithostport/",
+      "func": "SplitHostPort",
+      "addr": "",
+      "ok": false,
+      "err": "missing port in address"
+    },
+    {
+      "name": "splithostport/:",
+      "func": "SplitHostPort",
+      "addr": ":",
+      "ok": true
+    },
+    {
+      "name": "splithostport/::1:80",
+      "func": "SplitHostPort",
+      "addr": "::1:80",
+      "ok": false,
+      "err": "address ::1:80: too many colons in address"
+    },
+    {
+      "name": "splithostport/[::1]",
+      "func": "SplitHostPort",
+      "addr": "[::1]",
+      "ok": false,
+      "err": "address [::1]: missing port in address"
+    },
+    {
+      "name": "splithostport/[::1]80",
+      "func": "SplitHostPort",
+      "addr": "[::1]80",
+      "ok": false,
+      "err": "address [::1]80: missing port in address"
+    },
+    {
+      "name": "splithostport/[::1]:80:90",
+      "func": "SplitHostPort",
+      "addr": "[::1]:80:90",
+      "ok": false,
+      "err": "address [::1]:80:90: too many colons in address"
+    },
+    {
+      "name": "splithostport/[::1:80",
+      "func": "SplitHostPort",
+      "addr": "[::1:80",
+      "ok": false,
+      "err": "address [::1:80: missing ']' in address"
+    },
+    {
+      "name": "splithostport/a]:80",
+      "func": "SplitHostPort",
+      "addr": "a]:80",
+      "ok": false,
+      "err": "address a]:80: unexpected ']' in address"
+    },
+    {
+      "name": "splithostport/a[b:80",
+      "func": "SplitHostPort",
+      "addr": "a[b:80",
+      "ok": false,
+      "err": "address a[b:80: unexpected '[' in address"
+    },
+    {
+      "name": "splithostport/[a]b:80",
+      "func": "SplitHostPort",
+      "addr": "[a]b:80",
+      "ok": false,
+      "err": "address [a]b:80: missing port in address"
+    },
+    {
+      "name": "splithostport//tmp/kcptun.sock",
+      "func": "SplitHostPort",
+      "addr": "/tmp/kcptun.sock",
+      "ok": false,
+      "err": "address /tmp/kcptun.sock: missing port in address"
+    },
+    {
+      "name": "splithostport//tmp/kcptun.sock:80",
+      "func": "SplitHostPort",
+      "addr": "/tmp/kcptun.sock:80",
+      "ok": true,
+      "host": "/tmp/kcptun.sock",
+      "port": "80"
+    },
+    {
+      "name": "splithostport/unix:/tmp/kcptun.sock",
+      "func": "SplitHostPort",
+      "addr": "unix:/tmp/kcptun.sock",
+      "ok": true,
+      "host": "unix",
+      "port": "/tmp/kcptun.sock"
+    },
+    {
+      "name": "splithostport/./relative.sock",
+      "func": "SplitHostPort",
+      "addr": "./relative.sock",
+      "ok": false,
+      "err": "address ./relative.sock: missing port in address"
+    },
+    {
+      "name": "splithostport/@abstract",
+      "func": "SplitHostPort",
+      "addr": "@abstract",
+      "ok": false,
+      "err": "address @abstract: missing port in address"
+    },
+    {
+      "name": "splithostport/[]:80",
+      "func": "SplitHostPort",
+      "addr": "[]:80",
+      "ok": true,
+      "port": "80"
+    },
+    {
+      "name": "splithostport/[]",
+      "func": "SplitHostPort",
+      "addr": "[]",
+      "ok": false,
+      "err": "address []: missing port in address"
+    },
+    {
+      "name": "splithostport/héllo:80",
+      "func": "SplitHostPort",
+      "addr": "héllo:80",
+      "ok": true,
+      "host": "héllo",
+      "port": "80"
+    },
+    {
+      "name": "splithostport/host:80\n",
+      "func": "SplitHostPort",
+      "addr": "host:80\n",
+      "ok": true,
+      "host": "host",
+      "port": "80\n"
+    },
+    {
+      "name": "splithostport/[::ffff:1.2.3.4]:80",
+      "func": "SplitHostPort",
+      "addr": "[::ffff:1.2.3.4]:80",
+      "ok": true,
+      "host": "::ffff:1.2.3.4",
+      "port": "80"
+    },
+    {
+      "name": "splithostport/::ffff:1.2.3.4:80",
+      "func": "SplitHostPort",
+      "addr": "::ffff:1.2.3.4:80",
+      "ok": false,
+      "err": "address ::ffff:1.2.3.4:80: too many colons in address"
+    },
+    {
+      "name": "splithostport/kcptun-server.example:443",
+      "func": "SplitHostPort",
+      "addr": "kcptun-server.example:443",
+      "ok": true,
+      "host": "kcptun-server.example",
+      "port": "443"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+[package]
+name = "kcptun-pingpong"
+description = "Dev-only lab workloads and metrics sampling for the Step 11 network lab (never shipped)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "kcptun_pingpong"
+path = "src/lib.rs"
+
+# `pingpong` drives traffic through the tunnel; `labsample` samples /proc on the lab host.
+# Both are deployed to ~/kcptun-lab/bin/lab/ as kr-pingpong and kr-labsample, which is what
+# tools/lab/server/lab-start.sh's `kr-*` allow-list and lab-stop.sh's /proc/<pid>/exe check need.
+[[bin]]
+name = "pingpong"
+path = "src/main.rs"
+
+[[bin]]
+name = "labsample"
+path = "src/bin/labsample.rs"
+
+[dependencies]
+tokio = { workspace = true, features = [
+    "io-util",
+    "macros",
+    "net",
+    "rt-multi-thread",
+    "sync",
+    "time",
+] }
+
+[dev-dependencies]
+kcptun-testkit = { workspace = true }
+tempfile = { workspace = true }
+# `start_paused` runtimes: the idle-timeout tests must not spend real seconds waiting.
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

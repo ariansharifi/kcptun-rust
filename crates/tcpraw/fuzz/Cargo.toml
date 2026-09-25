@@ -1,0 +1,29 @@
+# cargo-fuzz target for kcptun-tcpraw (plan step 10.1). Not a workspace member: it has its own
+# workspace and lock file, needs nightly, and is run from crates/tcpraw with
+#   cargo +nightly fuzz run -s none -a tcp_segment fuzz/corpus/tcp_segment fuzz/seeds/tcp_segment
+# (see README.md).
+[package]
+name = "kcptun-tcpraw-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+kcptun-tcpraw = { path = "..", features = ["internals"] }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "tcp_segment"
+path = "fuzz_targets/tcp_segment.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1

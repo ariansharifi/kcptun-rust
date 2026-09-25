@@ -1,0 +1,29 @@
+{
+  "name": "s2-control",
+  "env": "lab-x86-1-netns-clean-s2-control",
+  "description": "**Sub-step 12.1b's control for S2.** One cell \u2014 `s2` \u00d7 `bulk-up`, five repetitions per pair, A/B interleaved \u2014 re-run on `lab-x86-1` after its `net.core.rmem_max` was raised from the stock 212,992 B to 8,388,608 B, with the same binaries as the 12.1 baseline. Its only job is to decide whether the S2 half of [2026-09-24-lab-x86-1-netns-clean.md](2026-09-24-lab-x86-1-netns-clean.md) survives the defect that withdrew its S1 half. It is a control, not a baseline: one metric family, and a comparison against a different session's medians, which the page's own rules say is weaker than a comparison inside one session.",
+  "configs": [
+    "s2"
+  ],
+  "metrics": [
+    "bulk-up"
+  ],
+  "repetitions": 5,
+  "duration": 20,
+  "mode": "netns",
+  "netem": "clean",
+  "sample_interval": 5,
+  "snmp_period": 10,
+  "settle": 5,
+  "notes": [
+    "**Why this exists.** S2 was set aside as exempt from docs/DECISIONS.md D32 on the grounds that it passes no `-sockbuf` and therefore asks for little. That is false: kcptun's `-sockbuf` defaults to 4,194,304 B (`reference/kcptun/client/main.go:185-188`, `server/main.go:176-179`) and the binary always applies it, so S2 was clamped 20x on the stock host as well. The reason S2 is nevertheless expected to be unaffected is its window \u2014 `-sndwnd 128` at `-mtu 1350` is about 173 kB of data per flush, ~224 kB on the wire once FEC's 10/3 parity is counted, i.e. the same order as the 208 KiB ceiling rather than comfortably inside it \u2014 and the superseded page's own S2 rows show a retransmitted share of 0.0% for both implementations, which an overflowing buffer could not produce. An argument from the flags is what produced the defect this sub-step exists to repair, so the argument is checked with a measurement.",
+    "**Cross-session comparison, stated as such.** Every other page in this directory compares columns *within* one session, because the pairs there were interleaved under the same conditions. This page compares its `RR/GG` ratio to the ratio on a page taken thirteen hours earlier on the same box. That is legitimate for the question asked \u2014 did raising the ceiling move S2? \u2014 and is not a basis for quoting either page's absolute Mbit/s against the other's.",
+    "Same host, same deployment (`BUILD.txt`: `revision=75fd8d8-dirty`, `deployed=2026-09-24T09:44:50Z`), nothing rebuilt or redeployed. One vCPU carrying both tunnel ends, the workload and the target."
+  ],
+  "observations": [
+    "**S2 did not move, and the `s2` half of the superseded page therefore stands.** Raising `net.core.rmem_max` from 212,992 B to 8,388,608 B changed the S1 cells of the same host beyond recognition - `bulk-up` goodput 147.9 -> 316.5 Mbit/s for GG and 182.1 -> 526.6 for RR, retransmitted share 36.5%/34.2% -> 1.5%/0.0%. Here, on the same day, the same host and the same binaries: GG **140.0 -> 143.5** Mbit/s, RR **250.6 -> 238.4**, CPU per GB for both ends together 0.54x -> 0.58x, client RSS 0.19x -> 0.20x, and **zero retransmitted segments in both sessions and in every pair**, before and after. Both goodput medians land inside the other session's own five-run spread (old GG 129.5-155.2 against new 133.3-164.0; old RR 229.7-256.0 against new 227.8-250.2), so the change is session noise on a 1-vCPU box, not an effect of the ceiling.",
+    "**The `RR/GG` ratio reads 1.79x on the old session and 1.66x on this one, and that difference is not a result.** It is two medians of five from two sessions thirteen hours apart, and the spreads behind them overlap almost completely - the ratio would move this far between two consecutive sessions with nothing changed at all. Anything quoting S2 `bulk-up` on this host should say **1.66-1.79x across two sessions** rather than pick one, which is what `docs/benchmarks/REPORT.md` now does. What the control establishes is the *absence* of an S1-sized effect, not a new S2 number.",
+    "**Why S2 was at risk at all, which is the part that was nearly got wrong.** S2 passes no `-sockbuf`, and it would be easy to record it as exempt on those grounds. It is not: kcptun's `-sockbuf` defaults to 4,194,304 B and both binaries always apply it to the UDP socket, so on the stock host S2's request was cut by a factor of twenty, exactly as S1's was by a factor of forty. What actually protects S2 is its **window**, and by less of a margin than a quick sum suggests: `-sndwnd 128` at `-mtu 1350` puts at most about 173 kB of data in flight per flush, ~224 kB on the wire once FEC's 10/3 parity is counted \u2014 the same order as the 208 KiB ceiling rather than comfortably inside it \u2014 where S1's `-sndwnd 8192` at `-mtu 1390` offers 11.4 MB into that same 208 KiB. Roughly one times the ceiling against fifty-five times it is a difference in kind, but at roughly one times it the arithmetic alone decides nothing, which is why this cell exists. The zero-retransmission rows on both sessions are that argument's confirmation, and this cell is the check that the argument is not merely plausible.",
+    "**One cell, one metric family, and a cross-session comparison.** This is a control and is labelled as one. It does not re-measure `bulk-down`, `latency` or `latency-loaded` at S2, and it compares its medians to a different session's, which every other page in this directory declines to do. If S2 ever becomes load-bearing for a claim the way S1 is, it should be re-taken as a full grid in one session rather than leaned on here."
+  ]
+}

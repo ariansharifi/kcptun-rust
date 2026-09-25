@@ -1,0 +1,42 @@
+{
+  "name": "wan-s1-lat",
+  "description": "Plan 11.3's latency half: a 64-byte request/response probe for ten minutes with a competing bulk flow inside the same tunnel, on the S1 production profile and a real path. This is the run V18 (tx-channel backpressure) is really about — a bulk flow that is allowed to fill the send queue is exactly what makes a small interactive stream wait behind it, and a short path flatters that. iperf3 cannot share a scenario with the pingpong workloads (a kcptun server forwards to one target), so the competing flow is a `bulk` workload. Ports: the tunnel is 29910+ and the pingpong target 22700, not the 29900/22600 defaults, so a WAN run cannot collide with a netns lab that is up on either host — the port check unions the host's listeners with both lab namespaces', and a detached soak owns the defaults inside kr-srv.",
+  "mode": "wan",
+  "config": "s1",
+  "pairs": [
+    [
+      "go",
+      "go"
+    ],
+    [
+      "rust",
+      "rust"
+    ]
+  ],
+  "repetitions": 1,
+  "settle": 5,
+  "sample_interval": 30,
+  "snmp_period": 30,
+  "key": "wan-lab-11-3",
+  "tunnel_port": 29910,
+  "pingpong_port": 22700,
+  "workloads": [
+    {
+      "type": "ping",
+      "tag": "lat64",
+      "duration": 600,
+      "size": 64,
+      "warmup": 5,
+      "verify": true
+    },
+    {
+      "type": "bulk",
+      "tag": "load",
+      "duration": 570,
+      "start_after": 20,
+      "bytes": "8m",
+      "streams": 2,
+      "direction": "both"
+    }
+  ]
+}

@@ -1,0 +1,491 @@
+{
+  "generator": "govectors",
+  "go": "go1.27.1",
+  "modules": {
+    "github.com/cpuguy83/go-md2man/v2": "v2.0.7",
+    "github.com/golang/snappy": "v1.0.0",
+    "github.com/klauspost/cpuid/v2": "v2.3.0",
+    "github.com/klauspost/reedsolomon": "v1.13.0",
+    "github.com/pkg/errors": "v0.9.1",
+    "github.com/russross/blackfriday/v2": "v2.1.0",
+    "github.com/tjfoc/gmsm": "v1.4.1",
+    "github.com/urfave/cli": "v1.22.17",
+    "github.com/xtaci/kcp-go/v5": "v5.6.66",
+    "github.com/xtaci/qpp": "v1.1.25",
+    "github.com/xtaci/smux": "v1.5.55",
+    "golang.org/x/crypto": "v0.47.0",
+    "golang.org/x/net": "v0.49.0",
+    "golang.org/x/sys": "v0.40.0",
+    "golang.org/x/time": "v0.14.0"
+  },
+  "area": "smux",
+  "cases": [
+    {
+      "name": "errors",
+      "params": {
+        "ErrConsumed": "peer consumed more than sent",
+        "ErrGoAway": "stream id overflows, should start a new connection",
+        "ErrInvalidProtocol": "invalid protocol",
+        "ErrTimeout": "timeout",
+        "ErrTimeout.Temporary": true,
+        "ErrTimeout.Timeout": true,
+        "ErrWouldBlock": "operation would block on IO",
+        "io.EOF": "EOF",
+        "io.ErrClosedPipe": "io: read/write on closed pipe"
+      }
+    },
+    {
+      "name": "config/default",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": ""
+    },
+    {
+      "name": "config/verify/version=2",
+      "config": {
+        "version": 2,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": ""
+    },
+    {
+      "name": "config/verify/version=0",
+      "config": {
+        "version": 0,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": "unsupported protocol version"
+    },
+    {
+      "name": "config/verify/version=3",
+      "config": {
+        "version": 3,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": "unsupported protocol version"
+    },
+    {
+      "name": "config/verify/version=-1",
+      "config": {
+        "version": -1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": "unsupported protocol version"
+    },
+    {
+      "name": "config/verify/keepalive_interval=0",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 0,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": "keep-alive interval must be positive"
+    },
+    {
+      "name": "config/verify/keepalive_disabled",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": true,
+        "keep_alive_interval_ns": 0,
+        "keep_alive_timeout_ns": 0,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": ""
+    },
+    {
+      "name": "config/verify/keepalive_timeout<interval",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 30000000000,
+        "keep_alive_timeout_ns": 10000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": "keep-alive timeout must be larger than keep-alive interval"
+    },
+    {
+      "name": "config/verify/keepalive_timeout=interval",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 10000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": ""
+    },
+    {
+      "name": "config/verify/keepalive_interval=-1s",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": -1000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": ""
+    },
+    {
+      "name": "config/verify/frame_size=0",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 0,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": "max frame size must be positive"
+    },
+    {
+      "name": "config/verify/frame_size=-1",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": -1,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": "max frame size must be positive"
+    },
+    {
+      "name": "config/verify/frame_size=65535",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 65535,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": ""
+    },
+    {
+      "name": "config/verify/frame_size=65536",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 65536,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 65536
+      },
+      "err": "max frame size must not be larger than 65535"
+    },
+    {
+      "name": "config/verify/recv_buffer=0",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 0,
+        "max_stream_buffer": 65536
+      },
+      "err": "max receive buffer must be positive"
+    },
+    {
+      "name": "config/verify/recv_buffer=-1",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": -1,
+        "max_stream_buffer": 65536
+      },
+      "err": "max receive buffer must be positive"
+    },
+    {
+      "name": "config/verify/recv_buffer=maxint32",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 2147483647,
+        "max_stream_buffer": 65536
+      },
+      "err": ""
+    },
+    {
+      "name": "config/verify/recv_buffer=maxint32+1",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 2147483648,
+        "max_stream_buffer": 65536
+      },
+      "err": "max receive buffer cannot be larger than 2147483647"
+    },
+    {
+      "name": "config/verify/stream_buffer=0",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 0
+      },
+      "err": "max stream buffer must be positive"
+    },
+    {
+      "name": "config/verify/stream_buffer=-1",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": -1
+      },
+      "err": "max stream buffer must be positive"
+    },
+    {
+      "name": "config/verify/stream_buffer=recv_buffer",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 4194304
+      },
+      "err": ""
+    },
+    {
+      "name": "config/verify/stream_buffer>recv_buffer",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 4194304,
+        "max_stream_buffer": 4194305
+      },
+      "err": "max stream buffer must not be larger than max receive buffer"
+    },
+    {
+      "name": "config/verify/stream_buffer=maxint32+1",
+      "config": {
+        "version": 1,
+        "keep_alive_disabled": false,
+        "keep_alive_interval_ns": 10000000000,
+        "keep_alive_timeout_ns": 30000000000,
+        "max_frame_size": 32768,
+        "max_receive_buffer": 2147483647,
+        "max_stream_buffer": 2147483648
+      },
+      "err": "max stream buffer must not be larger than max receive buffer"
+    },
+    {
+      "name": "frame/v1/syn/sid=3",
+      "ver": 1,
+      "cmd": 0,
+      "sid": 3,
+      "len": 0,
+      "out": "0100000003000000"
+    },
+    {
+      "name": "frame/v1/psh/len=16",
+      "ver": 1,
+      "cmd": 2,
+      "sid": 3,
+      "len": 16,
+      "payload_stream": 65552,
+      "out": "010210000300000098e4a9b2cf56aff35e5aeaab09808cdd"
+    },
+    {
+      "name": "frame/v1/psh/len=1370",
+      "ver": 1,
+      "cmd": 2,
+      "sid": 3,
+      "len": 1370,
+      "payload_stream": 66906,
+      "out": "01025a050300000072d27decb0fc7b432c94fce9a45f2cda41b6217cc3b41855c73344ba12998d34d1c039b5b13845c8defcfbfec997c268fdabb82c07991b1a43ccff7c487088a6a96328262b9a16fe322080c85b71d3e2018c3b0e317340d3d6b925337e0279105633e385056f619c294e16ac0e4c576edfd14f9af5b68aa84e1a6aba1d913d65268beb14f8be6588b9d1e247fdaf44ca2dd730c8414a0343056572d69c288137b47c80a879d5df1a407a508aec35d21e446a826ab1917d869148c0fa96563118ce143ea840fb7d322c3748b5c28b07e6a47e3c85fbb94cfd6a7ede2f9cf6edc98edc28f8fa3954d2c1324109f0bb71768efd3059122c765e07b02038406771bba7cfc22236661007cb52cd4147a11777ee58553e7911b288bf18109bc16887b128eaaae82d68ceff92b7a0318e23abea68f298e49ffe22a873628825dec3886f738dfd01e98acfa7bbca18f62eb50063e4258000369ed61cd4bff9879173e089116a7589e827ac5fe43f890cb2aade630bba8fd64a7a186b999437148321bcf45b339490fc8abe7f703cbfc0fb248cdf1a6b0590b2f09e14a1224f067205f08a708c08f2368ffc493cc818867eaae71c3d24d9579df7e0bb39093f5fe845aea05a60b72d52a76d256a1df81f149c8940544a2125ecf0950a5d5cdfbec8be142d1f2b1b52a523a3a61ef27a2cf1eb4ab0329e4ddf35bd5d24536520cbef7f08fd404d37dc913c5cc34f50c4fd7d317e20397953d843db28941d9d9484d49a90ede29b0bc94a376fa590ed16e5abd512a1b88b115abe961eb431e30a8bc8f0bf3bb5d1c7b6527e3ca6e0862851a17f1f2c7fa4b98519d320ef96b1f00e3b192dec032b80efff2ae4a30631bf464c9b031d72606802b3b03cd00248a92b7db280f2863a472645a1e9c8e54d4faa38b757f274096feaf001d32844395e23da51ad8c174d334a45a1b16ef4d381fcf3a16fff13357d3653d785647bb21b54251ac029d156946325b77c066092dca5ec236bbe1bc1ceb6b9a58c2a96967ec26e00c8f8f28399ab982d760d92ff18cf74a64d7edefd4bfe953c7df894a52f884209029a0c2ecfad6584f3bc9824085aad33c8807713688487f44f14c6bc057ccdd7ae9d528fad146ee2c283ab8545b2bc07fad959dea9df69909166a5559c0c057edc81cffaca4b842dc395dbf07cdf07a742f70ce0dd5965759f940e0c4ed2045b20bbdb327fdf09ca913272810425641f71555822a74643bb35e89892ee101264f3f2824d918641df9e7059cb8596c43a0dc21ec2e20e4ad6b7eb7e3b2cce6bbc9aa2848aa8cf3d49d817c1c094c24ec7d6adbcae8366cd1c675b83cb887964192e70f3ec047801633a26c5fd1e0f58f7b5cc4b85e20ece5dc14010a5902ddf6270b4e1c94bdf7cd1509e2801e322dc0ce5d783e3239b114fbeeb6a1a102f525bf107f3fc60ea4a27e07ad06f59874cf9d49d67e7d470e19d7fd0c521822b468a41b41ef8d258b1d44b88e3ceb14370dd18007c50309f8dd3b13e789e4f54d81b3fe8ce33edeef686adc635a3e2f46b3372776ee08f00ce87d4f1b533c7d0b8215ba15ab235f1399b4922de1132adda01dc6cf610dc8bfee240856d77b62f88f1fc1fe4659fa6a5f18b0d9fe3d4c0d313449a780fb0ac6dd622118d14651530cdc561d3d189479815c40198a70e6f75f9b60e4fc0e97fe0b8cf1bdfc6c0cfbea0378b7bf31c910c2607ad8d12da5ab6634b62a1e176e91ec414e73c16b34c4a2666e7c50e44d71adec3359cf152fc6a38ae120874a79b69f7ad79ecf61433cc19b9a6ae698709cf39eaac4387bf6697b663b6c7750ded34323b04d85294705d41980175feffe53d9a4cc64c9f059343a081b5d26afa0611c5fc157a8ed266e502196fd256766f6ce0eedda985ec003598b4bd8f151c2d8f13dba615b7"
+    },
+    {
+      "name": "frame/v1/psh/len=65535",
+      "ver": 1,
+      "cmd": 2,
+      "sid": 3,
+      "len": 65535,
+      "payload_stream": 131071,
+      "out_blob": {
+        "len": 65543,
+        "sha256": "68419cebdea977eda025723957354f898dcdbdd1ffa873e24e11acc3b8e1cfdb",
+        "head": "0102ffff03000000403c24278ee141dc",
+        "tail": "277b036644145712e60c30eabaaf6f41"
+      }
+    },
+    {
+      "name": "frame/v1/fin/sid=3",
+      "ver": 1,
+      "cmd": 1,
+      "sid": 3,
+      "len": 0,
+      "out": "0101000003000000"
+    },
+    {
+      "name": "frame/v1/nop",
+      "ver": 1,
+      "cmd": 3,
+      "sid": 0,
+      "len": 0,
+      "out": "0103000000000000"
+    },
+    {
+      "name": "frame/v2/syn/sid=3",
+      "ver": 2,
+      "cmd": 0,
+      "sid": 3,
+      "len": 0,
+      "out": "0200000003000000"
+    },
+    {
+      "name": "frame/v2/psh/len=16",
+      "ver": 2,
+      "cmd": 2,
+      "sid": 3,
+      "len": 16,
+      "payload_stream": 65552,
+      "out": "020210000300000098e4a9b2cf56aff35e5aeaab09808cdd"
+    },
+    {
+      "name": "frame/v2/psh/len=1370",
+      "ver": 2,
+      "cmd": 2,
+      "sid": 3,
+      "len": 1370,
+      "payload_stream": 66906,
+      "out": "02025a050300000072d27decb0fc7b432c94fce9a45f2cda41b6217cc3b41855c73344ba12998d34d1c039b5b13845c8defcfbfec997c268fdabb82c07991b1a43ccff7c487088a6a96328262b9a16fe322080c85b71d3e2018c3b0e317340d3d6b925337e0279105633e385056f619c294e16ac0e4c576edfd14f9af5b68aa84e1a6aba1d913d65268beb14f8be6588b9d1e247fdaf44ca2dd730c8414a0343056572d69c288137b47c80a879d5df1a407a508aec35d21e446a826ab1917d869148c0fa96563118ce143ea840fb7d322c3748b5c28b07e6a47e3c85fbb94cfd6a7ede2f9cf6edc98edc28f8fa3954d2c1324109f0bb71768efd3059122c765e07b02038406771bba7cfc22236661007cb52cd4147a11777ee58553e7911b288bf18109bc16887b128eaaae82d68ceff92b7a0318e23abea68f298e49ffe22a873628825dec3886f738dfd01e98acfa7bbca18f62eb50063e4258000369ed61cd4bff9879173e089116a7589e827ac5fe43f890cb2aade630bba8fd64a7a186b999437148321bcf45b339490fc8abe7f703cbfc0fb248cdf1a6b0590b2f09e14a1224f067205f08a708c08f2368ffc493cc818867eaae71c3d24d9579df7e0bb39093f5fe845aea05a60b72d52a76d256a1df81f149c8940544a2125ecf0950a5d5cdfbec8be142d1f2b1b52a523a3a61ef27a2cf1eb4ab0329e4ddf35bd5d24536520cbef7f08fd404d37dc913c5cc34f50c4fd7d317e20397953d843db28941d9d9484d49a90ede29b0bc94a376fa590ed16e5abd512a1b88b115abe961eb431e30a8bc8f0bf3bb5d1c7b6527e3ca6e0862851a17f1f2c7fa4b98519d320ef96b1f00e3b192dec032b80efff2ae4a30631bf464c9b031d72606802b3b03cd00248a92b7db280f2863a472645a1e9c8e54d4faa38b757f274096feaf001d32844395e23da51ad8c174d334a45a1b16ef4d381fcf3a16fff13357d3653d785647bb21b54251ac029d156946325b77c066092dca5ec236bbe1bc1ceb6b9a58c2a96967ec26e00c8f8f28399ab982d760d92ff18cf74a64d7edefd4bfe953c7df894a52f884209029a0c2ecfad6584f3bc9824085aad33c8807713688487f44f14c6bc057ccdd7ae9d528fad146ee2c283ab8545b2bc07fad959dea9df69909166a5559c0c057edc81cffaca4b842dc395dbf07cdf07a742f70ce0dd5965759f940e0c4ed2045b20bbdb327fdf09ca913272810425641f71555822a74643bb35e89892ee101264f3f2824d918641df9e7059cb8596c43a0dc21ec2e20e4ad6b7eb7e3b2cce6bbc9aa2848aa8cf3d49d817c1c094c24ec7d6adbcae8366cd1c675b83cb887964192e70f3ec047801633a26c5fd1e0f58f7b5cc4b85e20ece5dc14010a5902ddf6270b4e1c94bdf7cd1509e2801e322dc0ce5d783e3239b114fbeeb6a1a102f525bf107f3fc60ea4a27e07ad06f59874cf9d49d67e7d470e19d7fd0c521822b468a41b41ef8d258b1d44b88e3ceb14370dd18007c50309f8dd3b13e789e4f54d81b3fe8ce33edeef686adc635a3e2f46b3372776ee08f00ce87d4f1b533c7d0b8215ba15ab235f1399b4922de1132adda01dc6cf610dc8bfee240856d77b62f88f1fc1fe4659fa6a5f18b0d9fe3d4c0d313449a780fb0ac6dd622118d14651530cdc561d3d189479815c40198a70e6f75f9b60e4fc0e97fe0b8cf1bdfc6c0cfbea0378b7bf31c910c2607ad8d12da5ab6634b62a1e176e91ec414e73c16b34c4a2666e7c50e44d71adec3359cf152fc6a38ae120874a79b69f7ad79ecf61433cc19b9a6ae698709cf39eaac4387bf6697b663b6c7750ded34323b04d85294705d41980175feffe53d9a4cc64c9f059343a081b5d26afa0611c5fc157a8ed266e502196fd256766f6ce0eedda985ec003598b4bd8f151c2d8f13dba615b7"
+    },
+    {
+      "name": "frame/v2/psh/len=65535",
+      "ver": 2,
+      "cmd": 2,
+      "sid": 3,
+      "len": 65535,
+      "payload_stream": 131071,
+      "out_blob": {
+        "len": 65543,
+        "sha256": "00cf9224b22b1787ed484943979390919e5cb2c19866dc8f7bb581c4f28ab7e3",
+        "head": "0202ffff03000000403c24278ee141dc",
+        "tail": "277b036644145712e60c30eabaaf6f41"
+      }
+    },
+    {
+      "name": "frame/v2/fin/sid=3",
+      "ver": 2,
+      "cmd": 1,
+      "sid": 3,
+      "len": 0,
+      "out": "0201000003000000"
+    },
+    {
+      "name": "frame/v2/nop",
+      "ver": 2,
+      "cmd": 3,
+      "sid": 0,
+      "len": 0,
+      "out": "0203000000000000"
+    },
+    {
+      "name": "frame/v2/upd/first_read",
+      "ver": 2,
+      "cmd": 4,
+      "sid": 4294967293,
+      "len": 8,
+      "consumed": 1,
+      "window": 4096,
+      "out": "02040800fdffffff0100000000100000"
+    },
+    {
+      "name": "frame/v2/upd/half_buffer",
+      "ver": 2,
+      "cmd": 4,
+      "sid": 4294967293,
+      "len": 8,
+      "consumed": 2049,
+      "window": 4096,
+      "out": "02040800fdffffff0108000000100000"
+    },
+    {
+      "name": "frame/v2/fin/sid=4294967293",
+      "ver": 2,
+      "cmd": 1,
+      "sid": 4294967293,
+      "len": 0,
+      "out": "02010000fdffffff"
+    },
+    {
+      "name": "flow/v2/initial_peer_window",
+      "ver": 2,
+      "max_frame_size": 65535,
+      "written": 327675,
+      "lens": [
+        65535,
+        65535,
+        65535,
+        65535,
+        4
+      ],
+      "total": 262144
+    }
+  ]
+}

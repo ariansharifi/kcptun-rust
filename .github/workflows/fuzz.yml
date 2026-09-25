@@ -1,0 +1,131 @@
+# Scheduled fuzzing.
+#
+# Per-sub-step fuzzing is a ~2 minute smoke run (docs/porting-guide.md §10);
+# the longer campaigns live here. Every target gets its own job so they run in parallel and a crash
+# in one does not stop the others, and each job's corpus is carried over between runs through the
+# actions cache, so coverage accumulates instead of restarting from the committed seeds every night.
+#
+# The fuzz crates (crates/{kcp,smux,std,tcpraw}/fuzz) are excluded from the root workspace: each has
+# its own workspace and lock file and needs nightly. The six targets below are all the targets that
+# exist; keep this list in sync with `crates/*/fuzz/Cargo.toml`.
+#
+# NOTE: this repository has no remote yet, so no run of this workflow has ever happened. It was
+# validated locally with `actionlint`; the commands are the ones in each crate's fuzz/README.md.
+name: fuzz
+
+on:
+  # Daily, at an odd minute (GitHub asks that schedules avoid the top of the hour).
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+    inputs:
+      max_total_time:
+        description: "Seconds to fuzz each target (libFuzzer -max_total_time)"
+        required: false
+        default: "300"
+      sanitizer:
+        description: "libFuzzer sanitizer; the code under test is safe Rust, so `none` is the default"
+        required: false
+        default: "none"
+        type: choice
+        options: [none, address]
+
+permissions:
+  contents: read
+
+concurrency:
+  # One fuzz run at a time; a scheduled run that overlaps a manual one is dropped rather than
+  # queued, since every run starts from the same cached corpus anyway.
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  fuzz:
+    name: ${{ matrix.crate }}/${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `args` are the per-target libFuzzer flags documented in each fuzz/README.md; the
+          # largest seeds set -max_len (16 KiB golden-trace prefixes, 4 KiB configs/segments).
+          - crate: kcp
+            target: kcp_input
+            args: "-max_len=16384"
+          - crate: kcp
+            target: fec_decode
+            args: ""
+          - crate: smux
+            target: smux_recv
+            args: "-max_len=16384"
+          - crate: std
+            target: config_json
+            args: "-max_len=4096"
+          - crate: std
+            target: snappy_reader
+            args: "-max_len=16384"
+          - crate: tcpraw
+            target: tcp_segment
+            args: "-max_len=4096"
+    steps:
+      - uses: actions/checkout@v4
+
+      # cargo-fuzz needs nightly (`-Z sanitizer`, `#[no_main]` harnesses). rust-toolchain.toml
+      # pins the stable toolchain used everywhere else; `cargo +nightly` overrides it just here.
+      - name: Install nightly
+        run: |
+          rustup toolchain install nightly --profile minimal
+          cargo +nightly --version
+      - uses: taiki-e/install-action@v2
+        with:
+          # pinned to the version these commands were verified against, 2026-09-23
+          tool: cargo-fuzz@0.13.2
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/${{ matrix.crate }}/fuzz
+          key: fuzz-${{ matrix.crate }}-${{ matrix.target }}
+
+      # The corpus directory is gitignored (only fuzz/seeds/ is committed). Restoring the previous
+      # run's corpus makes each night start where the last one stopped; the seeds are passed as a
+      # second, read-only input directory, so a cold cache still starts from them.
+      - name: Restore the corpus
+        uses: actions/cache@v4
+        with:
+          path: crates/${{ matrix.crate }}/fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.crate }}-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.crate }}-${{ matrix.target }}-
+
+      # -s none: the fuzzed code is `#![forbid(unsafe_code)]` safe Rust, so AddressSanitizer adds
+      #          nothing (and inflates RSS past libFuzzer's limit on long runs).
+      # -a:      debug assertions *and* overflow checks. Go's unsigned arithmetic wraps, so an
+      #          overflow panic means the port is missing a `wrapping_*` (docs/porting-guide.md).
+      - name: Fuzz
+        working-directory: crates/${{ matrix.crate }}
+        env:
+          MAX_TOTAL_TIME: ${{ github.event.inputs.max_total_time || '300' }}
+          SANITIZER: ${{ github.event.inputs.sanitizer || 'none' }}
+          EXTRA_ARGS: ${{ matrix.args }}
+        run: |
+          set -euo pipefail
+          mkdir -p "fuzz/corpus/${{ matrix.target }}"
+          # shellcheck disable=SC2086  # EXTRA_ARGS is a flag list and must word-split.
+          cargo +nightly fuzz run -s "$SANITIZER" -a "${{ matrix.target }}" \
+            "fuzz/corpus/${{ matrix.target }}" "fuzz/seeds/${{ matrix.target }}" \
+            -- -max_total_time="$MAX_TOTAL_TIME" $EXTRA_ARGS
+
+      # A crash leaves the reproducer in fuzz/artifacts/<target>/; keep it, because the corpus
+      # cache alone will not tell anyone which input failed.
+      - name: Upload the crash reproducer
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts-${{ matrix.crate }}-${{ matrix.target }}
+          path: crates/${{ matrix.crate }}/fuzz/artifacts/${{ matrix.target }}/
+          if-no-files-found: ignore
+          retention-days: 30

@@ -1,0 +1,36 @@
+# cargo-fuzz targets for kcptun-kcp (plan steps 03.6, 04.6). Not a workspace member: it has its own
+# workspace and lock file, needs nightly, and is run from crates/kcp with
+#   cargo +nightly fuzz run -s none -a <kcp_input|fec_decode> fuzz/corpus/<t> fuzz/seeds/<t>
+# (see README.md).
+[package]
+name = "kcptun-kcp-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+kcptun-kcp = { path = "..", features = ["internals"] }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "kcp_input"
+path = "fuzz_targets/kcp_input.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "fec_decode"
+path = "fuzz_targets/fec_decode.rs"
+test = false
+doc = false
+bench = false

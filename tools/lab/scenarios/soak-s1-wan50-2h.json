@@ -1,0 +1,41 @@
+{
+  "name": "soak2h",
+  "description": "Plan 11.4b: the D07 allocator comparison. Byte-for-byte the soak-s1-wan50 scenario - same S1 configuration, same wan50 netem, same churn/ping workloads, same seed - with the duration cut from six hours to two. Two hours is enough for what this run has to decide: the six-hour musl soak on lab-arm64 was already at 135 MB client RSS by the two-hour mark (62 MB at 15 min, +42 MB/h over the first two hours) against a 42 MB six-hour plateau on glibc, so a ratchet that exists will have separated the two builds several times over well inside the window. It is deliberately NOT a re-run of the acceptance soak: 11.4's acceptance criterion stays the six-hour pair. Acceptance here is the shape of the RSS curve - a plateau or a ramp - and whether the peak comes back after the traffic stops.",
+  "config": "s1",
+  "netem": "wan50",
+  "pairs": [["rust", "rust"]],
+  "repetitions": 1,
+  "settle": 10,
+  "sample_interval": 60,
+  "snmp_period": 60,
+  "log_cap_bytes": 268435456,
+  "workloads": [
+    {
+      "type": "churn",
+      "tag": "churn",
+      "duration": 7200,
+      "rate": 20,
+      "min_bytes": "10k",
+      "max_bytes": "1m",
+      "size_dist": "log",
+      "direction": "both",
+      "max_inflight": 100,
+      "stream_timeout": 120,
+      "long_lived": 10,
+      "long_lived_bytes": 1024,
+      "long_lived_interval": 5,
+      "burst_every": 300,
+      "burst_streams": 4,
+      "burst_bytes": "8m",
+      "seed": 11402026
+    },
+    {
+      "type": "ping",
+      "tag": "lat64",
+      "duration": 7200,
+      "size": 64,
+      "warmup": 30,
+      "interval_ms": 200
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+# AES-128-GCM backend evaluation for plan step 12.2b. NOT a workspace member and NOT a dependency
+# of anything we ship: it exists so the measurement that rejected `ring`, `aws-lc-rs` and a
+# hand-fused AES-CTR+GHASH can be reproduced (docs/benchmarks/crypto.md, "12.2b").
+#
+#   cd tools/bench/aes-gcm-eval
+#   cargo test                       # all four backends agree, byte for byte
+#   cargo bench -- --noplot          # the numbers
+#
+# It has its own `[workspace]` table and lock file (like the cargo-fuzz crates), so `cargo build`,
+# `cargo test --workspace`, `cargo clippy --workspace` and `cargo deny` in the repo root never see
+# `ring` or `aws-lc-sys`.
+#
+# The flip side: **nothing builds this crate automatically** — not `cargo fmt --all`, not the gate,
+# and none of the CI jobs in .github/workflows/ci.yml. It is frozen and hand-run. `Cargo.lock` is
+# committed and pinned deliberately so the 12.2b numbers stay reproducible; if it is ever
+# refreshed, re-run `cargo test --release` here by hand, since those tests are the only thing that
+# keeps the four backends byte-identical.
+[package]
+name = "kcptun-aes-gcm-eval"
+version = "0.0.0"
+publish = false
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+
+[workspace]
+members = ["."]
+
+[dependencies]
+# What kcptun-kcp ships today (DECISIONS D13).
+aes-gcm = "0.11.1"
+# Candidate 3's building blocks: the same AES and GHASH primitives aes-gcm composes, driven by our
+# own interleaved loop.
+aes = "0.9.3"
+ghash = "0.6"
+# Candidate 1 and 2: BoringSSL-derived assembly.
+ring = "0.17"
+# `prebuilt-nasm` is what makes the x86_64-pc-windows-gnu cross-build work without a local NASM.
+aws-lc-rs = { version = "1.18.1", features = ["prebuilt-nasm"] }
+
+[dev-dependencies]
+criterion = { version = "0.8", default-features = false }
+hex = "0.4"
+
+[[bench]]
+name = "gcm"
+harness = false
+
+# Same shape as the workspace release profile, so the RustCrypto backend gets the cross-crate
+# inlining it needs (without LTO it measures 40% slower and the comparison is meaningless).
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+
+[profile.bench]
+inherits = "release"

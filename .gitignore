@@ -1,0 +1,39 @@
+# Rust build output
+/target
+**/*.rs.bk
+
+# Release artifacts (tools/release.sh, step 13.1). dist/ is tracked packaging, not output.
+/build
+
+# Pinned Go reference (fetched by tools/fetch-reference.sh) and its binaries
+/reference
+
+# Fuzzing artifacts
+/crates/*/fuzz/target
+/crates/*/fuzz/corpus
+/crates/*/fuzz/artifacts
+/fuzz/target
+/fuzz/corpus
+/fuzz/artifacts
+
+# Captures, logs, temporary test and benchmark output
+*.pcap
+*.pcapng
+*.log
+/testdata/tmp
+# Raw output of tools/lab/lab.py runs; the curated reports live in docs/lab-results/
+/lab-runs
+/bench-results/tmp
+/tools/govectors/govectors
+/tools/gointerop/bin
+/tools/bench/*/target
+
+# python byte-code from tools/*.py
+__pycache__/
+*.pyc
+
+# OS / editor noise
+.DS_Store
+.idea/
+.vscode/
+*.swp

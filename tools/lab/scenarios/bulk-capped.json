@@ -1,0 +1,29 @@
+{
+  "name": "bulkcap",
+  "description": "The control for 11.2's unimpaired cells. `bulk-iperf3` lets iperf3 send as fast as it can, which on a one-vCPU lab host means the `clean` and `lan` cells measure the host's core rather than the protocol: every process in the box — both tunnel ends, iperf3's client and its server — competes for the same CPU, so whichever implementation costs less per byte simply wins, and the goodput column reads as a protocol result when it is an efficiency result. Capping the offered rate at 250 Mbit/s — comfortably below the lowest rate any pair reached uncapped — makes every pair deliver the same bits, and the interesting column becomes CPU per delivered bit rather than Mbit/s. That is the only form in which `clean` says anything about the protocol, and it is the like-for-like comparison D29's accepted flush cost has to be read from. Identical to `bulk-iperf3` in every other respect, so the two are directly comparable cell by cell.",
+  "config": "s1",
+  "netem": "clean",
+  "pairs": [["go", "go"], ["rust", "rust"], ["go", "rust"], ["rust", "go"]],
+  "repetitions": 3,
+  "settle": 5,
+  "sample_interval": 10,
+  "snmp_period": 10,
+  "workloads": [
+    {
+      "type": "iperf3",
+      "tag": "up",
+      "duration": 30,
+      "omit": 2,
+      "bitrate": "250M"
+    },
+    {
+      "type": "iperf3",
+      "tag": "down",
+      "duration": 30,
+      "start_after": 35,
+      "omit": 2,
+      "reverse": true,
+      "bitrate": "250M"
+    }
+  ]
+}

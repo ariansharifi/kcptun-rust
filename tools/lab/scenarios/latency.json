@@ -1,0 +1,56 @@
+{
+  "name": "lat",
+  "description": "Plan 11.2's latency half: 30 s of 64-byte pingpong on an idle tunnel, then 30 s of the same probe while a bulk flow competes for the window, three repetitions, all four pairs interleaved. The two probes are separate workloads (`lat64` and `lat64load`) rather than one long one because the comparison table reads a workload's final RESULT line, and a single probe spanning both halves would average the idle percentiles into the loaded ones - which is the difference this scenario exists to show. iperf3 cannot be the competing flow: a kcptun server forwards to exactly one target, and the target here is `pingpong serve`, so the competition is `pingpong bulk` (that is what it was written for). The gap from 30 s to 35 s lets the first probe's connections close before the loaded half starts, so the queue the loaded probe measures is the bulk flow's and not the previous probe's. `bytes` is 8 MiB and not something larger because `bulk` counts only transfers that COMPLETE: at 256 MiB the competing flow loaded the tunnel for the whole 30 s and then reported 0 Mbit/s on every profile slow enough that no transfer finished, which is a zero in a results table that nothing was actually wrong with. 8 MiB completes tens of times on every profile in the matrix, so the reported rate is a rate. The config and the netem profile come from `lab.py run --config/--netem`: this file is one cell's workload, and the matrix is the two axes crossed over it.",
+  "config": "s1",
+  "netem": "clean",
+  "pairs": [
+    [
+      "go",
+      "go"
+    ],
+    [
+      "rust",
+      "rust"
+    ],
+    [
+      "go",
+      "rust"
+    ],
+    [
+      "rust",
+      "go"
+    ]
+  ],
+  "repetitions": 3,
+  "settle": 5,
+  "sample_interval": 10,
+  "snmp_period": 10,
+  "workloads": [
+    {
+      "type": "ping",
+      "tag": "lat64",
+      "duration": 30,
+      "size": 64,
+      "warmup": 2,
+      "verify": true
+    },
+    {
+      "type": "bulk",
+      "tag": "comp",
+      "duration": 30,
+      "start_after": 35,
+      "bytes": "8m",
+      "streams": 2,
+      "direction": "both"
+    },
+    {
+      "type": "ping",
+      "tag": "lat64load",
+      "duration": 30,
+      "start_after": 35,
+      "size": 64,
+      "warmup": 2,
+      "verify": true
+    }
+  ]
+}

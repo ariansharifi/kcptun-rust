@@ -1,0 +1,2562 @@
+{
+  "generator": "govectors",
+  "go": "go1.27.1",
+  "modules": {
+    "github.com/cpuguy83/go-md2man/v2": "v2.0.7",
+    "github.com/golang/snappy": "v1.0.0",
+    "github.com/klauspost/cpuid/v2": "v2.3.0",
+    "github.com/klauspost/reedsolomon": "v1.13.0",
+    "github.com/pkg/errors": "v0.9.1",
+    "github.com/russross/blackfriday/v2": "v2.1.0",
+    "github.com/tjfoc/gmsm": "v1.4.1",
+    "github.com/urfave/cli": "v1.22.17",
+    "github.com/xtaci/kcp-go/v5": "v5.6.66",
+    "github.com/xtaci/qpp": "v1.1.25",
+    "github.com/xtaci/smux": "v1.5.55",
+    "golang.org/x/crypto": "v0.47.0",
+    "golang.org/x/net": "v0.49.0",
+    "golang.org/x/sys": "v0.40.0",
+    "golang.org/x/time": "v0.14.0"
+  },
+  "area": "timefmt",
+  "cases": [
+    {
+      "name": "t0/utc/January",
+      "layout": "January",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "September"
+    },
+    {
+      "name": "t0/utc/Jan",
+      "layout": "Jan",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Sep"
+    },
+    {
+      "name": "t0/utc/1",
+      "layout": "1",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "9"
+    },
+    {
+      "name": "t0/utc/01",
+      "layout": "01",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "09"
+    },
+    {
+      "name": "t0/utc/Monday",
+      "layout": "Monday",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Tuesday"
+    },
+    {
+      "name": "t0/utc/Mon",
+      "layout": "Mon",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Tue"
+    },
+    {
+      "name": "t0/utc/2",
+      "layout": "2",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "22"
+    },
+    {
+      "name": "t0/utc/_2",
+      "layout": "_2",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "22"
+    },
+    {
+      "name": "t0/utc/02",
+      "layout": "02",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "22"
+    },
+    {
+      "name": "t0/utc/__2",
+      "layout": "__2",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "265"
+    },
+    {
+      "name": "t0/utc/002",
+      "layout": "002",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "265"
+    },
+    {
+      "name": "t0/utc/15",
+      "layout": "15",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "15"
+    },
+    {
+      "name": "t0/utc/3",
+      "layout": "3",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "3"
+    },
+    {
+      "name": "t0/utc/03",
+      "layout": "03",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "03"
+    },
+    {
+      "name": "t0/utc/4",
+      "layout": "4",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "4"
+    },
+    {
+      "name": "t0/utc/04",
+      "layout": "04",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "04"
+    },
+    {
+      "name": "t0/utc/5",
+      "layout": "5",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "5"
+    },
+    {
+      "name": "t0/utc/05",
+      "layout": "05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "05"
+    },
+    {
+      "name": "t0/utc/2006",
+      "layout": "2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "2026"
+    },
+    {
+      "name": "t0/utc/06",
+      "layout": "06",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "26"
+    },
+    {
+      "name": "t0/utc/PM",
+      "layout": "PM",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "PM"
+    },
+    {
+      "name": "t0/utc/pm",
+      "layout": "pm",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "pm"
+    },
+    {
+      "name": "t0/utc/MST",
+      "layout": "MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "UTC"
+    },
+    {
+      "name": "t0/utc/Z0700",
+      "layout": "Z0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Z"
+    },
+    {
+      "name": "t0/utc/Z070000",
+      "layout": "Z070000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Z"
+    },
+    {
+      "name": "t0/utc/Z07",
+      "layout": "Z07",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Z"
+    },
+    {
+      "name": "t0/utc/Z07:00",
+      "layout": "Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Z"
+    },
+    {
+      "name": "t0/utc/Z07:00:00",
+      "layout": "Z07:00:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Z"
+    },
+    {
+      "name": "t0/utc/-0700",
+      "layout": "-0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "+0000"
+    },
+    {
+      "name": "t0/utc/-070000",
+      "layout": "-070000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "+000000"
+    },
+    {
+      "name": "t0/utc/-07",
+      "layout": "-07",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "+00"
+    },
+    {
+      "name": "t0/utc/-07:00",
+      "layout": "-07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "+00:00"
+    },
+    {
+      "name": "t0/utc/-07:00:00",
+      "layout": "-07:00:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "+00:00:00"
+    },
+    {
+      "name": "t0/utc/.0",
+      "layout": ".0",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".1"
+    },
+    {
+      "name": "t0/utc/.00",
+      "layout": ".00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".12"
+    },
+    {
+      "name": "t0/utc/.000",
+      "layout": ".000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".123"
+    },
+    {
+      "name": "t0/utc/.000000",
+      "layout": ".000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".123456"
+    },
+    {
+      "name": "t0/utc/.000000000",
+      "layout": ".000000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".123456789"
+    },
+    {
+      "name": "t0/utc/.9",
+      "layout": ".9",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".1"
+    },
+    {
+      "name": "t0/utc/.99",
+      "layout": ".99",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".12"
+    },
+    {
+      "name": "t0/utc/.999",
+      "layout": ".999",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".123"
+    },
+    {
+      "name": "t0/utc/.999999999",
+      "layout": ".999999999",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".123456789"
+    },
+    {
+      "name": "t0/utc/,000",
+      "layout": ",000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ",123"
+    },
+    {
+      "name": "t0/utc/,999",
+      "layout": ",999",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ",123"
+    },
+    {
+      "name": "t0/utc/Month",
+      "layout": "Month",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Month"
+    },
+    {
+      "name": "t0/utc/Janx",
+      "layout": "Janx",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Janx"
+    },
+    {
+      "name": "t0/utc/Januaryx",
+      "layout": "Januaryx",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Septemberx"
+    },
+    {
+      "name": "t0/utc/Mo",
+      "layout": "Mo",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Mo"
+    },
+    {
+      "name": "t0/utc/Ja",
+      "layout": "Ja",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Ja"
+    },
+    {
+      "name": "t0/utc/_2006",
+      "layout": "_2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "_2026"
+    },
+    {
+      "name": "t0/utc/__3",
+      "layout": "__3",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "__3"
+    },
+    {
+      "name": "t0/utc/.0001",
+      "layout": ".0001",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".0009"
+    },
+    {
+      "name": "t0/utc/.00000000000",
+      "layout": ".00000000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ".123456789"
+    },
+    {
+      "name": "t0/utc/MSTMST",
+      "layout": "MSTMST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "UTCUTC"
+    },
+    {
+      "name": "t0/utc/PMpm",
+      "layout": "PMpm",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "PMpm"
+    },
+    {
+      "name": "t0/utc/15150404",
+      "layout": "15150404",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "15150404"
+    },
+    {
+      "name": "t0/utc/1 2 3 4 5",
+      "layout": "1 2 3 4 5",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "9 22 3 4 5"
+    },
+    {
+      "name": "t0/utc/020106",
+      "layout": "020106",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "220926"
+    },
+    {
+      "name": "t0/utc/20060102150405",
+      "layout": "20060102150405",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "20260922150405"
+    },
+    {
+      "name": "t0/utc/Z",
+      "layout": "Z",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Z"
+    },
+    {
+      "name": "t0/utc/T",
+      "layout": "T",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "T"
+    },
+    {
+      "name": "t0/utc/--0700",
+      "layout": "--0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "-+0000"
+    },
+    {
+      "name": "t0/utc/0",
+      "layout": "0",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "0"
+    },
+    {
+      "name": "t0/utc/7",
+      "layout": "7",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "7"
+    },
+    {
+      "name": "t0/utc/8",
+      "layout": "8",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "8"
+    },
+    {
+      "name": "t0/utc/9",
+      "layout": "9",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "9"
+    },
+    {
+      "name": "t0/utc/",
+      "layout": "",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": ""
+    },
+    {
+      "name": "t0/utc/01/02 03:04:05PM '06 -0700",
+      "layout": "01/02 03:04:05PM '06 -0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "09/22 03:04:05PM '26 +0000"
+    },
+    {
+      "name": "t0/utc/Mon Jan _2 15:04:05 2006",
+      "layout": "Mon Jan _2 15:04:05 2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Tue Sep 22 15:04:05 2026"
+    },
+    {
+      "name": "t0/utc/Mon Jan _2 15:04:05 MST 2006",
+      "layout": "Mon Jan _2 15:04:05 MST 2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Tue Sep 22 15:04:05 UTC 2026"
+    },
+    {
+      "name": "t0/utc/Mon Jan 02 15:04:05 -0700 2006",
+      "layout": "Mon Jan 02 15:04:05 -0700 2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Tue Sep 22 15:04:05 +0000 2026"
+    },
+    {
+      "name": "t0/utc/02 Jan 06 15:04 MST",
+      "layout": "02 Jan 06 15:04 MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "22 Sep 26 15:04 UTC"
+    },
+    {
+      "name": "t0/utc/02 Jan 06 15:04 -0700",
+      "layout": "02 Jan 06 15:04 -0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "22 Sep 26 15:04 +0000"
+    },
+    {
+      "name": "t0/utc/Monday, 02-Jan-06 15:04:05 MST",
+      "layout": "Monday, 02-Jan-06 15:04:05 MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Tuesday, 22-Sep-26 15:04:05 UTC"
+    },
+    {
+      "name": "t0/utc/Mon, 02 Jan 2006 15:04:05 MST",
+      "layout": "Mon, 02 Jan 2006 15:04:05 MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Tue, 22 Sep 2026 15:04:05 UTC"
+    },
+    {
+      "name": "t0/utc/Mon, 02 Jan 2006 15:04:05 -0700",
+      "layout": "Mon, 02 Jan 2006 15:04:05 -0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Tue, 22 Sep 2026 15:04:05 +0000"
+    },
+    {
+      "name": "t0/utc/2006-01-02T15:04:05Z07:00",
+      "layout": "2006-01-02T15:04:05Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "2026-09-22T15:04:05Z"
+    },
+    {
+      "name": "t0/utc/2006-01-02T15:04:05.999999999Z07:00",
+      "layout": "2006-01-02T15:04:05.999999999Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "2026-09-22T15:04:05.123456789Z"
+    },
+    {
+      "name": "t0/utc/3:04PM",
+      "layout": "3:04PM",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "3:04PM"
+    },
+    {
+      "name": "t0/utc/Jan _2 15:04:05",
+      "layout": "Jan _2 15:04:05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Sep 22 15:04:05"
+    },
+    {
+      "name": "t0/utc/Jan _2 15:04:05.000",
+      "layout": "Jan _2 15:04:05.000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Sep 22 15:04:05.123"
+    },
+    {
+      "name": "t0/utc/Jan _2 15:04:05.000000",
+      "layout": "Jan _2 15:04:05.000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Sep 22 15:04:05.123456"
+    },
+    {
+      "name": "t0/utc/Jan _2 15:04:05.000000000",
+      "layout": "Jan _2 15:04:05.000000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "Sep 22 15:04:05.123456789"
+    },
+    {
+      "name": "t0/utc/2006-01-02 15:04:05",
+      "layout": "2006-01-02 15:04:05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "2026-09-22 15:04:05"
+    },
+    {
+      "name": "t0/utc/2006-01-02",
+      "layout": "2006-01-02",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "2026-09-22"
+    },
+    {
+      "name": "t0/utc/15:04:05",
+      "layout": "15:04:05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "15:04:05"
+    },
+    {
+      "name": "t0/utc/2006/01/02 15:04:05",
+      "layout": "2006/01/02 15:04:05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "2026/09/22 15:04:05"
+    },
+    {
+      "name": "t0/utc/kcptun-snmp-20060102.log",
+      "layout": "kcptun-snmp-20060102.log",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "kcptun-snmp-20260922.log"
+    },
+    {
+      "name": "t0/utc/snmp-2006-01-02T15-04-05.csv",
+      "layout": "snmp-2006-01-02T15-04-05.csv",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "snmp-2026-09-22T15-04-05.csv"
+    },
+    {
+      "name": "t0/utc//var/log/kcptun/2006/01/02/snmp.log",
+      "layout": "/var/log/kcptun/2006/01/02/snmp.log",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "/var/log/kcptun/2026/09/22/snmp.log"
+    },
+    {
+      "name": "t0/utc/snmp.log",
+      "layout": "snmp.log",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "snmp.log"
+    },
+    {
+      "name": "t0/utc/snmp-pm.log",
+      "layout": "snmp-pm.log",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "UTC",
+      "offset": 0,
+      "out": "snmp-pm.log"
+    },
+    {
+      "name": "t0/mst/January",
+      "layout": "January",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "September"
+    },
+    {
+      "name": "t0/mst/Jan",
+      "layout": "Jan",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Sep"
+    },
+    {
+      "name": "t0/mst/1",
+      "layout": "1",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "9"
+    },
+    {
+      "name": "t0/mst/01",
+      "layout": "01",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "09"
+    },
+    {
+      "name": "t0/mst/Monday",
+      "layout": "Monday",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Tuesday"
+    },
+    {
+      "name": "t0/mst/Mon",
+      "layout": "Mon",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Tue"
+    },
+    {
+      "name": "t0/mst/2",
+      "layout": "2",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "22"
+    },
+    {
+      "name": "t0/mst/_2",
+      "layout": "_2",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "22"
+    },
+    {
+      "name": "t0/mst/02",
+      "layout": "02",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "22"
+    },
+    {
+      "name": "t0/mst/__2",
+      "layout": "__2",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "265"
+    },
+    {
+      "name": "t0/mst/002",
+      "layout": "002",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "265"
+    },
+    {
+      "name": "t0/mst/15",
+      "layout": "15",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "08"
+    },
+    {
+      "name": "t0/mst/3",
+      "layout": "3",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "8"
+    },
+    {
+      "name": "t0/mst/03",
+      "layout": "03",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "08"
+    },
+    {
+      "name": "t0/mst/4",
+      "layout": "4",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "4"
+    },
+    {
+      "name": "t0/mst/04",
+      "layout": "04",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "04"
+    },
+    {
+      "name": "t0/mst/5",
+      "layout": "5",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "5"
+    },
+    {
+      "name": "t0/mst/05",
+      "layout": "05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "05"
+    },
+    {
+      "name": "t0/mst/2006",
+      "layout": "2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2026"
+    },
+    {
+      "name": "t0/mst/06",
+      "layout": "06",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "26"
+    },
+    {
+      "name": "t0/mst/PM",
+      "layout": "PM",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "AM"
+    },
+    {
+      "name": "t0/mst/pm",
+      "layout": "pm",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "am"
+    },
+    {
+      "name": "t0/mst/MST",
+      "layout": "MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "MST"
+    },
+    {
+      "name": "t0/mst/Z0700",
+      "layout": "Z0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-0700"
+    },
+    {
+      "name": "t0/mst/Z070000",
+      "layout": "Z070000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-070000"
+    },
+    {
+      "name": "t0/mst/Z07",
+      "layout": "Z07",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-07"
+    },
+    {
+      "name": "t0/mst/Z07:00",
+      "layout": "Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-07:00"
+    },
+    {
+      "name": "t0/mst/Z07:00:00",
+      "layout": "Z07:00:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-07:00:00"
+    },
+    {
+      "name": "t0/mst/-0700",
+      "layout": "-0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-0700"
+    },
+    {
+      "name": "t0/mst/-070000",
+      "layout": "-070000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-070000"
+    },
+    {
+      "name": "t0/mst/-07",
+      "layout": "-07",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-07"
+    },
+    {
+      "name": "t0/mst/-07:00",
+      "layout": "-07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-07:00"
+    },
+    {
+      "name": "t0/mst/-07:00:00",
+      "layout": "-07:00:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "-07:00:00"
+    },
+    {
+      "name": "t0/mst/.0",
+      "layout": ".0",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".1"
+    },
+    {
+      "name": "t0/mst/.00",
+      "layout": ".00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".12"
+    },
+    {
+      "name": "t0/mst/.000",
+      "layout": ".000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".123"
+    },
+    {
+      "name": "t0/mst/.000000",
+      "layout": ".000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".123456"
+    },
+    {
+      "name": "t0/mst/.000000000",
+      "layout": ".000000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".123456789"
+    },
+    {
+      "name": "t0/mst/.9",
+      "layout": ".9",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".1"
+    },
+    {
+      "name": "t0/mst/.99",
+      "layout": ".99",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".12"
+    },
+    {
+      "name": "t0/mst/.999",
+      "layout": ".999",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".123"
+    },
+    {
+      "name": "t0/mst/.999999999",
+      "layout": ".999999999",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".123456789"
+    },
+    {
+      "name": "t0/mst/,000",
+      "layout": ",000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ",123"
+    },
+    {
+      "name": "t0/mst/,999",
+      "layout": ",999",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ",123"
+    },
+    {
+      "name": "t0/mst/Month",
+      "layout": "Month",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Month"
+    },
+    {
+      "name": "t0/mst/Janx",
+      "layout": "Janx",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Janx"
+    },
+    {
+      "name": "t0/mst/Januaryx",
+      "layout": "Januaryx",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Septemberx"
+    },
+    {
+      "name": "t0/mst/Mo",
+      "layout": "Mo",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Mo"
+    },
+    {
+      "name": "t0/mst/Ja",
+      "layout": "Ja",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Ja"
+    },
+    {
+      "name": "t0/mst/_2006",
+      "layout": "_2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "_2026"
+    },
+    {
+      "name": "t0/mst/__3",
+      "layout": "__3",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "__8"
+    },
+    {
+      "name": "t0/mst/.0001",
+      "layout": ".0001",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".0009"
+    },
+    {
+      "name": "t0/mst/.00000000000",
+      "layout": ".00000000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".123456789"
+    },
+    {
+      "name": "t0/mst/MSTMST",
+      "layout": "MSTMST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "MSTMST"
+    },
+    {
+      "name": "t0/mst/PMpm",
+      "layout": "PMpm",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "AMam"
+    },
+    {
+      "name": "t0/mst/15150404",
+      "layout": "15150404",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "08080404"
+    },
+    {
+      "name": "t0/mst/1 2 3 4 5",
+      "layout": "1 2 3 4 5",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "9 22 8 4 5"
+    },
+    {
+      "name": "t0/mst/020106",
+      "layout": "020106",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "220926"
+    },
+    {
+      "name": "t0/mst/20060102150405",
+      "layout": "20060102150405",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "20260922080405"
+    },
+    {
+      "name": "t0/mst/Z",
+      "layout": "Z",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Z"
+    },
+    {
+      "name": "t0/mst/T",
+      "layout": "T",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "T"
+    },
+    {
+      "name": "t0/mst/--0700",
+      "layout": "--0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "--0700"
+    },
+    {
+      "name": "t0/mst/0",
+      "layout": "0",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "0"
+    },
+    {
+      "name": "t0/mst/7",
+      "layout": "7",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "7"
+    },
+    {
+      "name": "t0/mst/8",
+      "layout": "8",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "8"
+    },
+    {
+      "name": "t0/mst/9",
+      "layout": "9",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "9"
+    },
+    {
+      "name": "t0/mst/",
+      "layout": "",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ""
+    },
+    {
+      "name": "t0/mst/01/02 03:04:05PM '06 -0700",
+      "layout": "01/02 03:04:05PM '06 -0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "09/22 08:04:05AM '26 -0700"
+    },
+    {
+      "name": "t0/mst/Mon Jan _2 15:04:05 2006",
+      "layout": "Mon Jan _2 15:04:05 2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Tue Sep 22 08:04:05 2026"
+    },
+    {
+      "name": "t0/mst/Mon Jan _2 15:04:05 MST 2006",
+      "layout": "Mon Jan _2 15:04:05 MST 2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Tue Sep 22 08:04:05 MST 2026"
+    },
+    {
+      "name": "t0/mst/Mon Jan 02 15:04:05 -0700 2006",
+      "layout": "Mon Jan 02 15:04:05 -0700 2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Tue Sep 22 08:04:05 -0700 2026"
+    },
+    {
+      "name": "t0/mst/02 Jan 06 15:04 MST",
+      "layout": "02 Jan 06 15:04 MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "22 Sep 26 08:04 MST"
+    },
+    {
+      "name": "t0/mst/02 Jan 06 15:04 -0700",
+      "layout": "02 Jan 06 15:04 -0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "22 Sep 26 08:04 -0700"
+    },
+    {
+      "name": "t0/mst/Monday, 02-Jan-06 15:04:05 MST",
+      "layout": "Monday, 02-Jan-06 15:04:05 MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Tuesday, 22-Sep-26 08:04:05 MST"
+    },
+    {
+      "name": "t0/mst/Mon, 02 Jan 2006 15:04:05 MST",
+      "layout": "Mon, 02 Jan 2006 15:04:05 MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Tue, 22 Sep 2026 08:04:05 MST"
+    },
+    {
+      "name": "t0/mst/Mon, 02 Jan 2006 15:04:05 -0700",
+      "layout": "Mon, 02 Jan 2006 15:04:05 -0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Tue, 22 Sep 2026 08:04:05 -0700"
+    },
+    {
+      "name": "t0/mst/2006-01-02T15:04:05Z07:00",
+      "layout": "2006-01-02T15:04:05Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2026-09-22T08:04:05-07:00"
+    },
+    {
+      "name": "t0/mst/2006-01-02T15:04:05.999999999Z07:00",
+      "layout": "2006-01-02T15:04:05.999999999Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2026-09-22T08:04:05.123456789-07:00"
+    },
+    {
+      "name": "t0/mst/3:04PM",
+      "layout": "3:04PM",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "8:04AM"
+    },
+    {
+      "name": "t0/mst/Jan _2 15:04:05",
+      "layout": "Jan _2 15:04:05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Sep 22 08:04:05"
+    },
+    {
+      "name": "t0/mst/Jan _2 15:04:05.000",
+      "layout": "Jan _2 15:04:05.000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Sep 22 08:04:05.123"
+    },
+    {
+      "name": "t0/mst/Jan _2 15:04:05.000000",
+      "layout": "Jan _2 15:04:05.000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Sep 22 08:04:05.123456"
+    },
+    {
+      "name": "t0/mst/Jan _2 15:04:05.000000000",
+      "layout": "Jan _2 15:04:05.000000000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Sep 22 08:04:05.123456789"
+    },
+    {
+      "name": "t0/mst/2006-01-02 15:04:05",
+      "layout": "2006-01-02 15:04:05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2026-09-22 08:04:05"
+    },
+    {
+      "name": "t0/mst/2006-01-02",
+      "layout": "2006-01-02",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2026-09-22"
+    },
+    {
+      "name": "t0/mst/15:04:05",
+      "layout": "15:04:05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "08:04:05"
+    },
+    {
+      "name": "t0/mst/2006/01/02 15:04:05",
+      "layout": "2006/01/02 15:04:05",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2026/09/22 08:04:05"
+    },
+    {
+      "name": "t0/mst/kcptun-snmp-20060102.log",
+      "layout": "kcptun-snmp-20060102.log",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "kcptun-snmp-20260922.log"
+    },
+    {
+      "name": "t0/mst/snmp-2006-01-02T15-04-05.csv",
+      "layout": "snmp-2006-01-02T15-04-05.csv",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "snmp-2026-09-22T08-04-05.csv"
+    },
+    {
+      "name": "t0/mst//var/log/kcptun/2006/01/02/snmp.log",
+      "layout": "/var/log/kcptun/2006/01/02/snmp.log",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "/var/log/kcptun/2026/09/22/snmp.log"
+    },
+    {
+      "name": "t0/mst/snmp.log",
+      "layout": "snmp.log",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "snmp.log"
+    },
+    {
+      "name": "t0/mst/snmp-pm.log",
+      "layout": "snmp-pm.log",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "snmp-am.log"
+    },
+    {
+      "name": "t0/noname/MST",
+      "layout": "MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+0530"
+    },
+    {
+      "name": "t0/noname/Z0700",
+      "layout": "Z0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+0530"
+    },
+    {
+      "name": "t0/noname/Z070000",
+      "layout": "Z070000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+053000"
+    },
+    {
+      "name": "t0/noname/Z07",
+      "layout": "Z07",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+05"
+    },
+    {
+      "name": "t0/noname/Z07:00",
+      "layout": "Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+05:30"
+    },
+    {
+      "name": "t0/noname/Z07:00:00",
+      "layout": "Z07:00:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+05:30:00"
+    },
+    {
+      "name": "t0/noname/-0700",
+      "layout": "-0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+0530"
+    },
+    {
+      "name": "t0/noname/-070000",
+      "layout": "-070000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+053000"
+    },
+    {
+      "name": "t0/noname/-07",
+      "layout": "-07",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+05"
+    },
+    {
+      "name": "t0/noname/-07:00",
+      "layout": "-07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+05:30"
+    },
+    {
+      "name": "t0/noname/-07:00:00",
+      "layout": "-07:00:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "+05:30:00"
+    },
+    {
+      "name": "t0/noname/2006-01-02T15:04:05Z07:00",
+      "layout": "2006-01-02T15:04:05Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "2026-09-22T20:34:05+05:30"
+    },
+    {
+      "name": "t0/noname/Mon Jan _2 15:04:05 MST 2006",
+      "layout": "Mon Jan _2 15:04:05 MST 2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "Tue Sep 22 20:34:05 +0530 2026"
+    },
+    {
+      "name": "t0/noname/Mon, 02 Jan 2006 15:04:05 -0700",
+      "layout": "Mon, 02 Jan 2006 15:04:05 -0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "",
+      "offset": 19800,
+      "out": "Tue, 22 Sep 2026 20:34:05 +0530"
+    },
+    {
+      "name": "t0/lmt/MST",
+      "layout": "MST",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "LMT"
+    },
+    {
+      "name": "t0/lmt/Z0700",
+      "layout": "Z0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+0103"
+    },
+    {
+      "name": "t0/lmt/Z070000",
+      "layout": "Z070000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+010301"
+    },
+    {
+      "name": "t0/lmt/Z07",
+      "layout": "Z07",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+01"
+    },
+    {
+      "name": "t0/lmt/Z07:00",
+      "layout": "Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+01:03"
+    },
+    {
+      "name": "t0/lmt/Z07:00:00",
+      "layout": "Z07:00:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+01:03:01"
+    },
+    {
+      "name": "t0/lmt/-0700",
+      "layout": "-0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+0103"
+    },
+    {
+      "name": "t0/lmt/-070000",
+      "layout": "-070000",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+010301"
+    },
+    {
+      "name": "t0/lmt/-07",
+      "layout": "-07",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+01"
+    },
+    {
+      "name": "t0/lmt/-07:00",
+      "layout": "-07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+01:03"
+    },
+    {
+      "name": "t0/lmt/-07:00:00",
+      "layout": "-07:00:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "+01:03:01"
+    },
+    {
+      "name": "t0/lmt/2006-01-02T15:04:05Z07:00",
+      "layout": "2006-01-02T15:04:05Z07:00",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "2026-09-22T16:07:06+01:03"
+    },
+    {
+      "name": "t0/lmt/Mon Jan _2 15:04:05 MST 2006",
+      "layout": "Mon Jan _2 15:04:05 MST 2006",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "Tue Sep 22 16:07:06 LMT 2026"
+    },
+    {
+      "name": "t0/lmt/Mon, 02 Jan 2006 15:04:05 -0700",
+      "layout": "Mon, 02 Jan 2006 15:04:05 -0700",
+      "unix": 1790089445,
+      "nanos": 123456789,
+      "zone": "LMT",
+      "offset": 3781,
+      "out": "Tue, 22 Sep 2026 16:07:06 +0103"
+    },
+    {
+      "name": "t1/mst/2006-01-02T15:04:05.999999999Z07:00",
+      "layout": "2006-01-02T15:04:05.999999999Z07:00",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2006-01-01T20:04:05-07:00"
+    },
+    {
+      "name": "t1/mst/Monday, 02-Jan-06 15:04:05 MST",
+      "layout": "Monday, 02-Jan-06 15:04:05 MST",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Sunday, 01-Jan-06 20:04:05 MST"
+    },
+    {
+      "name": "t1/mst/January 2, 2006",
+      "layout": "January 2, 2006",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "January 1, 2006"
+    },
+    {
+      "name": "t1/mst/1 2 3 4 5",
+      "layout": "1 2 3 4 5",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "1 1 8 4 5"
+    },
+    {
+      "name": "t1/mst/_2",
+      "layout": "_2",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": " 1"
+    },
+    {
+      "name": "t1/mst/__2",
+      "layout": "__2",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "  1"
+    },
+    {
+      "name": "t1/mst/002",
+      "layout": "002",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "001"
+    },
+    {
+      "name": "t1/mst/03:04:05PM",
+      "layout": "03:04:05PM",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "08:04:05PM"
+    },
+    {
+      "name": "t1/mst/3:04pm",
+      "layout": "3:04pm",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "8:04pm"
+    },
+    {
+      "name": "t1/mst/15:04:05",
+      "layout": "15:04:05",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "20:04:05"
+    },
+    {
+      "name": "t1/mst/.000",
+      "layout": ".000",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".000"
+    },
+    {
+      "name": "t1/mst/.999",
+      "layout": ".999",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ""
+    },
+    {
+      "name": "t1/mst/.000000000",
+      "layout": ".000000000",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".000000000"
+    },
+    {
+      "name": "t1/mst/kcptun-snmp-20060102.log",
+      "layout": "kcptun-snmp-20060102.log",
+      "unix": 1136171045,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "kcptun-snmp-20060101.log"
+    },
+    {
+      "name": "t2/mst/2006-01-02T15:04:05.999999999Z07:00",
+      "layout": "2006-01-02T15:04:05.999999999Z07:00",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2025-12-31T17:00:00-07:00"
+    },
+    {
+      "name": "t2/mst/Monday, 02-Jan-06 15:04:05 MST",
+      "layout": "Monday, 02-Jan-06 15:04:05 MST",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Wednesday, 31-Dec-25 17:00:00 MST"
+    },
+    {
+      "name": "t2/mst/January 2, 2006",
+      "layout": "January 2, 2006",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "December 31, 2025"
+    },
+    {
+      "name": "t2/mst/1 2 3 4 5",
+      "layout": "1 2 3 4 5",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "12 31 5 0 0"
+    },
+    {
+      "name": "t2/mst/_2",
+      "layout": "_2",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "31"
+    },
+    {
+      "name": "t2/mst/__2",
+      "layout": "__2",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "365"
+    },
+    {
+      "name": "t2/mst/002",
+      "layout": "002",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "365"
+    },
+    {
+      "name": "t2/mst/03:04:05PM",
+      "layout": "03:04:05PM",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "05:00:00PM"
+    },
+    {
+      "name": "t2/mst/3:04pm",
+      "layout": "3:04pm",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "5:00pm"
+    },
+    {
+      "name": "t2/mst/15:04:05",
+      "layout": "15:04:05",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "17:00:00"
+    },
+    {
+      "name": "t2/mst/.000",
+      "layout": ".000",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".000"
+    },
+    {
+      "name": "t2/mst/.999",
+      "layout": ".999",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ""
+    },
+    {
+      "name": "t2/mst/.000000000",
+      "layout": ".000000000",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".000000000"
+    },
+    {
+      "name": "t2/mst/kcptun-snmp-20060102.log",
+      "layout": "kcptun-snmp-20060102.log",
+      "unix": 1767225600,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "kcptun-snmp-20251231.log"
+    },
+    {
+      "name": "t3/mst/2006-01-02T15:04:05.999999999Z07:00",
+      "layout": "2006-01-02T15:04:05.999999999Z07:00",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2024-02-29T05:00:00.12-07:00"
+    },
+    {
+      "name": "t3/mst/Monday, 02-Jan-06 15:04:05 MST",
+      "layout": "Monday, 02-Jan-06 15:04:05 MST",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Thursday, 29-Feb-24 05:00:00 MST"
+    },
+    {
+      "name": "t3/mst/January 2, 2006",
+      "layout": "January 2, 2006",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "February 29, 2024"
+    },
+    {
+      "name": "t3/mst/1 2 3 4 5",
+      "layout": "1 2 3 4 5",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2 29 5 0 0"
+    },
+    {
+      "name": "t3/mst/_2",
+      "layout": "_2",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "29"
+    },
+    {
+      "name": "t3/mst/__2",
+      "layout": "__2",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": " 60"
+    },
+    {
+      "name": "t3/mst/002",
+      "layout": "002",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "060"
+    },
+    {
+      "name": "t3/mst/03:04:05PM",
+      "layout": "03:04:05PM",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "05:00:00AM"
+    },
+    {
+      "name": "t3/mst/3:04pm",
+      "layout": "3:04pm",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "5:00am"
+    },
+    {
+      "name": "t3/mst/15:04:05",
+      "layout": "15:04:05",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "05:00:00"
+    },
+    {
+      "name": "t3/mst/.000",
+      "layout": ".000",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".120"
+    },
+    {
+      "name": "t3/mst/.999",
+      "layout": ".999",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".12"
+    },
+    {
+      "name": "t3/mst/.000000000",
+      "layout": ".000000000",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".120000000"
+    },
+    {
+      "name": "t3/mst/kcptun-snmp-20060102.log",
+      "layout": "kcptun-snmp-20060102.log",
+      "unix": 1709208000,
+      "nanos": 120000000,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "kcptun-snmp-20240229.log"
+    },
+    {
+      "name": "t4/mst/2006-01-02T15:04:05.999999999Z07:00",
+      "layout": "2006-01-02T15:04:05.999999999Z07:00",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "2026-12-31T16:59:59.999999999-07:00"
+    },
+    {
+      "name": "t4/mst/Monday, 02-Jan-06 15:04:05 MST",
+      "layout": "Monday, 02-Jan-06 15:04:05 MST",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Thursday, 31-Dec-26 16:59:59 MST"
+    },
+    {
+      "name": "t4/mst/January 2, 2006",
+      "layout": "January 2, 2006",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "December 31, 2026"
+    },
+    {
+      "name": "t4/mst/1 2 3 4 5",
+      "layout": "1 2 3 4 5",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "12 31 4 59 59"
+    },
+    {
+      "name": "t4/mst/_2",
+      "layout": "_2",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "31"
+    },
+    {
+      "name": "t4/mst/__2",
+      "layout": "__2",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "365"
+    },
+    {
+      "name": "t4/mst/002",
+      "layout": "002",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "365"
+    },
+    {
+      "name": "t4/mst/03:04:05PM",
+      "layout": "03:04:05PM",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "04:59:59PM"
+    },
+    {
+      "name": "t4/mst/3:04pm",
+      "layout": "3:04pm",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "4:59pm"
+    },
+    {
+      "name": "t4/mst/15:04:05",
+      "layout": "15:04:05",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "16:59:59"
+    },
+    {
+      "name": "t4/mst/.000",
+      "layout": ".000",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".999"
+    },
+    {
+      "name": "t4/mst/.999",
+      "layout": ".999",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".999"
+    },
+    {
+      "name": "t4/mst/.000000000",
+      "layout": ".000000000",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".999999999"
+    },
+    {
+      "name": "t4/mst/kcptun-snmp-20060102.log",
+      "layout": "kcptun-snmp-20060102.log",
+      "unix": 1798761599,
+      "nanos": 999999999,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "kcptun-snmp-20261231.log"
+    },
+    {
+      "name": "t5/mst/2006-01-02T15:04:05.999999999Z07:00",
+      "layout": "2006-01-02T15:04:05.999999999Z07:00",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "0006-03-05T00:08:09-07:00"
+    },
+    {
+      "name": "t5/mst/Monday, 02-Jan-06 15:04:05 MST",
+      "layout": "Monday, 02-Jan-06 15:04:05 MST",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "Sunday, 05-Mar-06 00:08:09 MST"
+    },
+    {
+      "name": "t5/mst/January 2, 2006",
+      "layout": "January 2, 2006",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "March 5, 0006"
+    },
+    {
+      "name": "t5/mst/1 2 3 4 5",
+      "layout": "1 2 3 4 5",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "3 5 12 8 9"
+    },
+    {
+      "name": "t5/mst/_2",
+      "layout": "_2",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": " 5"
+    },
+    {
+      "name": "t5/mst/__2",
+      "layout": "__2",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": " 64"
+    },
+    {
+      "name": "t5/mst/002",
+      "layout": "002",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "064"
+    },
+    {
+      "name": "t5/mst/03:04:05PM",
+      "layout": "03:04:05PM",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "12:08:09AM"
+    },
+    {
+      "name": "t5/mst/3:04pm",
+      "layout": "3:04pm",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "12:08am"
+    },
+    {
+      "name": "t5/mst/15:04:05",
+      "layout": "15:04:05",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "00:08:09"
+    },
+    {
+      "name": "t5/mst/.000",
+      "layout": ".000",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".000"
+    },
+    {
+      "name": "t5/mst/.999",
+      "layout": ".999",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ""
+    },
+    {
+      "name": "t5/mst/.000000000",
+      "layout": ".000000000",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": ".000000000"
+    },
+    {
+      "name": "t5/mst/kcptun-snmp-20060102.log",
+      "layout": "kcptun-snmp-20060102.log",
+      "unix": -61972361511,
+      "nanos": 0,
+      "zone": "MST",
+      "offset": -25200,
+      "out": "kcptun-snmp-00060305.log"
+    }
+  ]
+}

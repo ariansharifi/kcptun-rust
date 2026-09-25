@@ -1,0 +1,247 @@
+# CI: the project gate (docs/porting-guide.md §10) on every tier-1 host, plus the feature-
+# combination checks, the workflow and packaging lints, the container image build and the
+# dependency policy check.
+#
+# The gate is, verbatim:
+#     cargo fmt --all -- --check
+#     cargo clippy --workspace --all-targets -- -D warnings
+#     cargo test --workspace
+#
+# Platform note (D22, amended 2026-09-23): Linux x86_64/aarch64 is the supported platform and
+# macOS aarch64 is the development host; both block the gate. **Windows is not supported** - not
+# built, not released and not in this matrix.
+#
+# NOTE: this repository has no remote yet, so no run of this workflow has ever happened. It was
+# validated locally with `actionlint` and by running each command on macOS/arm64.
+name: CI
+
+on:
+  push:
+    branches: [main, "step/**"]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only: nothing in CI writes to the repository or publishes anything.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Superseded pushes to a pull request are cancelled; branch pushes run to completion so that
+  # every commit on main and on a step branch has a recorded result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  # Fast first signal: formatting alone, so a misformatted push fails in under a minute.
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # rust-toolchain.toml pins 1.98.1 with the rustfmt and clippy components. `rustup toolchain
+      # install` with no toolchain argument reads that file and installs exactly it, channel and
+      # components, so no toolchain version is duplicated here. (`rustup show` alone does *not*
+      # install since rustup 1.28 - it only reports - so it must not be relied on for this.)
+      - name: Install the pinned toolchain
+        run: rustup toolchain install && rustup show && cargo --version && cargo fmt --version
+      - run: cargo fmt --all -- --check
+
+  # clippy + tests on every host we support. clippy runs per OS on purpose: large parts of the
+  # tree are `cfg`-gated (kcptun-kcp's batch I/O, kcptun-tcpraw's raw sockets and iptables,
+  # kcptun-std's signal handling), so a Linux-only clippy run never sees the macOS
+  # branches of that code.
+  gate:
+    name: gate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Every entry blocks. Windows was removed from the matrix (D22, user 2026-09-23: this is a
+    # Linux project), so there is no best-effort row left to tolerate.
+    continue-on-error: ${{ matrix.best_effort }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest # Linux x86_64 (tier 1)
+            best_effort: false
+          # Free GitHub-hosted ARM runner; available on public repositories only. aarch64 Linux is
+          # the primary deployment target (the lab server is aarch64), so this entry blocks.
+          - os: ubuntu-24.04-arm # Linux aarch64 (tier 1)
+            best_effort: false
+          - os: macos-latest # macOS aarch64 (tier 1, the development host)
+            best_effort: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain
+        run: rustup toolchain install && rustup show && cargo --version && cargo clippy --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: gate-${{ matrix.os }}
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: test
+        # The interop, lab and benchmark tests are `#[ignore]`d: they need the Go reference
+        # binaries (see interop.yml) or an idle machine. `--workspace` runs everything else.
+        run: cargo test --workspace
+
+  # Feature combinations that matter to the product but that the default `--workspace` build does
+  # not cover. Cheap (`cargo check`), Linux only.
+  features:
+    name: feature combinations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain
+        run: rustup toolchain install && rustup show && cargo --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: features
+      # D19: `qpp` is on by default, which makes the binaries GPL-3.0 combined works. This is the
+      # build that links no GPL code at all; it must keep compiling.
+      - name: no default features (GPL-free build)
+        run: cargo check --workspace --all-targets --no-default-features
+      # D23: the `pprof` profiling endpoint is `cfg(unix)` only; every host in this matrix is unix.
+      - name: all features (includes pprof, D23)
+        run: cargo check --workspace --all-targets --all-features
+
+  # The workflows themselves. They cannot be exercised anywhere else, so the invariants that
+  # matter are checked mechanically: the fuzz matrix covers exactly the cargo-fuzz targets that
+  # exist, release.yml is still manual-only and still gated, and this file still runs the gate
+  # commands verbatim. `tools/check-workflows.sh` runs the same checks locally.
+  workflows:
+    name: workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned to the version used to validate these files locally (2026-09-23). The image also
+      # carries shellcheck and pyflakes, so the `run:` scripts are linted too.
+      - name: actionlint
+        uses: docker://rhysd/actionlint:1.7.7
+        with:
+          args: -color
+      - name: Repository-specific workflow checks
+        run: tools/check-workflows.sh
+
+  # The container image and the dist/ files (sub-step 13.2). The image is the drop-in promise:
+  # the Go image's binaries live at /bin/client and /bin/server and it exposes 29900/udp and
+  # 12948, so existing `docker run` command lines must keep working. The libc is checked here as
+  # well, because it has already moved three times (13.2c to glibc, 12.3e back to static musl on
+  # a small-scale container round, 12.3f to glibc again once 11.4b settled D07 on a controlled
+  # same-box soak): D07 makes the **default** image the glibc one, and `docker build --target
+  # musl` the static fallback for a host with no usable glibc.
+  dist:
+    name: image and dist
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # The invocation hadolint documents: the Dockerfile on stdin. Pinned to a release tag; the
+      # inline `# hadolint ignore=` comments in the Dockerfile are honoured as usual.
+      - name: hadolint
+        run: docker run --rm -i hadolint/hadolint:v2.12.0-alpine < Dockerfile
+
+      - name: Repository-specific dist checks
+        run: tools/check-dist.sh
+
+      # A real build of the release image. It compiles the whole workspace with the release
+      # profile (fat LTO, one codegen unit), which is why this job has a long timeout and no
+      # cache: BuildKit's cache would be cold on every runner anyway.
+      - name: Build the image
+        run: docker build --build-arg KCPTUN_VERSION=ci-smoke -t kcptun-rust:ci .
+
+      # Both names of both binaries have to work, and the version has to be the one stamped in
+      # (an unstamped build would print SELFBUILD).
+      - name: Smoke-test the image
+        run: |
+          set -euo pipefail
+          for bin in /bin/client /bin/server /bin/kcptun-client /bin/kcptun-server; do
+            out="$(docker run --rm kcptun-rust:ci "$bin" -v)"
+            echo "$bin -v: $out"
+            [ "$out" = "kcptun version ci-smoke" ] || {
+              echo "::error::$bin printed '$out'"
+              exit 1
+            }
+          done
+          # -tcp shells out to iptables, so the runtime stage must carry it.
+          docker run --rm kcptun-rust:ci iptables --version
+          # D07: the default image has to be the glibc build. 11.4b held one box, one kernel,
+          # one netem profile, one set of flags and one churn seed constant and changed only the
+          # allocator: static musl peaked at 253 MiB and released 0 %, ramping +44,860 kB/h,
+          # where glibc peaked at 50 MiB, fell to 13.6 MiB and had a slope of -600 kB/h.
+          # `--target musl` is the fallback and is not what this job builds. This check fails
+          # closed: it errors on a static answer AND on an answer it cannot classify, so a base
+          # image that changed what `ldd` prints cannot turn it off. `|| true` is kept because
+          # ldd exits non-zero on a static binary - precisely the regression this must catch, so
+          # it has to reach the ::error:: below rather than abort the step under `set -e`.
+          linkage="$(docker run --rm kcptun-rust:ci ldd /bin/kcptun-client 2>&1 || true)"
+          echo "$linkage"
+          case "$linkage" in
+            *"Not a valid dynamic program"* | *"not a dynamic executable"* | *"statically linked"*)
+              echo "::error::the image's binaries are statically linked ($linkage); the default image is the glibc build (DECISIONS D07)"
+              exit 1
+              ;;
+            *libc.musl*)
+              echo "::error::the image's binaries are linked against musl ($linkage); the default image is the glibc build (DECISIONS D07)"
+              exit 1
+              ;;
+            *libc.so.6*) ;;
+            *)
+              echo "::error::cannot tell how the image's binaries are linked: '$linkage' (DECISIONS D07 wants a glibc build)"
+              exit 1
+              ;;
+          esac
+          # The licence texts the GPL-3.0 qpp crate obliges the image to ship (D19).
+          docker run --rm kcptun-rust:ci ls /usr/share/licenses/kcptun-rust
+
+      # The actual drop-in claim: real bytes through a real tunnel, in all four pairings against
+      # the upstream Go image, for both smux versions. This is what makes "works as a drop-in"
+      # a tested statement rather than a Dockerfile review.
+      - name: Image-level interop against the upstream Go image
+        run: tools/image-interop.sh kcptun-rust:ci
+
+  # The documentation that is derived from the code instead of written by hand: README.md's flags
+  # table is the binaries' own `-h` output, and its "Differences from Go" table has to list every
+  # V-xx deviation registered in docs/DECISIONS.md. Both would otherwise rot silently, and for a
+  # drop-in replacement a flags table that disagrees with the binary is worse than no table.
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain
+        run: rustup toolchain install && rustup show && cargo --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: docs
+      # Debug binaries are enough: `-h` does not depend on the profile, and this keeps the job
+      # short. tools/check-docs.py is told where to find them.
+      - name: Build the binaries
+        run: cargo build -p kcptun-client -p kcptun-server
+      - name: Check the generated documentation
+        run: tools/check-docs.py --bin-dir target/debug
+
+  # Dependency policy: licences (the MIT / GPL-3.0 split of D19), duplicate and wildcard versions,
+  # source registries, and RustSec advisories.
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned to the version this configuration was written and verified against (2026-09-23).
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+      # `-L info` prints a `note[advisory-ignored]` block, with the reason and the full dependency
+      # path, for every entry in `deny.toml`'s `[advisories] ignore` list. Without it an ignored
+      # advisory is silent, and today there is exactly one (RUSTSEC-2024-0384, `instant` via the
+      # `reed-solomon-erasure` dev-dependency of kcptun-kcp - see deny.toml). The check itself
+      # stays blocking, so any *new* advisory, licence or source violation fails this job.
+      - name: cargo deny check
+        run: cargo deny -L info check --show-stats

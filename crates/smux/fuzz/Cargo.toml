@@ -1,0 +1,29 @@
+# cargo-fuzz target for kcptun-smux (plan step 06.5). Not a workspace member: it has its own
+# workspace and lock file, needs nightly, and is run from crates/smux with
+#   cargo +nightly fuzz run -s none -a smux_recv fuzz/corpus/smux_recv fuzz/seeds/smux_recv
+# (see README.md).
+[package]
+name = "kcptun-smux-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+kcptun-smux = { path = "..", features = ["internals"] }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "smux_recv"
+path = "fuzz_targets/smux_recv.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1

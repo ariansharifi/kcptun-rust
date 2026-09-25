@@ -1,0 +1,75 @@
+[package]
+name = "kcptun-std"
+description = "Rust port of kcptun's std package: config, CLI, logging, compression, piping"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["qpp"]
+# Hidden, unstable access to internals (the fuzz harnesses) for the cargo-fuzz crate in
+# `fuzz/`. Not part of the public API.
+internals = []
+qpp = ["dep:kcptun-qpp"]
+# D23: serve a CPU profile on :6060 for `--pprof`. Off by default; without it the flag is still
+# accepted and `--pprof` logs "pprof: not available in this build". Unix only: the `pprof` crate
+# depends unconditionally on `nix` 0.26, which does not build for Windows (D22 lists Windows as
+# best effort), so the dependency is gated below and a Windows build logs that same line even
+# with the feature on.
+pprof = ["dep:pprof"]
+
+[dependencies]
+bytes = { workspace = true }
+chrono = { workspace = true, features = ["clock"] }
+crc32c = { workspace = true }
+crossbeam-queue = { workspace = true }
+kcptun-kcp = { workspace = true }
+kcptun-smux = { workspace = true }
+kcptun-qpp = { workspace = true, optional = true }
+kcptun-tcpraw = { workspace = true }
+pbkdf2 = { workspace = true }
+regex = { workspace = true }
+sha1 = { workspace = true }
+snap = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-util",
+    "macros",
+    "net",
+    "rt",
+    "rt-multi-thread",
+    "signal",
+    "time",
+] }
+
+# `low_level::emulate_default_handler(SIGTERM)` restores the default disposition and re-raises,
+# which is what Go's `signal.Stop(ch)` + `syscall.Kill(getpid(), SIGTERM)` does (std/signal.go).
+[target.'cfg(unix)'.dependencies]
+signal-hook = { workspace = true }
+# The `pprof` feature (D23): `pprof` 0.15 -> `nix` 0.26 is Unix-only, so `--features pprof` still
+# builds for Windows — it just has no endpoint there (see `src/pprof.rs`).
+pprof = { workspace = true, optional = true }
+
+[dev-dependencies]
+# Self dev-dependency: turns `internals` on for this crate's own tests, so they run the fuzz
+# harness over the committed seed corpus (same pattern as crates/smux).
+# `default-features = false` is load-bearing: cargo unifies features across a whole
+# `--all-targets` workspace build, so a self dev-dependency on the defaults would switch
+# `kcptun-std/qpp` back on for the *binaries* even under `--no-default-features`. That both
+# breaks the uninhabited-`QppPad` arms in client/server `main.rs` (whose `#[cfg]` follows the
+# binary's own `qpp` feature) and links the GPL-3.0 `kcptun-qpp` crate into the build D19
+# defines as GPL-free. A plain `cargo test -p kcptun-std` still gets `qpp`, from this
+# package's own default features.
+kcptun-std = { path = ".", default-features = false, features = ["internals"] }
+kcptun-testkit = { workspace = true }
+hex = { workspace = true }
+proptest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+
+[lints]
+workspace = true

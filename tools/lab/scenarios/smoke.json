@@ -1,0 +1,45 @@
+{
+  "name": "smoke",
+  "description": "A minute of everything: proves the lab, the tunnel and the tools work before a long run is started. Rust<->Rust, S1, no impairment. `closewait 0` for the same reason the soak sets it — the server's 30 s default would leave every finished stream's file descriptor open.",
+  "config": "s1",
+  "netem": "clean",
+  "pairs": [["rust", "rust"]],
+  "repetitions": 1,
+  "settle": 3,
+  "sample_interval": 10,
+  "snmp_period": 10,
+  "server_flags": {"closewait": 0},
+  "workloads": [
+    {
+      "type": "churn",
+      "tag": "churn",
+      "duration": 40,
+      "rate": 20,
+      "min_bytes": "10k",
+      "max_bytes": "256k",
+      "long_lived": 4,
+      "long_lived_interval": 5,
+      "burst_every": 20,
+      "burst_streams": 2,
+      "burst_bytes": "4m",
+      "seed": 20260923
+    },
+    {
+      "type": "ping",
+      "tag": "lat64",
+      "duration": 40,
+      "size": 64,
+      "warmup": 2,
+      "verify": true
+    },
+    {
+      "type": "bulk",
+      "tag": "bulk",
+      "duration": 20,
+      "start_after": 10,
+      "bytes": "4m",
+      "streams": 2,
+      "direction": "both"
+    }
+  ]
+}

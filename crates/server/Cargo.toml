@@ -1,0 +1,36 @@
+[package]
+name = "kcptun-server"
+description = "kcptun server (Rust port): KCP to TCP tunnel exit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "kcptun-server"
+path = "src/main.rs"
+
+[features]
+default = ["qpp"]
+qpp = ["kcptun-std/qpp"]
+# D23: CPU profiling endpoint on :6060 for `--pprof` (off by default).
+pprof = ["kcptun-std/pprof"]
+
+[dependencies]
+kcptun-kcp = { workspace = true }
+kcptun-smux = { workspace = true }
+kcptun-std = { workspace = true }
+# `--tcp`: the fake-TCP listener that runs alongside the UDP one (Linux; a stub whose
+# `listen` answers `os not supported` elsewhere, exactly as Go builds it).
+kcptun-tcpraw = { workspace = true }
+tokio = { workspace = true, features = ["macros", "net", "rt", "rt-multi-thread", "time"] }
+
+[dev-dependencies]
+kcptun-testkit = { workspace = true }
+# Only for the errno constants the Go error-text tests build their io::Errors from.
+libc = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

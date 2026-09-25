@@ -1,0 +1,27 @@
+{
+  "name": "bulk",
+  "description": "Plan 11.2's bulk half: 30 s of iperf3 each way, three repetitions, all four pairs interleaved. iperf3 needs the tunnel's target to itself, so the latency probes live in their own scenario.",
+  "config": "s1",
+  "netem": "clean",
+  "pairs": [["go", "go"], ["rust", "rust"], ["go", "rust"], ["rust", "go"]],
+  "repetitions": 3,
+  "settle": 5,
+  "sample_interval": 10,
+  "snmp_period": 10,
+  "workloads": [
+    {
+      "type": "iperf3",
+      "tag": "up",
+      "duration": 30,
+      "omit": 2
+    },
+    {
+      "type": "iperf3",
+      "tag": "down",
+      "duration": 30,
+      "start_after": 35,
+      "omit": 2,
+      "reverse": true
+    }
+  ]
+}

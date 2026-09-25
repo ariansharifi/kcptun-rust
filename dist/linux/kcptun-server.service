@@ -1,0 +1,37 @@
+# kcptun-rust server, systemd unit.
+#
+# Port of kcptun/dist/linux/kcptun-server.service (Go, commit 39935d5307f0). Everything except
+# the two Go runtime knobs is byte-for-byte upstream's, so an existing installation keeps the
+# same unit name, the same configuration path and the same restart behaviour.
+#
+# Install:
+#   install -m 0755 kcptun-server /usr/bin/kcptun-server
+#   install -m 0644 kcptun-server.service /etc/systemd/system/kcptun-server.service
+#   install -m 0600 server.json.example /etc/kcptun-server.json   # then edit "key"
+#   systemctl daemon-reload && systemctl enable --now kcptun-server
+
+[Unit]
+Description=kcptun
+
+Wants=network.target
+After=syslog.target network-online.target
+
+[Service]
+Type=simple
+# Upstream sets Environment="GOGC=20" and Environment="GOEXPERIMENT=greenteagc" here. Both are
+# Go runtime knobs (garbage collector target percentage, green-tea GC experiment) and have no
+# effect on this build, which has no garbage collector; they are dropped rather than carried
+# over as dead settings. GOMAXPROCS *is* still read, exactly as Go reads it, and caps the number
+# of tokio worker threads (see README.md, "Runtime environment"); uncomment to pin it:
+#Environment="GOMAXPROCS=4"
+ExecStart=/usr/bin/kcptun-server -c /etc/kcptun-server.json
+Restart=on-failure
+RestartSec=10
+KillMode=process
+LimitNOFILE=65536
+# `-tcp` (fake-TCP) opens a raw socket and installs an iptables rule, so it needs privileges the
+# default service user does not have. Running the unit as root covers it; otherwise uncomment:
+#AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

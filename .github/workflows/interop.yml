@@ -1,0 +1,167 @@
+# Interoperability with the Go reference implementation.
+#
+# This is the workflow that protects the point of the project: a Rust client must talk to a Go
+# server and vice versa, byte for byte. It:
+#   1. fetches the pinned Go reference (kcptun 39935d5 + its vendored kcp-go/smux/qpp/tcpraw) and
+#      builds the Go binaries and the `tools/gointerop` peers;
+#   2. re-generates the committed golden vectors and the captured Go help text and fails if either
+#      would change (the idempotence check: the vectors in testdata/ must still be exactly what the
+#      pinned Go code produces);
+#   3. runs the Go <-> Rust interop suites.
+#
+# Linux only: the Go reference is fetched for the host platform, and the lab results that matter
+# come from Linux. macOS interop is run by hand on the development machine.
+#
+# NOTE: this repository has no remote yet, so no run of this workflow has ever happened. It was
+# validated locally with `actionlint`; the commands themselves are the ones used by hand during
+# steps 01-10.
+name: interop
+
+on:
+  # Step branches are included deliberately, and for the same reason as in ci.yml: work happens on
+  # `step/NN-slug` branches that are merged with `git merge --no-ff`, and a pull request is at most
+  # an end-of-step option (docs/porting-guide.md §10, steps 4 and 5). A `main`-only trigger would
+  # therefore mean the interop suite - and in particular `tools/gen-vectors.sh --check` - first ran
+  # after a step branch had already been merged. A step 07.1 note records that merging parallel
+  # worktrees is exactly what breaks the vector generator, and that the check belongs in the merge
+  # gate; it has to run on the branch, before the merge, to be that.
+  push:
+    branches: [main, "step/**"]
+  pull_request:
+  workflow_dispatch:
+  # Weekly, so that a change in the Go module proxy or in the runner image is noticed even when
+  # nothing is pushed. Sunday 04:17 UTC (an odd minute, as GitHub asks, to avoid the rush).
+  schedule:
+    - cron: "17 4 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: interop-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  # Keep the Go toolchain exactly at the installed version: a `toolchain` line in a go.mod must
+  # never silently pull a different Go down, because the golden vectors record the toolchain that
+  # produced them ("go": "go1.27.1" in testdata/vectors/*.json) and gen-vectors.sh --check
+  # compares that field.
+  GOTOOLCHAIN: local
+  GOFLAGS: -modcacherw
+
+jobs:
+  interop:
+    name: Go <-> Rust interop (ubuntu)
+    runs-on: ubuntu-latest
+    # The lossy-relay suite alone is minutes of traffic, and the Go reference has to be downloaded
+    # and built first.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # Exactly the version that produced the committed vectors. `check-latest: false` keeps the
+      # runner's bundled Go from being preferred if it happens to be newer.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          check-latest: false
+          # The module cache used here is reference/gomod (see below), not the default one.
+          cache: false
+      # `rustup toolchain install` with no argument reads rust-toolchain.toml and installs the
+      # pinned channel and components; `rustup show` alone only reports (rustup >= 1.28).
+      - name: Install the pinned Rust toolchain
+        run: rustup toolchain install && rustup show && cargo --version && go version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: interop
+
+      # tools/fetch-reference.sh and tools/gen-vectors.sh both point GOMODCACHE at reference/gomod
+      # so the machine's own module cache stays untouched; cache that directory instead.
+      - name: Cache the pinned Go module cache
+        uses: actions/cache@v4
+        with:
+          path: reference/gomod
+          key: gomod-${{ runner.os }}-${{ hashFiles('tools/fetch-reference.sh', 'tools/govectors/go.sum', 'tools/gointerop/go.sum') }}
+          restore-keys: gomod-${{ runner.os }}-
+
+      # --skip-latest: the post-pin upstream clones are for reading fixes by hand (V01), not for CI.
+      # --skip-tests: the Go reference's own `go test ./...` baseline is recorded once, by hand.
+      - name: Fetch the Go reference and build the Go peers
+        run: tools/fetch-reference.sh --skip-latest --skip-tests
+
+      - name: Reference versions
+        run: cat reference/VERSIONS.txt
+
+      # Idempotence: regenerate every golden vector from the pinned Go code into a temporary
+      # directory and fail if any committed file would change, is missing, or is extra. This is
+      # what keeps testdata/vectors honest - it is the Go output, not something hand-edited.
+      - name: Golden vectors are still what Go produces
+        run: tools/gen-vectors.sh --check
+
+      # The same check for the captured `-h` output of the Go binaries, which the Rust help
+      # renderer is compared against byte for byte (step 08).
+      - name: Captured Go help text is unchanged
+        run: tools/gen-cli-golden.sh --check
+
+      # Builds the binaries the 09.4 matrix will spawn through `bins::rust_bin` (which searches
+      # target/release then target/debug), and proves kcptun-client/kcptun-server link on Linux.
+      # The suites selected below use the Go peers and in-process Rust code only, so none of them
+      # needs this step yet.
+      - name: Build the Rust binaries
+        run: cargo build --workspace --bins
+
+      # --include-ignored: the interop tests are `#[ignore]`d because they need the Go binaries
+      # that the step above provides; the handful of non-ignored tests in the same crate (binary
+      # resolution, matrix expansion) are cheap and worth running here too.
+      #
+      # The suites named here are the ones that exist today (steps 05.8, 06.4, 07.1, 07.3):
+      #   smoke        - Go<->Go control run, Go binary resolution
+      #   kcp_interop  - all 15 crypt modes, the pairwise KCP matrix, the lossy relay
+      #   smux         - Rust client <-> Go server and back, v1/v2
+      #   snappy       - framed-snappy encode/decode against Go
+      #   qpp          - QPP stream wrapper against Go
+      # `kcp_echo_bench` is deliberately excluded: it is a benchmark and needs an idle machine.
+      #
+      # TODO(09.4): step 09.4 adds the full client/server interop matrix (pairwise, plus the
+      # production profile) to this crate. It is being written in parallel and its test target
+      # does not exist yet, so it is NOT listed here. When it lands, add its `--test <name>` to
+      # this step (and give the job more time if the matrix needs it) - do not assume a name.
+      - name: Interop suites
+        run: |
+          cargo test -p kcptun-interop-tests \
+            --test smoke \
+            --test kcp_interop \
+            --test smux \
+            --test snappy \
+            --test qpp \
+            -- --include-ignored
+
+      # The GPL-free build (D19) has to compile and still interoperate. The point of this step is
+      # exactly that, and nothing more: `qpp` is the crate's only feature and it adds one module to
+      # kcptun-std (crates/std/src/lib.rs, `#[cfg(feature = "qpp")]`), so apart from tests/qpp.rs
+      # not being compiled, every other suite exercises byte-for-byte the same code as the run
+      # above. Re-running the 15 crypt modes, the 10-case pairwise matrix and the minutes-long
+      # lossy relay under the same code would roughly double this job's time against its own
+      # `timeout-minutes` for no extra coverage, so the expensive kcp_interop suite is only
+      # type-checked and linked here, and the cheap Rust<->Go suites are actually run.
+      - name: GPL-free build compiles (D19)
+        run: |
+          cargo test -p kcptun-interop-tests --no-default-features \
+            --test kcp_interop --no-run
+      - name: GPL-free build still interoperates (D19)
+        run: |
+          cargo test -p kcptun-interop-tests --no-default-features \
+            --test smoke \
+            --test smux \
+            --test snappy \
+            -- --include-ignored
+
+      - name: Test logs
+        # `proc::spawn` keeps its log files when KCPTUN_TEST_KEEP_LOGS=1; on failure the runner's
+        # captured output is all we have, so make the failure loud rather than silently green.
+        if: failure()
+        run: echo "interop failed - re-run locally with KCPTUN_TEST_KEEP_LOGS=1 to keep the peer logs"

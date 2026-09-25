@@ -1,0 +1,41 @@
+# What `COPY . .` in the Dockerfile must not pull into the build context.
+#
+# Everything cargo needs to build kcptun-client and kcptun-server stays: Cargo.toml, Cargo.lock,
+# rust-toolchain.toml and crates/*/src. The rest is either huge (fuzz corpora and target
+# directories), machine-specific, or useless to a build.
+
+# Build output, including the release artifacts of tools/release.sh.
+target/
+build/
+crates/*/fuzz/target/
+tools/bench/*/target/
+
+# cargo-fuzz lives in its own workspaces and holds multi-hundred-megabyte corpora.
+crates/*/fuzz/
+
+# The pinned Go reference: a symlink to a checkout outside the tree (tools/fetch-reference.sh).
+reference
+reference/
+
+# Version control and CI.
+.git/
+.gitignore
+.github/
+
+# Documentation: not part of a build.
+docs/
+*.md
+!NOTICE.md
+
+# Captures, logs and local scratch.
+*.pcap
+*.pcapng
+*.log
+bench-results/
+testdata/tmp/
+
+# Editor and OS noise.
+.idea/
+.vscode/
+.DS_Store
+*.swp

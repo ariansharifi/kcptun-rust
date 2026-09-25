@@ -1,0 +1,63 @@
+# cargo-deny configuration (https://embarkstudios.github.io/cargo-deny/).
+# Run: cargo deny check
+
+[graph]
+all-features = true
+
+[advisories]
+# Every RustSec advisory (vulnerability, unmaintained, unsound, notice) is an error, except the
+# ones listed here. cargo-deny has no expiry date for an ignore entry, so each one carries the
+# date it was added and the date it must be reviewed again, and CI runs `cargo deny -L info check`
+# (.github/workflows/ci.yml) so that every ignored advisory is printed, with its reason and its
+# full dependency path, on every run instead of disappearing silently.
+ignore = [
+    # Added 2026-09-23 (step 13.4). Review by 2027-03-31.
+    #
+    #   instant 0.1.13  <-  parking_lot 0.11.2  <-  reed-solomon-erasure 6.0.0
+    #                   <-  (dev) kcptun-kcp
+    #
+    # `instant` is unmaintained (the author recommends `web-time`); there is no fixed version, so
+    # the only real fix is to drop `reed-solomon-erasure`. That crate is a **dev-dependency** of
+    # kcptun-kcp only: it cross-checks our own klauspost-compatible Reed-Solomon codec (step 04)
+    # against an independent implementation in tests. It is not in any shipped binary, and
+    # `instant` itself only matters on wasm32 targets, which we do not build.
+    #
+    # TODO(13.x): drop the entry by replacing the reed-solomon-erasure cross-check with one that
+    # does not pull in parking_lot 0.11 (or by a `reed-solomon-erasure` release that bumps it),
+    # then delete this ignore and confirm `cargo deny check advisories` is clean on its own.
+    { id = "RUSTSEC-2024-0384", reason = "unmaintained `instant`, no fix available; reaches us only through the reed-solomon-erasure dev-dependency of kcptun-kcp and ships in no binary" },
+]
+
+[licenses]
+# Permissive licenses only for third-party crates.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0",
+]
+confidence-threshold = 0.9
+# GPL-3.0 is allowed ONLY for crates/qpp, the port of the GPL-3.0 xtaci/qpp (DECISIONS D19).
+exceptions = [
+    { allow = ["GPL-3.0-only"], crate = "kcptun-qpp" },
+]
+
+[licenses.private]
+# Check our own (unpublished) crates too, so a license field can't silently change.
+ignore = false
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

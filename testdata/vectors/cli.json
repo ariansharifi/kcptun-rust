@@ -1,0 +1,2067 @@
+{
+  "generator": "govectors",
+  "go": "go1.27.1",
+  "modules": {
+    "github.com/cpuguy83/go-md2man/v2": "v2.0.7",
+    "github.com/golang/snappy": "v1.0.0",
+    "github.com/klauspost/cpuid/v2": "v2.3.0",
+    "github.com/klauspost/reedsolomon": "v1.13.0",
+    "github.com/pkg/errors": "v0.9.1",
+    "github.com/russross/blackfriday/v2": "v2.1.0",
+    "github.com/tjfoc/gmsm": "v1.4.1",
+    "github.com/urfave/cli": "v1.22.17",
+    "github.com/xtaci/kcp-go/v5": "v5.6.66",
+    "github.com/xtaci/qpp": "v1.1.25",
+    "github.com/xtaci/smux": "v1.5.55",
+    "golang.org/x/crypto": "v0.47.0",
+    "golang.org/x/net": "v0.49.0",
+    "golang.org/x/sys": "v0.40.0",
+    "golang.org/x/time": "v0.14.0"
+  },
+  "area": "cli",
+  "cases": [
+    {
+      "name": "app",
+      "app": {
+        "name": "kcptun",
+        "help_name": "PROGRAM",
+        "usage": "client(with SMUX)",
+        "version": "SELFBUILD",
+        "flags": [
+          {
+            "name": "localaddr,l",
+            "kind": "string",
+            "value": ":12948",
+            "usage": "local listen address"
+          },
+          {
+            "name": "remoteaddr, r",
+            "kind": "string",
+            "value": "vps:29900",
+            "usage": "kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range"
+          },
+          {
+            "name": "key",
+            "kind": "string",
+            "value": "it's a secrect",
+            "usage": "pre-shared secret between client and server",
+            "env": "KCPTUN_KEY"
+          },
+          {
+            "name": "QPP",
+            "kind": "bool",
+            "usage": "enable Quantum Permutation Pads(QPP)"
+          },
+          {
+            "name": "mtu",
+            "kind": "int",
+            "value": 1350,
+            "usage": "set maximum transmission unit for UDP packets"
+          },
+          {
+            "name": "datashard,ds",
+            "kind": "int",
+            "value": 10,
+            "usage": "set reed-solomon erasure coding - datashard"
+          },
+          {
+            "name": "dscp",
+            "kind": "int",
+            "value": 0,
+            "usage": "set DSCP(6bit)"
+          },
+          {
+            "name": "nocomp",
+            "kind": "bool",
+            "usage": "disable compression"
+          },
+          {
+            "name": "nodelay",
+            "kind": "int",
+            "value": 0,
+            "hidden": true
+          },
+          {
+            "name": "acknodelay",
+            "kind": "bool",
+            "hidden": true
+          },
+          {
+            "name": "log",
+            "kind": "string",
+            "usage": "specify a log file to output, default goes to stderr"
+          },
+          {
+            "name": "c",
+            "kind": "string",
+            "usage": "config from json file, which will override the command from shell"
+          }
+        ]
+      },
+      "args": [
+        "PROGRAM",
+        "-h"
+      ],
+      "stdout": "NAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "action": false
+    },
+    {
+      "name": "syntax/single-dash-space",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "1300"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1300,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "syntax/single-dash-equals",
+      "args": [
+        "PROGRAM",
+        "-mtu=1300"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1300,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "syntax/double-dash-space",
+      "args": [
+        "PROGRAM",
+        "--mtu",
+        "1300"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1300,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "syntax/double-dash-equals",
+      "args": [
+        "PROGRAM",
+        "--mtu=1300"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1300,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "syntax/mixed",
+      "args": [
+        "PROGRAM",
+        "--localaddr",
+        ":9",
+        "-datashard=7",
+        "--key=k"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 7,
+        "ds": 7,
+        "dscp": 0,
+        "key": "k",
+        "l": ":9",
+        "localaddr": ":9",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "localaddr",
+        "l",
+        "key",
+        "datashard",
+        "ds"
+      ]
+    },
+    {
+      "name": "syntax/string-equals-empty",
+      "args": [
+        "PROGRAM",
+        "-key="
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "key"
+      ]
+    },
+    {
+      "name": "syntax/value-looks-like-flag",
+      "args": [
+        "PROGRAM",
+        "-key",
+        "-mtu"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "-mtu",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "key"
+      ]
+    },
+    {
+      "name": "syntax/triple-dash",
+      "args": [
+        "PROGRAM",
+        "---mtu"
+      ],
+      "stdout": "Incorrect Usage. bad flag syntax: ---mtu\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "bad flag syntax: ---mtu",
+      "action": false
+    },
+    {
+      "name": "syntax/equals-first",
+      "args": [
+        "PROGRAM",
+        "-=1"
+      ],
+      "stdout": "Incorrect Usage. bad flag syntax: -=1\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "bad flag syntax: -=1",
+      "action": false
+    },
+    {
+      "name": "syntax/case-sensitive",
+      "args": [
+        "PROGRAM",
+        "-MTU",
+        "1"
+      ],
+      "stdout": "Incorrect Usage. flag provided but not defined: -MTU\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "flag provided but not defined: -MTU",
+      "action": false
+    },
+    {
+      "name": "syntax/empty-arg",
+      "args": [
+        "PROGRAM",
+        "",
+        "-mtu",
+        "9"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "rest": [
+        "",
+        "-mtu",
+        "9"
+      ]
+    },
+    {
+      "name": "int/decimal",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "1350"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/octal-leading-zero",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "01350"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 744,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/octal-prefix",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "0o17"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 15,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/hex",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "0x100"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 256,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/hex-upper",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "0XfF"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 255,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/binary",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "0b1010"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 10,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/zero",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "0"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 0,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/underscores",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "1_350"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/underscores-hex",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "0x_10"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 16,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/underscore-leading",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "_1350"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"_1350\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"_1350\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/underscore-trailing",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "1350_"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"1350_\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"1350_\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/underscore-double",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "1__350"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"1__350\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"1__350\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/negative",
+      "args": [
+        "PROGRAM",
+        "-dscp",
+        "-5"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": -5,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "dscp"
+      ]
+    },
+    {
+      "name": "int/negative-hex",
+      "args": [
+        "PROGRAM",
+        "-dscp",
+        "-0x10"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": -16,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "dscp"
+      ]
+    },
+    {
+      "name": "int/plus",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "+42"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 42,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/max",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "9223372036854775807"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 9223372036854775807,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/min",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "-9223372036854775808"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": -9223372036854775808,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ]
+    },
+    {
+      "name": "int/overflow",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "9223372036854775808"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"9223372036854775808\" for flag -mtu: value out of range\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"9223372036854775808\" for flag -mtu: value out of range",
+      "action": false
+    },
+    {
+      "name": "int/huge",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "99999999999999999999"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"99999999999999999999\" for flag -mtu: value out of range\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"99999999999999999999\" for flag -mtu: value out of range",
+      "action": false
+    },
+    {
+      "name": "int/not-a-number",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "abc"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"abc\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"abc\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/empty",
+      "args": [
+        "PROGRAM",
+        "-mtu="
+      ],
+      "stdout": "Incorrect Usage. invalid value \"\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/bare-0x",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "0x"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"0x\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"0x\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/bad-octal-digit",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "09"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"09\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"09\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/float",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "13.5"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"13.5\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"13.5\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/space",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        " 1350"
+      ],
+      "stdout": "Incorrect Usage. invalid value \" 1350\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \" 1350\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/tab-value",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "a\tb"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"a\\tb\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"a\\tb\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "int/unicode-value",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "é x"
+      ],
+      "stdout": "Incorrect Usage. invalid value \"é\\u00a0x\" for flag -mtu: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid value \"é\\u00a0x\" for flag -mtu: parse error",
+      "action": false
+    },
+    {
+      "name": "bool/bare",
+      "args": [
+        "PROGRAM",
+        "-nocomp"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": true,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/equals-true",
+      "args": [
+        "PROGRAM",
+        "-nocomp=true"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": true,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/equals-false",
+      "args": [
+        "PROGRAM",
+        "-nocomp=false"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/equals-1",
+      "args": [
+        "PROGRAM",
+        "-nocomp=1"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": true,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/equals-0",
+      "args": [
+        "PROGRAM",
+        "-nocomp=0"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/equals-T",
+      "args": [
+        "PROGRAM",
+        "-nocomp=T"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": true,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/equals-F",
+      "args": [
+        "PROGRAM",
+        "-nocomp=F"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/equals-TRUE",
+      "args": [
+        "PROGRAM",
+        "-nocomp=TRUE"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": true,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/equals-False",
+      "args": [
+        "PROGRAM",
+        "-nocomp=False"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ]
+    },
+    {
+      "name": "bool/invalid",
+      "args": [
+        "PROGRAM",
+        "-nocomp=yes"
+      ],
+      "stdout": "Incorrect Usage. invalid boolean value \"yes\" for -nocomp: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid boolean value \"yes\" for -nocomp: parse error",
+      "action": false
+    },
+    {
+      "name": "bool/empty",
+      "args": [
+        "PROGRAM",
+        "-nocomp="
+      ],
+      "stdout": "Incorrect Usage. invalid boolean value \"\" for -nocomp: parse error\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "invalid boolean value \"\" for -nocomp: parse error",
+      "action": false
+    },
+    {
+      "name": "bool/space-stops-parsing",
+      "args": [
+        "PROGRAM",
+        "-nocomp",
+        "false",
+        "-mtu",
+        "1234"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": true,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nocomp"
+      ],
+      "rest": [
+        "false",
+        "-mtu",
+        "1234"
+      ]
+    },
+    {
+      "name": "bool/two",
+      "args": [
+        "PROGRAM",
+        "-nocomp",
+        "-QPP",
+        "-mtu",
+        "1400"
+      ],
+      "action": true,
+      "values": {
+        "QPP": true,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1400,
+        "nocomp": true,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "QPP",
+        "mtu",
+        "nocomp"
+      ]
+    },
+    {
+      "name": "stop/positional",
+      "args": [
+        "PROGRAM",
+        "extra",
+        "-mtu",
+        "999"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "rest": [
+        "extra",
+        "-mtu",
+        "999"
+      ]
+    },
+    {
+      "name": "stop/after-flag",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "1400",
+        "extra",
+        "-dscp",
+        "46"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1400,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ],
+      "rest": [
+        "extra",
+        "-dscp",
+        "46"
+      ]
+    },
+    {
+      "name": "stop/lone-dash",
+      "args": [
+        "PROGRAM",
+        "-",
+        "-mtu",
+        "999"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "rest": [
+        "-",
+        "-mtu",
+        "999"
+      ]
+    },
+    {
+      "name": "stop/terminator",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "1400",
+        "--",
+        "-mtu",
+        "999"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1400,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "mtu"
+      ],
+      "rest": [
+        "-mtu",
+        "999"
+      ]
+    },
+    {
+      "name": "stop/terminator-first",
+      "args": [
+        "PROGRAM",
+        "--",
+        "-mtu",
+        "999"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "rest": [
+        "-mtu",
+        "999"
+      ]
+    },
+    {
+      "name": "error/unknown",
+      "args": [
+        "PROGRAM",
+        "-nosuchflag"
+      ],
+      "stdout": "Incorrect Usage. flag provided but not defined: -nosuchflag\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "flag provided but not defined: -nosuchflag",
+      "action": false
+    },
+    {
+      "name": "error/unknown-then-valid",
+      "args": [
+        "PROGRAM",
+        "-bad",
+        "-mtu",
+        "abc"
+      ],
+      "stdout": "Incorrect Usage. flag provided but not defined: -bad\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "flag provided but not defined: -bad",
+      "action": false
+    },
+    {
+      "name": "error/unknown-double-dash",
+      "args": [
+        "PROGRAM",
+        "--nosuchflag=1"
+      ],
+      "stdout": "Incorrect Usage. flag provided but not defined: -nosuchflag\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "flag provided but not defined: -nosuchflag",
+      "action": false
+    },
+    {
+      "name": "error/missing-int-value",
+      "args": [
+        "PROGRAM",
+        "-mtu"
+      ],
+      "stdout": "Incorrect Usage. flag needs an argument: -mtu\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "flag needs an argument: -mtu",
+      "action": false
+    },
+    {
+      "name": "error/missing-string-value",
+      "args": [
+        "PROGRAM",
+        "--key"
+      ],
+      "stdout": "Incorrect Usage. flag needs an argument: -key\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "flag needs an argument: -key",
+      "action": false
+    },
+    {
+      "name": "error/missing-after-valid",
+      "args": [
+        "PROGRAM",
+        "-datashard=4",
+        "-mtu"
+      ],
+      "stdout": "Incorrect Usage. flag needs an argument: -mtu\n\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "flag needs an argument: -mtu",
+      "action": false
+    },
+    {
+      "name": "alias/short-string",
+      "args": [
+        "PROGRAM",
+        "-l",
+        ":1000",
+        "-r",
+        "host:2000"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":1000",
+        "localaddr": ":1000",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "host:2000",
+        "remoteaddr": "host:2000"
+      },
+      "set": [
+        "localaddr",
+        "l",
+        "remoteaddr",
+        "r"
+      ]
+    },
+    {
+      "name": "alias/short-int",
+      "args": [
+        "PROGRAM",
+        "-ds",
+        "4"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 4,
+        "ds": 4,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "datashard",
+        "ds"
+      ]
+    },
+    {
+      "name": "alias/long-form",
+      "args": [
+        "PROGRAM",
+        "--datashard",
+        "4"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 4,
+        "ds": 4,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "datashard",
+        "ds"
+      ]
+    },
+    {
+      "name": "alias/repeated",
+      "args": [
+        "PROGRAM",
+        "-l",
+        "a",
+        "-l",
+        "b"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": "b",
+        "localaddr": "b",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "localaddr",
+        "l"
+      ]
+    },
+    {
+      "name": "alias/both-forms",
+      "args": [
+        "PROGRAM",
+        "-l",
+        "x",
+        "-localaddr",
+        "y"
+      ],
+      "stdout": "Cannot use two forms of the same flag: l localaddr\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "Cannot use two forms of the same flag: l localaddr",
+      "action": false
+    },
+    {
+      "name": "alias/both-forms-long-first",
+      "args": [
+        "PROGRAM",
+        "--datashard",
+        "1",
+        "--ds",
+        "2"
+      ],
+      "stdout": "Cannot use two forms of the same flag: ds datashard\nNAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "err": "Cannot use two forms of the same flag: ds datashard",
+      "action": false
+    },
+    {
+      "name": "hidden/int",
+      "args": [
+        "PROGRAM",
+        "-nodelay",
+        "1"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 1,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "nodelay"
+      ]
+    },
+    {
+      "name": "hidden/bool",
+      "args": [
+        "PROGRAM",
+        "-acknodelay"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": true,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "acknodelay"
+      ]
+    },
+    {
+      "name": "env/default",
+      "env": {
+        "KCPTUN_KEY": "from-env"
+      },
+      "args": [
+        "PROGRAM"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "from-env",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "key"
+      ]
+    },
+    {
+      "name": "env/flag-overrides",
+      "env": {
+        "KCPTUN_KEY": "from-env"
+      },
+      "args": [
+        "PROGRAM",
+        "-key",
+        "from-flag"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "from-flag",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "key"
+      ]
+    },
+    {
+      "name": "env/empty",
+      "env": {
+        "KCPTUN_KEY": ""
+      },
+      "args": [
+        "PROGRAM"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      },
+      "set": [
+        "key"
+      ]
+    },
+    {
+      "name": "env/unset",
+      "args": [
+        "PROGRAM"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      }
+    },
+    {
+      "name": "help/short",
+      "args": [
+        "PROGRAM",
+        "-h"
+      ],
+      "stdout": "NAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "action": false
+    },
+    {
+      "name": "help/long",
+      "args": [
+        "PROGRAM",
+        "--help"
+      ],
+      "stdout": "NAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "action": false
+    },
+    {
+      "name": "help/equals-false",
+      "args": [
+        "PROGRAM",
+        "--help=false"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      }
+    },
+    {
+      "name": "help/command",
+      "args": [
+        "PROGRAM",
+        "help"
+      ],
+      "stdout": "NAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "action": false
+    },
+    {
+      "name": "help/command-alias",
+      "args": [
+        "PROGRAM",
+        "h"
+      ],
+      "stdout": "NAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "action": false
+    },
+    {
+      "name": "help/command-topic-help",
+      "args": [
+        "PROGRAM",
+        "help",
+        "help"
+      ],
+      "stdout": "NAME:\n    - Shows a list of commands or help for one command\n\nUSAGE:\n    [command]\n",
+      "action": false
+    },
+    {
+      "name": "help/command-topic-unknown",
+      "args": [
+        "PROGRAM",
+        "help",
+        "foo"
+      ],
+      "stderr": "No help topic for 'foo'\n",
+      "err": "No help topic for 'foo'",
+      "exit": 3,
+      "action": false
+    },
+    {
+      "name": "help/command-flag",
+      "args": [
+        "PROGRAM",
+        "help",
+        "-h"
+      ],
+      "stdout": "NAME:\n    - Shows a list of commands or help for one command\n\nUSAGE:\n    [command]\n",
+      "action": false
+    },
+    {
+      "name": "help/command-long-flag",
+      "args": [
+        "PROGRAM",
+        "help",
+        "--help"
+      ],
+      "stdout": "NAME:\n    - Shows a list of commands or help for one command\n\nUSAGE:\n    [command]\n",
+      "action": false
+    },
+    {
+      "name": "help/command-badflag",
+      "args": [
+        "PROGRAM",
+        "help",
+        "--badflag"
+      ],
+      "stdout": "Incorrect Usage: flag provided but not defined: -badflag\n\nNAME:\n    - Shows a list of commands or help for one command\n\nUSAGE:\n    [command]\n",
+      "err": "flag provided but not defined: -badflag",
+      "action": false
+    },
+    {
+      "name": "help/command-terminator",
+      "args": [
+        "PROGRAM",
+        "help",
+        "--",
+        "foo"
+      ],
+      "stderr": "No help topic for 'foo'\n",
+      "err": "No help topic for 'foo'",
+      "exit": 3,
+      "action": false
+    },
+    {
+      "name": "help/command-empty-topic",
+      "args": [
+        "PROGRAM",
+        "help",
+        ""
+      ],
+      "stdout": "NAME:\n   PROGRAM - client(with SMUX)\n\nUSAGE:\n   PROGRAM command [command options] [arguments...]\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nOPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n   \n",
+      "action": false
+    },
+    {
+      "name": "help/command-topic-then-flag",
+      "args": [
+        "PROGRAM",
+        "help",
+        "foo",
+        "-h"
+      ],
+      "stdout": "NAME:\n    - Shows a list of commands or help for one command\n\nUSAGE:\n    [command]\n",
+      "action": false
+    },
+    {
+      "name": "help/command-topic-then-long-flag",
+      "args": [
+        "PROGRAM",
+        "help",
+        "foo",
+        "--help"
+      ],
+      "stdout": "NAME:\n    - Shows a list of commands or help for one command\n\nUSAGE:\n    [command]\n",
+      "action": false
+    },
+    {
+      "name": "help/command-two-forms",
+      "args": [
+        "PROGRAM",
+        "help",
+        "-h",
+        "--help"
+      ],
+      "stdout": "Incorrect Usage: Cannot use two forms of the same flag: h help\n\nNAME:\n    - Shows a list of commands or help for one command\n\nUSAGE:\n    [command]\n",
+      "err": "Cannot use two forms of the same flag: h help",
+      "action": false
+    },
+    {
+      "name": "help/with-extra-args",
+      "args": [
+        "PROGRAM",
+        "-h",
+        "extra"
+      ],
+      "stdout": "NAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "action": false
+    },
+    {
+      "name": "help/after-flag",
+      "args": [
+        "PROGRAM",
+        "-mtu",
+        "1400",
+        "-h"
+      ],
+      "stdout": "NAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "action": false
+    },
+    {
+      "name": "version/short",
+      "args": [
+        "PROGRAM",
+        "-v"
+      ],
+      "stdout": "kcptun version SELFBUILD\n",
+      "action": false
+    },
+    {
+      "name": "version/long",
+      "args": [
+        "PROGRAM",
+        "--version"
+      ],
+      "stdout": "kcptun version SELFBUILD\n",
+      "action": false
+    },
+    {
+      "name": "version/and-help",
+      "args": [
+        "PROGRAM",
+        "-v",
+        "-h"
+      ],
+      "stdout": "NAME:\n   kcptun - client(with SMUX)\n\nUSAGE:\n   PROGRAM [global options] command [command options] [arguments...]\n\nVERSION:\n   SELFBUILD\n\nCOMMANDS:\n   help, h  Shows a list of commands or help for one command\n\nGLOBAL OPTIONS:\n   --localaddr value, -l value    local listen address (default: \":12948\")\n   --remoteaddr value, -r value   kcp server address, eg: \"IP:29900\" a for single port, \"IP:minport-maxport\" for port range (default: \"vps:29900\")\n   --key value                    pre-shared secret between client and server (default: \"it's a secrect\") [$KCPTUN_KEY]\n   --QPP                          enable Quantum Permutation Pads(QPP)\n   --mtu value                    set maximum transmission unit for UDP packets (default: 1350)\n   --datashard value, --ds value  set reed-solomon erasure coding - datashard (default: 10)\n   --dscp value                   set DSCP(6bit) (default: 0)\n   --nocomp                       disable compression\n   --log value                    specify a log file to output, default goes to stderr\n   -c value                       config from json file, which will override the command from shell\n   --help, -h                     show help\n   --version, -v                  print the version\n",
+      "action": false
+    },
+    {
+      "name": "empty/no-args",
+      "args": [
+        "PROGRAM"
+      ],
+      "action": true,
+      "values": {
+        "QPP": false,
+        "acknodelay": false,
+        "c": "",
+        "datashard": 10,
+        "ds": 10,
+        "dscp": 0,
+        "key": "it's a secrect",
+        "l": ":12948",
+        "localaddr": ":12948",
+        "log": "",
+        "mtu": 1350,
+        "nocomp": false,
+        "nodelay": 0,
+        "r": "vps:29900",
+        "remoteaddr": "vps:29900"
+      }
+    }
+  ]
+}

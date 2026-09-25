@@ -1,0 +1,84 @@
+[package]
+name = "kcptun-kcp"
+description = "Rust port of xtaci/kcp-go: KCP ARQ, FEC (Reed-Solomon), packet crypto and UDP sessions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# Trace logger events (Kcp::set_logger), like kcp-go's `debug` build tag.
+trace = []
+# Hidden, unstable access to KCP internals (flush(), snd_buf) for the benches and the cargo-fuzz
+# crate; not part of the public API. Enabled for this crate's benches by the dev-dependency on
+# itself below.
+internals = []
+
+[dependencies]
+aes = { workspace = true }
+aes-gcm = { workspace = true }
+blowfish = { workspace = true }
+cast5 = { workspace = true }
+cipher = { workspace = true }
+crc32fast = { workspace = true }
+crossbeam-queue = { workspace = true }
+getrandom = { workspace = true }
+pbkdf2 = { workspace = true }
+rand = { workspace = true }
+salsa20 = { workspace = true }
+sha1 = { workspace = true }
+socket2 = { workspace = true, features = ["all"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "time",
+    "sync",
+    "macros",
+] }
+tokio-util = { workspace = true }
+
+# Batched UDP I/O (recvmmsg/sendmmsg) on Linux; everywhere else only for the errno constants
+# `addr::listen_udp` classifies a failed IPv6 bind with. The other platforms use the per-packet
+# path.
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[dev-dependencies]
+# Self dev-dependency: turns on `internals` for the benches (benches/kcp.rs).
+kcptun-kcp = { path = ".", features = ["internals"] }
+criterion = { workspace = true }
+# RustCrypto implementations of the ciphers ported from Go (differential tests only).
+des = { workspace = true }
+hex = { workspace = true }
+kcptun-testkit = { workspace = true }
+proptest = { workspace = true }
+# Reed-Solomon oracle for the klauspost-compatible codec (DECISIONS D08; differential tests only).
+reed-solomon-erasure = { workspace = true }
+serde = { workspace = true }
+sm4 = { workspace = true }
+# `test-util` adds tokio's paused clock, which the session deadline tests run on instead of
+# sleeping for real seconds (`#[tokio::test(start_paused = true)]`).
+tokio = { workspace = true, features = ["test-util"] }
+twofish = { workspace = true }
+
+[[bench]]
+name = "crypt"
+harness = false
+
+[[bench]]
+name = "kcp"
+harness = false
+
+[[bench]]
+name = "rs"
+harness = false
+
+[[bench]]
+name = "fec"
+harness = false
+
+[lints]
+workspace = true

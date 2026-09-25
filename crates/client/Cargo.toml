@@ -1,0 +1,44 @@
+[package]
+name = "kcptun-client"
+description = "kcptun client (Rust port): TCP to KCP tunnel entry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "kcptun-client"
+path = "src/main.rs"
+
+[features]
+default = ["qpp"]
+qpp = ["kcptun-std/qpp"]
+# D23: CPU profiling endpoint on :6060 for `--pprof` (off by default).
+pprof = ["kcptun-std/pprof"]
+
+[dependencies]
+kcptun-kcp = { workspace = true }
+kcptun-smux = { workspace = true }
+kcptun-std = { workspace = true }
+# `--tcp`: the fake-TCP transport the session is dialled on (Linux; a stub whose `dial`
+# answers `os not supported` elsewhere, exactly as Go builds it).
+kcptun-tcpraw = { workspace = true }
+# Go's `ResolveTCPAddr` + `ListenTCP` family rules and default listener socket options
+# (`src/listen.rs`); `std::net::TcpListener` cannot set IPV6_V6ONLY or the backlog.
+socket2 = { workspace = true, features = ["all"] }
+# The per-dial random port of `client/dial.go`, from the OS RNG (DECISIONS D14).
+getrandom = { workspace = true }
+tokio = { workspace = true, features = ["macros", "net", "rt", "rt-multi-thread", "time"] }
+
+# `EAFNOSUPPORT`/`EPROTONOSUPPORT`, the two errnos Go's IPv6 capability probe treats as
+# "no usable IPv6 stack" when a wildcard listener falls back to AF_INET.
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[dev-dependencies]
+kcptun-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

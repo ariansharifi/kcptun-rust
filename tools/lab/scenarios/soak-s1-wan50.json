@@ -1,0 +1,41 @@
+{
+  "name": "soak",
+  "description": "Plan 11.4: six hours on the wan50 profile with the S1 production configuration. Continuous churn of 20 streams/s (10 kB-1 MB, log-uniform), 10 long-lived streams and a bulk burst every five minutes, with a 64-byte latency probe alongside. RSS, VmHWM, CPU, fd count and the SNMP CurrEstab session count are sampled every 60 s; acceptance is a flat RSS and fd slope after warm-up. It runs on the PRODUCTION closewait default (server 30 s), not closewait 0: that 30 s linger is exactly the mechanism most likely to accumulate descriptors, so removing it would test the wrong thing. At 20 streams/s it is a legitimate steady state of ~600 descriptors per side, which the host's 1024 soft limit cannot hold - so lab-start.sh raises OUR OWN soft limit to 65536 instead (no privilege needed, hard limit is 1048576, nothing outside our processes is affected). Acceptance is a flat PLATEAU, not a low number. See DECISIONS D28.",
+  "config": "s1",
+  "netem": "wan50",
+  "pairs": [["rust", "rust"]],
+  "repetitions": 1,
+  "settle": 10,
+  "sample_interval": 60,
+  "snmp_period": 60,
+  "log_cap_bytes": 268435456,
+  "workloads": [
+    {
+      "type": "churn",
+      "tag": "churn",
+      "duration": 21600,
+      "rate": 20,
+      "min_bytes": "10k",
+      "max_bytes": "1m",
+      "size_dist": "log",
+      "direction": "both",
+      "max_inflight": 100,
+      "stream_timeout": 120,
+      "long_lived": 10,
+      "long_lived_bytes": 1024,
+      "long_lived_interval": 5,
+      "burst_every": 300,
+      "burst_streams": 4,
+      "burst_bytes": "8m",
+      "seed": 11402026
+    },
+    {
+      "type": "ping",
+      "tag": "lat64",
+      "duration": 21600,
+      "size": 64,
+      "warmup": 30,
+      "interval_ms": 200
+    }
+  ]
+}
