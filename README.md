@@ -312,6 +312,13 @@ deviations exist.
   a log scraper actually reads — is byte-identical to Go's.
 * **`--pprof` in a default build logs one extra line** saying the profiler is not compiled in
   (**V21**). Build with `--features pprof` for Go's behaviour.
+* **A peer may answer from a different address** (**V23**), which Go drops. Multi-homed and anycast
+  servers, direct-return load balancers and multi-WAN clients all send from one address and answer
+  from another; under Go's rule the tunnel simply stalls. Only what we *accept* widens — the address
+  we *send* to never moves, so a spoofed source cannot redirect a session. With `-crypt null` there
+  is no integrity check to fall back on, so prefer a real cipher (any of them checks a CRC32; AES
+  checks an AEAD tag). `-strictsource` puts Go's rule back, and the flag only helps when **both**
+  ends run this port: a Go server opens a fresh session for a new address regardless.
 
 ### Full list
 
@@ -339,6 +346,7 @@ deviations exist.
 | **V20** | Fatal errors | The message, then a Go stack trace | The message line only, byte-identical to Go's first line |
 | **V21** | `--pprof` without the `pprof` feature | Always ships the profiler and logs nothing extra | The flag is accepted and one line records that the profiler is not in this build. With `--features pprof` the output is byte-identical to Go's |
 | **V22** | `-tcp` (fake-TCP) **client** | kcp-go filters inbound packets by Go type as well as by address, and a fake-TCP connection reports its peers as `*net.TCPAddr` while the session's remote is a `*net.UDPAddr` — so every inbound packet is counted as an error and dropped, and the Go `-tcp` client receives nothing. A Go `-tcp` *server* is unaffected | One address type, so the same filter compares addresses only and `-tcp` works in both directions |
+| **V23** | Where a peer may answer from | Both ends require every datagram to come from the address they send to: the client counts anything else as `InErrs` and drops it, and the server keys sessions by address, so a second source address opens a **second session** and the tunnel stalls | A peer may answer from, or send from, an address other than the one we send to. What we accept widens; where we send never moves. On by default; `-strictsource` restores Go's rule. Only helps Rust↔Rust — a Go server still opens a fresh session for a new address |
 
 Two further limitations are not deviations from Go's behaviour but are worth knowing: `-tcp` is not
 wired up yet (see [Status](#status)), and on Windows signals and Unix-socket endpoints are

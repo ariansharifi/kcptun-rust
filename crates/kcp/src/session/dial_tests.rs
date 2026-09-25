@@ -148,7 +148,7 @@ impl PacketConn for BlockedConn {
 fn source_filter_accepts_only_the_remote() {
     let _snmp = snmp_write();
     let remote = addr("192.0.2.10:29900");
-    let mut filter = SourceFilter::new(Some(remote));
+    let mut filter = SourceFilter::with_strict(Some(remote), true);
     let before = counter(&DEFAULT_SNMP.in_errs);
 
     assert!(filter.accept(Some(remote)));
@@ -171,7 +171,7 @@ fn source_filter_without_a_remote_adopts_the_first_sender() {
     let _snmp = snmp_write();
     let first = addr("192.0.2.10:29900");
     let other = addr("192.0.2.11:29900");
-    let mut filter = SourceFilter::new(None);
+    let mut filter = SourceFilter::with_strict(None, true);
     let before = counter(&DEFAULT_SNMP.in_errs);
 
     assert!(filter.accept(Some(first)));
@@ -180,6 +180,45 @@ fn source_filter_without_a_remote_adopts_the_first_sender() {
     assert!(!filter.accept(Some(other)));
 
     assert_eq!(counter(&DEFAULT_SNMP.in_errs) - before, 1);
+}
+
+/// Deviation V23, the default: a datagram is taken whatever its source, and the peer we *send*
+/// to never moves. Nothing is counted as `InErrs`, because nothing was rejected.
+#[test]
+fn source_filter_accepts_any_source_by_default() {
+    let _snmp = snmp_write();
+    let remote = addr("192.0.2.10:29900");
+    let mut filter = SourceFilter::with_strict(Some(remote), false);
+    let before = counter(&DEFAULT_SNMP.in_errs);
+
+    assert!(filter.accept(Some(remote)));
+    // Every shape the strict filter rejects: a different port, a different host, and a datagram
+    // the transport reported no sender for.
+    assert!(filter.accept(Some(addr("192.0.2.10:29901"))));
+    assert!(filter.accept(Some(addr("198.51.100.7:1234"))));
+    assert!(filter.accept(None));
+
+    assert_eq!(
+        filter.src,
+        Some(remote),
+        "accepting from elsewhere must not move the address we send to"
+    );
+    assert_eq!(counter(&DEFAULT_SNMP.in_errs) - before, 0);
+}
+
+/// The policy a read loop is built with is the process-wide one, sampled once. The default is
+/// the relaxed filter.
+#[test]
+fn source_filter_takes_the_process_policy() {
+    let _snmp = snmp_write();
+    assert!(
+        !strict_source(),
+        "V23: relaxed unless -strictsource is given"
+    );
+    assert_eq!(
+        SourceFilter::new(Some(addr("192.0.2.10:29900"))).strict,
+        strict_source()
+    );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -310,6 +349,8 @@ async fn dial_and_read_loop_echo_over_a_real_socket() {
 #[tokio::test(flavor = "current_thread")]
 async fn packets_from_another_source_are_counted_and_dropped() {
     let _snmp = snmp_write();
+    // Deviation V23 turns this filter off by default; this test is the Go-parity half.
+    let _strict = StrictSourceGuard::on();
 
     // A bound socket, so that the port cannot be handed to anybody else; it never answers.
     let peer = tokio::net::UdpSocket::bind("127.0.0.1:0")
@@ -356,6 +397,52 @@ async fn packets_from_another_source_are_counted_and_dropped() {
     );
 
     session.close().expect("close");
+}
+
+/// Deviation V23, end to end and on by default: the same datagram from a source the session has
+/// never sent to reaches `kcp_input` instead of being counted as `InErrs`, and the session keeps
+/// sending where it dialled.
+// Deviation V23 (docs/DECISIONS.md)
+#[tokio::test(flavor = "current_thread")]
+async fn packets_from_another_source_are_accepted_by_default() {
+    let _snmp = snmp_write();
+
+    let peer = tokio::net::UdpSocket::bind("127.0.0.1:0")
+        .await
+        .expect("bind the peer socket");
+    let peer_addr = peer.local_addr().expect("the peer address");
+
+    let session = UdpSession::dial_with_options(&peer_addr.to_string(), None, 0, 0).expect("dial");
+    let client_addr = loopback(session.local_addr().expect("the local address").port());
+
+    let in_errs = counter(&DEFAULT_SNMP.in_errs);
+    let in_pkts = counter(&DEFAULT_SNMP.in_pkts);
+
+    // Same host, different port: not the address this session sends to.
+    let other = tokio::net::UdpSocket::bind("127.0.0.1:0")
+        .await
+        .expect("bind the second source");
+    other
+        .send_to(&[0u8; 32], client_addr)
+        .await
+        .expect("send from the second source");
+
+    wait_for("the second source's datagram to reach the session", || {
+        counter(&DEFAULT_SNMP.in_pkts) == in_pkts + 1
+    })
+    .await;
+    assert_eq!(
+        counter(&DEFAULT_SNMP.in_errs),
+        in_errs,
+        "an accepted datagram is not an error"
+    );
+    assert_eq!(
+        session.remote_addr(),
+        peer_addr,
+        "accepting from elsewhere must not move the address we send to"
+    );
+
+    session.close().expect("close the session");
 }
 
 /// Go's `notifyReadError`: a failing socket ends the read loop and releases everybody blocked in
@@ -502,4 +589,129 @@ async fn an_accepted_session_gets_no_read_loop() {
     );
 
     session.close().expect("close");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Deviation V23: asymmetric paths
+// ---------------------------------------------------------------------------------------------
+
+/// Deviation V23 over real sockets, in the shape the feature exists for: the client **sends to
+/// one address and receives from another**, and the listener meets that client at **two**
+/// addresses under one conv.
+///
+/// A relay in the middle does what a multi-homed server, a direct-return load balancer and a
+/// multi-WAN client all do in production:
+///
+/// ```text
+///                      ┌──▶ up (A) ──▶ upstream 1 ──┐
+///     client ──────────┤                            ├──▶ listener   (two sources, one conv)
+///                      │              upstream 2 ──┘
+///                      └──◀ down (B) ◀── upstream 1
+/// ```
+///
+/// The client dials `A` and never hears from it again — every answer arrives from `B`. Uploads
+/// alternate between two upstream sockets, so the listener has to recognise the second one as
+/// the session it already holds rather than opening another. Under Go's rules nothing here can
+/// work: the client counts every answer as `InErrs`, and the listener splits the client in two.
+// Deviation V23 (docs/DECISIONS.md)
+#[tokio::test(flavor = "current_thread")]
+async fn a_session_survives_a_send_path_and_a_return_path_that_differ() {
+    let _snmp = snmp_read();
+
+    // The server, on a socket whose address the relay can name.
+    let server_conn =
+        Arc::new(UdpPacketConn::listen("127.0.0.1:0").expect("bind the server socket"));
+    let listen_addr = loopback(server_conn.local_addr().expect("the listen address").port());
+    let listener = crate::listener::Listener::serve_conn(
+        Some(aes_crypt()),
+        10,
+        3,
+        Arc::clone(&server_conn) as Arc<dyn PacketConn>,
+    )
+    .expect("serve the listener");
+
+    // It echoes whatever it is given.
+    let echo = tokio::spawn({
+        let listener = Arc::clone(&listener);
+        async move {
+            let session = listener.accept().await.expect("accept a session");
+            let mut buf = [0u8; 4096];
+            while let Ok(n) = session.read(&mut buf).await {
+                if session.write(&buf[..n]).await.is_err() {
+                    break;
+                }
+            }
+        }
+    });
+
+    // The relay: one task owning all four sockets, so the two directions cannot get out of step.
+    let up = tokio::net::UdpSocket::bind("127.0.0.1:0")
+        .await
+        .expect("bind the send path");
+    let down = tokio::net::UdpSocket::bind("127.0.0.1:0")
+        .await
+        .expect("bind the return path");
+    let first = tokio::net::UdpSocket::bind("127.0.0.1:0")
+        .await
+        .expect("bind upstream 1");
+    let second = tokio::net::UdpSocket::bind("127.0.0.1:0")
+        .await
+        .expect("bind upstream 2");
+    let up_addr = loopback(up.local_addr().expect("the send path address").port());
+    let down_addr = loopback(down.local_addr().expect("the return path address").port());
+    assert_ne!(up_addr, down_addr, "the two paths must be distinguishable");
+
+    let relay = tokio::spawn(async move {
+        let (mut from_client, mut from_server) = ([0u8; 4096], [0u8; 4096]);
+        let mut client_addr: Option<SocketAddr> = None;
+        let mut turn = 0usize;
+        loop {
+            tokio::select! {
+                got = up.recv_from(&mut from_client) => {
+                    let (n, from) = got.expect("uplink recv");
+                    client_addr = Some(from);
+                    // Alternate, so the listener sees one conv from two source addresses.
+                    let socket = if turn.is_multiple_of(2) { &first } else { &second };
+                    turn += 1;
+                    socket.send_to(&from_client[..n], listen_addr).await.expect("uplink send");
+                }
+                // The listener answers the address its session was created for — upstream 1 —
+                // and V23 never moves that, whichever socket the last upload came from.
+                got = first.recv_from(&mut from_server) => {
+                    let (n, _) = got.expect("downlink recv");
+                    let Some(client) = client_addr else { continue };
+                    down.send_to(&from_server[..n], client).await.expect("downlink send");
+                }
+            }
+        }
+    });
+
+    let client = UdpSession::dial_with_options(&up_addr.to_string(), Some(aes_crypt()), 10, 3)
+        .expect("dial the send path");
+    assert_eq!(client.remote_addr(), up_addr, "the client dialled `up`");
+
+    // Enough messages that the uplink alternates several times over.
+    let mut buf = [0u8; 4096];
+    for i in 0..8u8 {
+        let msg = vec![i; 700];
+        client.write(&msg).await.expect("write");
+        let n = read_msg(&client, &mut buf).await;
+        assert_eq!(&buf[..n], &msg[..], "message {i} echoed");
+    }
+
+    assert_eq!(
+        listener.session_count(),
+        1,
+        "two source addresses, one session"
+    );
+    assert_eq!(
+        client.remote_addr(),
+        up_addr,
+        "the client still sends where it dialled, having only ever heard from `down`"
+    );
+
+    relay.abort();
+    echo.abort();
+    client.close().expect("close the client");
+    listener.close().expect("close the listener");
 }

@@ -149,6 +149,10 @@ async fn action(c: &Context) {
     // Apply mode presets using the shared configuration helper.
     config.base.apply_mode();
 
+    // Deviation V23: process-wide, and set before anything dials or listens. Off by default,
+    // which means a peer may answer from an address other than the one we send to.
+    kcptun_kcp::set_strict_source(config.base.strict_source);
+
     log_version();
     // Go creates the listener between the `version:` line and the rest of the block, so a bind
     // failure prints exactly those two lines.
@@ -278,7 +282,12 @@ fn log_startup(config: &ClientConfig, listen_addr: &str) {
     logln!("snmpperiod:", base.snmp_period);
     logln!("quiet:", base.quiet);
     logln!("tcp:", base.tcp);
-    logln!("pprof:", base.pprof);
+    logln!("pprof:", base.pprof); // Deviation V23: only printed when it is on, so the default banner stays Go's, line for
+    // line. The default itself (accept from any source) is the deviation, and README and
+    // docs/DECISIONS.md carry it.
+    if base.strict_source {
+        logln!("strictsource:", base.strict_source);
+    }
 }
 
 /// The two red lines Go prints when an expired tunnel may outlive its replacement.

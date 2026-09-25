@@ -114,6 +114,13 @@ pub struct Listener<C = SystemClock> {
     own_conn: bool,
     /// Go's `sessions` + `sessionLock`: all sessions accepted by this Listener.
     sessions: RwLock<HashMap<SocketAddr, Arc<UdpSession<C>>>>,
+    /// Deviation V23: the same sessions indexed by conversation id, consulted only when the
+    /// address lookup misses, so that a peer whose datagrams arrive from more than one address
+    /// keeps one session instead of opening one per address. Go has no such index.
+    by_conv: RwLock<HashMap<u32, Arc<UdpSession<C>>>>,
+    /// Deviation V23: when set, the conv index is never consulted and a new address means a new
+    /// session, exactly as in Go. Sampled once, at construction.
+    strict_source: bool,
     /// Go's `chAccepts`: the `Listen()` backlog (see the module header).
     accepts: Mutex<VecDeque<Arc<UdpSession<C>>>>,
     /// Wakes one task blocked in [`accept`](Listener::accept), like a send on `chAccepts`.
@@ -154,6 +161,8 @@ impl<C: Clock + Clone> Listener<C> {
             conn: config.conn,
             own_conn: config.own_conn,
             sessions: RwLock::new(HashMap::new()),
+            by_conv: RwLock::new(HashMap::new()),
+            strict_source: crate::session::strict_source(),
             accepts: Mutex::new(VecDeque::new()),
             accept_notify: Notify::new(),
             die: CancellationToken::new(),
@@ -334,6 +343,20 @@ impl<C: Clock + Clone> Listener<C> {
             }
         }
 
+        // Deviation V23: an address we have never seen may still belong to a session we already
+        // hold, the peer having simply answered from somewhere else. The conv decides, and only
+        // after `decrypt` has passed — so with any cipher but `-crypt null` a forged packet has
+        // to survive a CRC32 or an AEAD tag before it can reach a session this way.
+        //
+        // The session's own remote is left untouched, so replies keep going where they always
+        // went: this lets a peer *send* from a second address, not move to one. A parity packet
+        // carries no conv (`has_conv` is false), so those are still dropped from an unknown
+        // address, costing that source its FEC redundancy but not its data.
+        let existing = match existing {
+            None if has_conv && !self.strict_source => self.session_by_conv(conv),
+            found => found,
+        };
+
         // On an existing connection.
         if let Some(session) = existing {
             // If we have a valid conversation id or we cannot get conversation id from the
@@ -390,6 +413,7 @@ impl<C: Clock + Clone> Listener<C> {
 
         session.kcp_input(data);
         self.sessions_mut().insert(addr, Arc::clone(&session));
+        self.register_conv(&session);
         self.push_accept(session);
     }
 
@@ -497,7 +521,21 @@ impl<C: Clock + Clone> Listener<C> {
     /// This is [`SessionOwner::close_session`]; [`UdpSession::close`] calls it.
     // Go: kcp-go/v5@v5.6.66 sess.go:(*Listener).closeSession()
     fn remove_session(&self, remote: SocketAddr) -> bool {
-        self.sessions_mut().remove(&remote).is_some()
+        let removed = self.sessions_mut().remove(&remote);
+        // Deviation V23: drop the conv alias with it, but only while it still points at *this*
+        // session — after a collision the alias belongs to the session that won it, and must
+        // outlive the one that did not.
+        if let Some(session) = removed.as_ref() {
+            let conv = session.get_conv();
+            let mut by_conv = self.by_conv_mut();
+            if by_conv
+                .get(&conv)
+                .is_some_and(|held| Arc::ptr_eq(held, session))
+            {
+                by_conv.remove(&conv);
+            }
+        }
+        removed.is_some()
     }
 
     // ---------------------------------------------------------------------------------------
@@ -575,6 +613,24 @@ impl<C: Clock + Clone> Listener<C> {
             .map(Arc::clone)
     }
 
+    /// Deviation V23: the session holding conversation `conv`, whatever address it was created
+    /// for.
+    pub fn session_by_conv(&self, conv: u32) -> Option<Arc<UdpSession<C>>> {
+        self.by_conv().get(&conv).map(Arc::clone)
+    }
+
+    /// Adds `session` to the Deviation V23 conv index.
+    ///
+    /// A conv is four bytes from the OS RNG, so two live sessions sharing one is an accident of
+    /// about one in 2^32 rather than a case to design around. When it does happen the first
+    /// session keeps the alias and the second stays reachable by address alone — which is all
+    /// either of them gets under Go's rules anyway.
+    fn register_conv(&self, session: &Arc<UdpSession<C>>) {
+        self.by_conv_mut()
+            .entry(session.get_conv())
+            .or_insert_with(|| Arc::clone(session));
+    }
+
     /// Queues a session for [`accept`](Self::accept), Go's `l.chAccepts <- s`.
     fn push_accept(&self, session: Arc<UdpSession<C>>) {
         self.accepts().push_back(session);
@@ -591,6 +647,14 @@ impl<C: Clock + Clone> Listener<C> {
         &self,
     ) -> std::sync::RwLockWriteGuard<'_, HashMap<SocketAddr, Arc<UdpSession<C>>>> {
         self.sessions.write().unwrap_or_else(|err| err.into_inner())
+    }
+
+    fn by_conv(&self) -> std::sync::RwLockReadGuard<'_, HashMap<u32, Arc<UdpSession<C>>>> {
+        self.by_conv.read().unwrap_or_else(|err| err.into_inner())
+    }
+
+    fn by_conv_mut(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<u32, Arc<UdpSession<C>>>> {
+        self.by_conv.write().unwrap_or_else(|err| err.into_inner())
     }
 
     fn accepts(&self) -> MutexGuard<'_, VecDeque<Arc<UdpSession<C>>>> {

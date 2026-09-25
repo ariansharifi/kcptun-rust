@@ -33,6 +33,9 @@ struct VecConfig {
     parityshard: i64,
     dscp: i64,
     nocomp: bool,
+    // Deviation V23: no Go counterpart, so the vectors captured from Go do not carry the key.
+    #[serde(default)]
+    strictsource: bool,
     acknodelay: bool,
     nodelay: i64,
     interval: i64,
@@ -84,6 +87,7 @@ impl VecConfig {
             parity_shard: self.parityshard,
             dscp: self.dscp,
             no_comp: self.nocomp,
+            strict_source: self.strictsource,
             ack_nodelay: self.acknodelay,
             no_delay: self.nodelay,
             interval: self.interval,
@@ -251,9 +255,18 @@ fn server_help_matches_go() {
 fn hidden_flags_are_the_kcp_knobs() {
     for flags in [client_flags(), server_flags()] {
         let hidden: Vec<&str> = flags.iter().filter(|f| f.hidden).map(|f| f.name).collect();
+        // `strictsource` is Deviation V23's opt-out and has no Go counterpart, so it is hidden
+        // too: `--help` stays Go's, byte for byte (see `client_help_matches_go`).
         assert_eq!(
             hidden,
-            ["acknodelay", "nodelay", "interval", "resend", "nc"]
+            [
+                "strictsource",
+                "acknodelay",
+                "nodelay",
+                "interval",
+                "resend",
+                "nc"
+            ]
         );
     }
 }
@@ -279,6 +292,41 @@ fn key_flag_reads_the_env() {
         panic!("-key should run the action")
     };
     assert_eq!(ClientConfig::from_context(&ctx).base.key, "from-flag");
+}
+
+/// Deviation V23's opt-out: absent on both binaries by default, set by `-strictsource`, and
+/// hidden from `--help` so the help text stays Go's.
+// Deviation V23 (docs/DECISIONS.md)
+#[test]
+fn strictsource_is_off_unless_asked_for() {
+    let env: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    for (name, app) in [
+        ("client", client_app("kcptun-client")),
+        ("server", server_app("kcptun-server")),
+    ] {
+        let run = app.run(&["kcptun".to_string()], &env);
+        let crate::cli::RunOutcome::Action(ctx) = run.outcome else {
+            panic!("{name}: an empty command line should run the action")
+        };
+        assert!(
+            !base_of(name, &ctx).strict_source,
+            "{name}: V23 accepts any source unless -strictsource is given"
+        );
+
+        let argv = ["kcptun", "-strictsource"].map(String::from);
+        let run = app.run(&argv, &env);
+        let crate::cli::RunOutcome::Action(ctx) = run.outcome else {
+            panic!("{name}: -strictsource should run the action")
+        };
+        assert!(base_of(name, &ctx).strict_source, "{name}: -strictsource");
+    }
+}
+
+fn base_of(which: &str, ctx: &crate::cli::Context) -> BaseConfig {
+    match which {
+        "client" => ClientConfig::from_context(ctx).base,
+        _ => ServerConfig::from_context(ctx).base,
+    }
 }
 
 #[test]
@@ -372,6 +420,7 @@ fn from_context_reads_every_flag() {
                 parity_shard: 5,
                 dscp: 46,
                 no_comp: true,
+                strict_source: false,
                 ack_nodelay: true,
                 no_delay: 1,
                 interval: 20,

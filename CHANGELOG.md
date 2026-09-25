@@ -67,7 +67,8 @@ tests; see the [README](README.md#status) for what is not finished.
 
 ### Differences from Go kcptun
 
-Twenty intentional deviations (V01–V21, of which V13 was superseded by V18), all wire-compatible,
+Twenty-two intentional deviations (V01–V23, of which V13 was superseded by V18), all
+wire-compatible,
 are listed in the
 [README](README.md#differences-from-go) and registered with their evidence in
 [`docs/DECISIONS.md`](docs/DECISIONS.md). The ones a user notices:
@@ -78,7 +79,11 @@ are listed in the
   (V07), `-QPPCount` and `-conn` values that overflow Go's `uint16` cast (V15, V19);
 * fatal errors print one line instead of a Go stack trace (V20);
 * `--pprof` in a default build logs that the profiler is not compiled in (V21);
-* the KCP send path applies backpressure instead of dropping packets when its queue is full (V18).
+* the KCP send path applies backpressure instead of dropping packets when its queue is full (V18);
+* a peer may answer from an address other than the one it is sent to (V23), which Go drops —
+  multi-homed and anycast servers, direct-return load balancers and multi-WAN clients all need
+  this. What is accepted widens; where packets are sent never moves. `-strictsource` restores
+  Go's rule.
 
 ### Known limitations
 

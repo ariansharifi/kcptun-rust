@@ -44,6 +44,9 @@ pub use io::UdpPacketConn;
 pub use listener::{ACCEPT_BACKLOG, Listener, ListenerConfig, Monitor};
 pub use packet_conn::{BATCH_SIZE, PacketConn, RecvBatch, RecvSlot, TxMsg};
 pub use rate::Limiter;
-pub use session::{ReadLoop, SessionConfig, SessionError, SessionOwner, UdpSession, Updater};
+pub use session::{
+    ReadLoop, SessionConfig, SessionError, SessionOwner, UdpSession, Updater, set_strict_source,
+    strict_source,
+};
 pub use snmp::DEFAULT_SNMP;
 pub use tx::{SendOutcome, SendRequest, TxConfig, TxHandle, TxPipeline, TxShared};

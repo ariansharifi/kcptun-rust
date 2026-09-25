@@ -135,6 +135,10 @@ async fn action(c: &Context) {
     // Apply mode presets using the shared configuration helper.
     config.base.apply_mode();
 
+    // Deviation V23: process-wide, and set before anything dials or listens. Off by default,
+    // which means a peer may answer from an address other than the one we send to.
+    kcptun_kcp::set_strict_source(config.base.strict_source);
+
     log_startup(&config);
 
     // Go: `if config.QPP { suggestions, err := std.ValidateQPPParams(...); ... }`.
@@ -288,7 +292,12 @@ fn log_startup(config: &ServerConfig) {
     logln!("snmpperiod:", base.snmp_period);
     logln!("pprof:", base.pprof);
     logln!("quiet:", base.quiet);
-    logln!("tcp:", base.tcp);
+    logln!("tcp:", base.tcp); // Deviation V23: only printed when it is on, so the default banner stays Go's, line for
+    // line. The default itself (accept from any source) is the deviation, and README and
+    // docs/DECISIONS.md carry it.
+    if base.strict_source {
+        logln!("strictsource:", base.strict_source);
+    }
 }
 
 /// The tcpraw listener `--tcp` asks for: a fake-TCP transport alongside the UDP one.

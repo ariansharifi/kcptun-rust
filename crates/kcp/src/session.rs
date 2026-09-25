@@ -1557,8 +1557,65 @@ impl<C: Clock> ReadLoop<C> {
     }
 }
 
-/// The read loop's source filter: every datagram must come from the session's peer, and the
-/// rest are counted as `InErrs` and dropped.
+/// Whether the read loops require every datagram to come from the address the session sends to.
+///
+/// `false` is the default, and is **Deviation V23**: a datagram is accepted whatever its source,
+/// so a peer may answer from an address other than the one we send to. Go has no such mode —
+/// see [`set_strict_source`] for why this is the default and what it costs.
+static STRICT_SOURCE: AtomicBool = AtomicBool::new(false);
+
+/// Restores Go's strict source filtering for every session created from **now on**.
+///
+/// The policy is process-wide and read once, when a session's read loop or a listener is built,
+/// so a running session never changes mode underneath itself. It is a process-wide knob rather
+/// than a `SessionConfig` field on purpose: every constructor in this module mirrors a kcp-go
+/// signature byte for byte, and this deviation is not worth breaking that.
+///
+/// **What relaxing it does.** Only what we *accept* widens. Where we *send* never moves: a
+/// dialled session keeps writing to the address it dialled, and an accepted one keeps writing to
+/// the address it was created for. Nothing here can be made to redirect traffic, so the worst a
+/// spoofed source buys an attacker is the injection they could already attempt by spoofing the
+/// peer's address — which the strict filter never stopped either, the source address of a UDP
+/// datagram being unauthenticated.
+///
+/// **What it costs.** With `-crypt null` there is no integrity check at all, so an off-path
+/// attacker who guesses the port and conv can inject; strict filtering made them guess the peer
+/// address too. Every other cipher checks a CRC32 or an AEAD tag first (see [`decrypt`]), and an
+/// AEAD makes injection infeasible. Prefer one of those if the relaxed filter matters to you.
+pub fn set_strict_source(strict: bool) {
+    STRICT_SOURCE.store(strict, Ordering::Relaxed);
+}
+
+/// Whether [`set_strict_source`] has turned Go's strict filtering back on.
+pub fn strict_source() -> bool {
+    STRICT_SOURCE.load(Ordering::Relaxed)
+}
+
+/// Turns Go's strict filter on for as long as it is held, then puts the previous policy back.
+///
+/// [`STRICT_SOURCE`] is process-wide, so this is only sound while the test holding it also holds
+/// the **write** side of [`crate::kcp::SNMP_TEST_LOCK`], beside which no other test runs.
+#[cfg(test)]
+pub(crate) struct StrictSourceGuard(bool);
+
+#[cfg(test)]
+impl StrictSourceGuard {
+    pub(crate) fn on() -> StrictSourceGuard {
+        let previous = strict_source();
+        set_strict_source(true);
+        StrictSourceGuard(previous)
+    }
+}
+
+#[cfg(test)]
+impl Drop for StrictSourceGuard {
+    fn drop(&mut self) {
+        set_strict_source(self.0);
+    }
+}
+
+/// The read loop's source filter: under Go's rules every datagram must come from the session's
+/// peer, and the rest are counted as `InErrs` and dropped.
 ///
 /// Go carries the peer as a `*net.UDPAddr` (`src`) or, when `s.remote` is some other `net.Addr`,
 /// as its string form (`srcStr`); the two collapse here, every address in this port being a
@@ -1570,11 +1627,23 @@ impl<C: Clock> ReadLoop<C> {
 struct SourceFilter {
     /// Go's `src`: the peer, `None` while the session has no remote yet.
     src: Option<SocketAddr>,
+    /// Deviation V23: Go's behaviour when set, accept-from-anywhere when clear. Sampled once,
+    /// here, so the loop's rules cannot change while it runs.
+    strict: bool,
 }
 
 impl SourceFilter {
     fn new(remote: Option<SocketAddr>) -> SourceFilter {
-        SourceFilter { src: remote }
+        SourceFilter::with_strict(remote, strict_source())
+    }
+
+    /// [`new`](Self::new) with the policy named rather than read from the process-wide setting,
+    /// so that a test can exercise both without racing every other test in the binary.
+    fn with_strict(remote: Option<SocketAddr>, strict: bool) -> SourceFilter {
+        SourceFilter {
+            src: remote,
+            strict,
+        }
     }
 
     /// Whether a datagram from `addr` belongs to this session; `InErrs` is moved for every one
@@ -1594,6 +1663,14 @@ impl SourceFilter {
         if addr.is_some_and(|addr| addr::same_udp_addr(src, addr)) {
             return true;
         }
+
+        // Deviation V23: the peer is allowed to answer from somewhere else. `self.src` is left
+        // alone deliberately — this widens what we accept and never moves where we send, so a
+        // spoofed source cannot redirect the session.
+        if !self.strict {
+            return true;
+        }
+
         DEFAULT_SNMP.in_errs.fetch_add(1, Ordering::Relaxed);
         false
     }

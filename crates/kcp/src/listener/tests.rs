@@ -467,6 +467,105 @@ async fn packets_are_demultiplexed_by_remote_address() {
     listener.close().expect("close");
 }
 
+/// Deviation V23, on by default: a datagram from an address the listener has never seen joins
+/// the session that already holds its conv instead of opening a second one, and that session
+/// keeps replying where it always did. This is what lets a peer send from more than one address.
+// Deviation V23 (docs/DECISIONS.md)
+#[tokio::test(flavor = "current_thread")]
+async fn a_second_source_address_joins_the_session_holding_its_conv() {
+    let _snmp = snmp_read();
+    let (listener, _conn) = listener_without_monitor(None, 0, 0);
+    let first = addr_of("192.0.2.20:1000");
+    let second = addr_of("198.51.100.9:2000");
+
+    input(&listener, &kcp_packet(7, 0, b"a0"), first);
+    assert_eq!(listener.session_count(), 1);
+
+    input(&listener, &kcp_packet(7, 1, b"a1"), second);
+    assert_eq!(
+        listener.session_count(),
+        1,
+        "the second address must not open a session of its own"
+    );
+
+    let session = listener.session(first).expect("the original session");
+    assert_eq!(
+        session.remote_addr(),
+        first,
+        "the listener keeps replying to the address the session was created for"
+    );
+    assert!(
+        listener.session(second).is_none(),
+        "the alias is a lookup, not a second map entry"
+    );
+    assert!(Arc::ptr_eq(
+        &listener.session_by_conv(7).expect("the conv index"),
+        &session
+    ));
+
+    let mut buf = [0u8; 16];
+    let n = session.read(&mut buf).await.expect("read the first");
+    assert_eq!(&buf[..n], b"a0");
+    let n = session.read(&mut buf).await.expect("read the second");
+    assert_eq!(&buf[..n], b"a1", "the second address's payload got through");
+
+    listener.close().expect("close");
+}
+
+/// `-strictsource` puts Go's rule back: a new address is a new session, whatever conv it carries.
+// Go: kcp-go/v5@v5.6.66 sess.go:(*Listener).packetInput() (`l.sessions[addr.String()]`)
+#[tokio::test(flavor = "current_thread")]
+async fn strict_source_opens_a_session_per_address() {
+    // The write guard: the policy is process-wide, so nothing else may run beside this.
+    let _snmp = snmp_write();
+    let _strict = crate::session::StrictSourceGuard::on();
+
+    let (listener, _conn) = listener_without_monitor(None, 0, 0);
+    let first = addr_of("192.0.2.20:1000");
+    let second = addr_of("198.51.100.9:2000");
+
+    input(&listener, &kcp_packet(7, 0, b"a0"), first);
+    input(&listener, &kcp_packet(7, 0, b"a1"), second);
+
+    assert_eq!(listener.session_count(), 2, "one session per address");
+    assert_eq!(
+        listener
+            .session(second)
+            .expect("the second session")
+            .get_conv(),
+        7
+    );
+
+    listener.close().expect("close");
+}
+
+/// The conv index does not outlive its session: once the session closes, the next packet with
+/// that conv is a new conversation again, wherever it comes from.
+// Deviation V23 (docs/DECISIONS.md)
+#[tokio::test(flavor = "current_thread")]
+async fn closing_a_session_drops_its_conv_alias() {
+    let _snmp = snmp_read();
+    let (listener, _conn) = listener_without_monitor(None, 0, 0);
+    let first = addr_of("192.0.2.20:1000");
+    let second = addr_of("198.51.100.9:2000");
+
+    input(&listener, &kcp_packet(7, 0, b"a0"), first);
+    let session = listener.session(first).expect("the session");
+    session.close().expect("close the session");
+
+    assert!(
+        listener.session_by_conv(7).is_none(),
+        "the alias goes with the session"
+    );
+
+    input(&listener, &kcp_packet(7, 0, b"b0"), second);
+    assert_eq!(listener.session_count(), 1);
+    let fresh = listener.session(second).expect("a new session");
+    assert!(!Arc::ptr_eq(&fresh, &session));
+
+    listener.close().expect("close");
+}
+
 /// The map is keyed by the canonical address, so the IPv4-mapped form a dual-stack socket
 /// reports for an IPv4 peer is the same session. Go gets this for free: `net.UDPAddr.String()`
 /// prints `::ffff:a.b.c.d` as `a.b.c.d`.

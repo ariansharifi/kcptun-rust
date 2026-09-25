@@ -68,6 +68,9 @@ pub struct BaseConfig {
     pub dscp: i64,
     /// `-nocomp`, `"nocomp"`: disables snappy compression.
     pub no_comp: bool,
+    /// `-strictsource`, `"strictsource"`: restores Go's rule that every datagram must come from
+    /// the address we send to. Off by default — Deviation V23; Go has no such flag.
+    pub strict_source: bool,
     /// `-acknodelay`, `"acknodelay"` (hidden flag).
     pub ack_nodelay: bool,
     /// `-nodelay`, `"nodelay"` (hidden flag; overwritten by a known `-mode`).
@@ -307,6 +310,7 @@ impl BaseConfig {
             ("parityshard", Field::Int(&mut self.parity_shard)),
             ("dscp", Field::Int(&mut self.dscp)),
             ("nocomp", Field::Bool(&mut self.no_comp)),
+            ("strictsource", Field::Bool(&mut self.strict_source)),
             ("acknodelay", Field::Bool(&mut self.ack_nodelay)),
             ("nodelay", Field::Int(&mut self.no_delay)),
             ("interval", Field::Int(&mut self.interval)),
@@ -557,6 +561,13 @@ pub fn client_flags() -> Vec<FlagSpec<'static>> {
         FlagSpec::int_flag("dscp", 0, "set DSCP(6bit)"),
         FlagSpec::bool_flag("nocomp", "disable compression"),
         FlagSpec::bool_flag(
+            "strictsource",
+            "only accept packets from the address packets are sent to",
+        )
+        // Hidden, so `--help` stays Go's byte for byte: this flag has no Go counterpart, and it
+        // only ever restores Go's own behaviour (Deviation V23). README documents it.
+        .hidden(),
+        FlagSpec::bool_flag(
             "acknodelay",
             "flush ack immediately when a packet is received",
         )
@@ -634,6 +645,13 @@ pub fn server_flags() -> Vec<FlagSpec<'static>> {
         ),
         FlagSpec::int_flag("dscp", 0, "set DSCP(6bit)"),
         FlagSpec::bool_flag("nocomp", "disable compression"),
+        FlagSpec::bool_flag(
+            "strictsource",
+            "only accept packets from the address packets are sent to",
+        )
+        // Hidden, so `--help` stays Go's byte for byte: this flag has no Go counterpart, and it
+        // only ever restores Go's own behaviour (Deviation V23). README documents it.
+        .hidden(),
         FlagSpec::bool_flag(
             "acknodelay",
             "flush ack immediately when a packet is received",
@@ -718,6 +736,7 @@ impl ClientConfig {
         config.base.parity_shard = c.int("parityshard");
         config.base.dscp = c.int("dscp");
         config.base.no_comp = c.bool("nocomp");
+        config.base.strict_source = c.bool("strictsource");
         config.base.ack_nodelay = c.bool("acknodelay");
         config.base.no_delay = c.int("nodelay");
         config.base.interval = c.int("interval");
@@ -767,6 +786,7 @@ impl ServerConfig {
         config.base.parity_shard = c.int("parityshard");
         config.base.dscp = c.int("dscp");
         config.base.no_comp = c.bool("nocomp");
+        config.base.strict_source = c.bool("strictsource");
         config.base.ack_nodelay = c.bool("acknodelay");
         config.base.no_delay = c.int("nodelay");
         config.base.interval = c.int("interval");
