@@ -9,8 +9,7 @@
 # its own workspace and lock file and needs nightly. The six targets below are all the targets that
 # exist; keep this list in sync with `crates/*/fuzz/Cargo.toml`.
 #
-# NOTE: this repository has no remote yet, so no run of this workflow has ever happened. It was
-# validated locally with `actionlint`; the commands are the ones in each crate's fuzz/README.md.
+# The commands are the ones in each crate's fuzz/README.md, plus an explicit --target (see Fuzz).
 name: fuzz
 
 on:
@@ -105,6 +104,9 @@ jobs:
       #          nothing (and inflates RSS past libFuzzer's limit on long runs).
       # -a:      debug assertions *and* overflow checks. Go's unsigned arithmetic wraps, so an
       #          overflow panic means the port is missing a `wrapping_*` (docs/porting-guide.md).
+      # --target: the cargo-fuzz that install-action fetches is a static musl build, and cargo-fuzz
+      #          defaults to its own target, which nightly has no std for here ("can't find crate
+      #          for `core`"). Name the runner's gnu target instead.
       - name: Fuzz
         working-directory: crates/${{ matrix.crate }}
         env:
@@ -115,7 +117,7 @@ jobs:
           set -euo pipefail
           mkdir -p "fuzz/corpus/${{ matrix.target }}"
           # shellcheck disable=SC2086  # EXTRA_ARGS is a flag list and must word-split.
-          cargo +nightly fuzz run -s "$SANITIZER" -a "${{ matrix.target }}" \
+          cargo +nightly fuzz run -s "$SANITIZER" -a --target x86_64-unknown-linux-gnu "${{ matrix.target }}" \
             "fuzz/corpus/${{ matrix.target }}" "fuzz/seeds/${{ matrix.target }}" \
             -- -max_total_time="$MAX_TOTAL_TIME" $EXTRA_ARGS
 
