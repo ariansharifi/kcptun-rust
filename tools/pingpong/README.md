@@ -31,7 +31,8 @@ pingpong churn  --connect ADDR [--rate R] [--min-bytes N] [--max-bytes N] [--siz
 `serve` is the target the kcptun server's `-t` points at. The protocol is three framed verbs,
 `ECHO n`, `UP n`, `DN n`, with the byte count always in the header and **no half-close
 anywhere**: kcptun's half-close behaviour differs between the implementations (DECISIONS V04 and
-V11, and Go's QPP port has no `CloseWrite`), so a workload that ended a transfer with
+V11, and Go's QPP port has no `CloseWrite`; since V24 a Rust end does not carry a half-close
+across at all, it closes the whole connection), so a workload that ended a transfer with
 `shutdown(SHUT_WR)` would measure that difference instead of the tunnel.
 
 Every mode is bounded by `--duration`, appends an interval CSV as it goes, and prints one

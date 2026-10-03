@@ -3,7 +3,8 @@
 //! It is deliberately the simplest thing that measures what Step 11 needs, and its one real
 //! design rule is: **the byte count always goes first and nothing ever half-closes**. kcptun's
 //! half-close path differs between the implementations (DECISIONS V04/V11, and Go's QPP port
-//! has no `CloseWrite` at all), so a workload that ended a transfer with `shutdown(SHUT_WR)`
+//! has no `CloseWrite` at all; since V24 a Rust end carries no half-close across at all, it
+//! closes the whole connection), so a workload that ended a transfer with `shutdown(SHUT_WR)`
 //! would measure that difference instead of the tunnel. Every exchange here is framed, both
 //! peers always know how many bytes to read, and a connection ends by simply being dropped.
 //!
