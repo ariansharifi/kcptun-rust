@@ -19,6 +19,12 @@
 //! cargo test -p kcptun-interop-tests --test e2e_slow -- --ignored   # ~70 s, 400 MB of traffic
 //! ```
 //!
+//! `tests/teardown.rs` holds the leak regression cases of the pipe's teardown (deviation V24):
+//! Rust↔Rust (`e2e_teardown_*`, our binaries only) and Rust↔Go (`interop_teardown_*`, which also
+//! need the Go `client` and `server`), each one counting every socket of every process before and
+//! after. About eight minutes, most of it waiting for the 30 s stall rule and the smux keepalive;
+//! the file's own docs say how to run it on macOS and on Linux.
+//!
 //! | Module | Purpose |
 //! |---|---|
 //! | [`bins`] | locate Go (`KCPTUN_GO_BIN_DIR`) and Rust (`KCPTUN_RS_BIN_DIR`) binaries |
@@ -31,6 +37,7 @@
 //! | [`kcp`](mod@kcp) | [`KcpCase`] plus the Rust echo server and client that face that peer |
 //! | [`echo_bench`] | loopback echo throughput and CPU of Rust↔Rust against Go↔Go (step 05.9) |
 //! | [`smuxecho`] | drive the `smuxecho` Go peer, and the Rust smux client/echo server |
+//! | [`teardown`] | the leak tests of the pipe's teardown (V24): scripted targets, baselines, per-process socket accounting |
 //!
 //! The crate also builds one binary, `kcptun-smuxecho` (`src/bin/smuxecho.rs`): the Rust
 //! counterpart of the Go `smuxecho` peer, with the same flags, the same `listening on:` line
@@ -54,6 +61,7 @@ pub mod matrix;
 #[cfg(unix)]
 pub mod signals;
 pub mod smuxecho;
+pub mod teardown;
 
 pub use bins::{BinNotFound, Impl, bin, go_bin, rust_bin};
 pub use e2e::{LocalEndpoint, LocalStream, ResponderServer, Tunnel, TunnelBuilder};

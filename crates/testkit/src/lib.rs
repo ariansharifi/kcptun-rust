@@ -12,6 +12,7 @@
 //! | [`servers`] | TCP echo / sink / source servers with SHA-256 checks |
 //! | [`proc`] | spawning binaries with captured logs, kill on drop |
 //! | [`ports`] | free consecutive port blocks in `[22000, 29000)` |
+//! | [`sockets`] | the sockets a process holds, their TCP states and the dead ones (`/proc`, `lsof`) |
 //!
 //! This crate must not depend on any other kcptun crate (they dev-depend on it; a dependency
 //! back would build a second copy of their types). See [`clock`] for how the virtual clock
@@ -30,6 +31,7 @@ pub mod proc;
 pub mod relay;
 pub mod rng;
 pub mod servers;
+pub mod sockets;
 pub mod vectors;
 
 pub use clock::VirtualClock;
