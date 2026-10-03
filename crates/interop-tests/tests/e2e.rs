@@ -3,10 +3,10 @@
 //!
 //! | Test | What it pins |
 //! |---|---|
-//! | `e2e_round_trip_with_the_defaults` | the whole path with kcptun's defaults (aes, FEC 10/3, snappy, smux v2) |
-//! | `e2e_half_close_response_is_complete` | V11: a response that starts *after* the application's `shutdown(SHUT_WR)` arrives whole |
-//! | `e2e_half_close_response_is_complete_with_qpp` | the same with `-QPP` (V04) |
-//! | `e2e_closewait_delays_the_half_close_of_the_target` | `-closewait` really is the seconds before the target sees EOF |
+//! | `e2e_round_trip_with_the_defaults` | the whole path with kcptun's defaults (aes, FEC 10/3, snappy, smux v2, server `-closewait 30`) |
+//! | `e2e_half_close_ends_the_connection` | V24: the application's `shutdown(SHUT_WR)` ends its connection at once, with no answer, while its request still arrives whole |
+//! | `e2e_half_close_ends_the_connection_with_qpp` | the same with `-QPP` |
+//! | `e2e_closewait_delays_each_sides_teardown` | `-closewait` is each side's grace before it tears down: the client's delays the application's end, the server's the target's EOF |
 //! | `e2e_autoexpire_replaces_the_session_and_the_scavenger_closes_it` | `-autoexpire 3 -scavengettl 2` |
 //! | `e2e_conn_4_spreads_sessions_over_four_udp_source_ports` | `-conn 4` round-robin |
 //! | `e2e_unix_listener_and_unix_target` | unix socket on both ends |
@@ -32,11 +32,16 @@ use std::time::{Duration, Instant};
 
 use kcptun_interop_tests::Case;
 use kcptun_interop_tests::e2e::{
-    self, LocalEndpoint, ResponderServer, Tunnel, connect_local, echo_round_trip, expect_eof,
-    expected_sha256, hash_exact, log_values, serial_guard, session_endpoints,
+    self, LocalEndpoint, LocalStream, ResponderServer, StreamEnd, Tunnel, connect_local,
+    echo_round_trip, expect_eof, expected_sha256, log_values, read_until_closed, serial_guard,
+    session_endpoints,
 };
 use kcptun_testkit::servers::EchoServer;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+/// How long a teardown that a `-closewait` of 0 makes immediate may take on a loaded machine. On
+/// loopback it takes milliseconds.
+const PROMPTLY: Duration = Duration::from_secs(1);
 
 /// Runs one end-to-end case: serialised against every other case, and bounded so a hang fails
 /// the test (and drops the [`Tunnel`], which kills both processes) instead of blocking forever.
@@ -45,6 +50,24 @@ async fn e2e_case(timeout: Duration, body: impl Future<Output = ()>) {
     if tokio::time::timeout(timeout, body).await.is_err() {
         panic!("end-to-end case timed out after {timeout:?}");
     }
+}
+
+/// Reads what is left of `app` after a half-close and returns how many bytes it held, how the
+/// connection ended, and how long after `since` it did. A connection still open after `limit`
+/// fails the test with `what` in the message.
+async fn read_the_end(
+    app: &mut LocalStream,
+    since: Instant,
+    limit: Duration,
+    what: &str,
+) -> (u64, StreamEnd, Duration) {
+    let (bytes, end) = tokio::time::timeout(limit, read_until_closed(app))
+        .await
+        .unwrap_or_else(|_| {
+            panic!("{what}: the connection was still open {limit:?} after the half-close")
+        })
+        .unwrap_or_else(|e| panic!("{what}: reading after the half-close: {e}"));
+    (bytes, end, since.elapsed())
 }
 
 /// The port of a `host:port` log value.
@@ -76,22 +99,35 @@ async fn e2e_round_trip_with_the_defaults() {
         const LEN: u64 = 1 << 20;
 
         let echo = EchoServer::start().await.expect("echo server");
+        // kcptun's defaults throughout (aes, FEC 10/3, snappy, smux v2, mtu 1350), the server's
+        // `-closewait 30` included. Up to v0.2.1 that default delayed each direction's
+        // half-close by 30 s, so the end of this stream took about a minute and the case ran
+        // with `-closewait 0`. Since V24 the application's end of stream comes from the client,
+        // which tears the connection down at the application's half-close (its default is 0),
+        // and the server's 30 s only keep the target connection open: the application must not
+        // wait for them. `e2e_closewait_delays_each_sides_teardown` measures both graces.
         let mut tunnel = Tunnel::builder(echo.addr().to_string())
-            // Everything else is kcptun's default (aes, FEC 10/3, snappy, smux v2, mtu 1350).
-            // `-closewait` is not: the server's default of 30 s is applied once per direction, so
-            // waiting for the end of this stream would take about a minute (the server's two
-            // directions serialise here: the target only sees EOF after the first 30 s sleep, so
-            // its own EOF is only forwarded after the second). The flag's own behaviour is pinned
-            // by `e2e_closewait_delays_the_half_close_of_the_target`.
-            .server_args(["-closewait", "0"])
             .start()
             .await
             .unwrap_or_else(|e| panic!("{e}"));
 
         let mut app = tunnel.connect().await.expect("connect");
         let sha = echo_round_trip(&mut app, SEED, LEN).await.expect("echo");
+        let half_closed = Instant::now();
         assert_eq!(sha, expected_sha256(SEED, LEN), "echoed bytes");
-        expect_eof(&mut app).await.expect("clean end of stream");
+        let (stray, end, ended) =
+            read_the_end(&mut app, half_closed, Duration::from_secs(30), "defaults").await;
+        assert_eq!(stray, 0, "bytes after the end of the echo");
+        assert_eq!(
+            end,
+            StreamEnd::Eof,
+            "nothing owed to the application was thrown away"
+        );
+        assert!(
+            ended < PROMPTLY,
+            "the end of stream came {ended:?} after the half-close: the server's -closewait 30 \
+             is holding the application up"
+        );
 
         assert_eq!(echo.connections(), 1, "one target connection");
         assert_eq!(echo.bytes(), LEN, "bytes echoed");
@@ -105,22 +141,27 @@ async fn e2e_round_trip_with_the_defaults() {
 }
 
 // ---------------------------------------------------------------------------------------
-// Half-close
+// Half-close (deviation V24)
 // ---------------------------------------------------------------------------------------
 
-/// The plan's half-close case: the application shuts its write side while the answer is still to
-/// come, so **every** response byte crosses a stream whose peer has already sent FIN.
+/// An application that half-closes and then waits for its answer: deviation V24 end to end.
 ///
-/// That is the order that loses data in Go's smux (DECISIONS V11) and, with `-QPP`, in Go's
-/// `QPPPort`, which has no `CloseWrite` at all (V04). Both are fixed here, so a Rust↔Rust
-/// response must arrive whole in either configuration. A **Go** peer truncating the same case
-/// with QPP on is correct Go behaviour, not a bug to fix; the Go side belongs to 09.4.
+/// The tunnel no longer carries a half-close across. The client tears the whole connection
+/// down `-closewait` seconds after the application's EOF, and its default is 0, so the
+/// application reads the end of its connection at once, without one byte of an answer. The
+/// [`ResponderServer`] cannot answer any sooner: it answers only after *its* EOF, which it gets
+/// when the server tears its side down, and by then nothing is left to carry the answer back.
+/// What the teardown must not lose is the request: everything the application sent before its
+/// EOF still reaches the target.
 ///
-/// The application deliberately waits before reading, so the whole response *and* the peer's FIN
-/// are sitting in the stream's receive buffer (`-streambuf`, 2 MiB by default, twice the
-/// response) when the half-close completes. That is exactly the state in which Go's
-/// `tryHalfCloseCleanup` calls `recycleTokens` and drops the lot, so the case fails loudly if the
-/// V11 behaviour is ever lost, instead of depending on how fast the reader happens to be.
+/// The end must be a clean EOF rather than a reset: when the client tears down, nothing owed to
+/// the application is thrown away (no answer has arrived), and V24 resets a socket only when
+/// something is (rule 4 of `crates/std/src/pipe.rs`).
+///
+/// Up to v0.2.1 this case asserted the opposite, a complete answer through the half-closed
+/// stream (deviations V11 and V04). That half-close pipe is the one that leaked sockets in
+/// production: a direction waiting for smux window credit after the peer had dropped the stream
+/// waited forever, with the other direction's socket already half-closed.
 async fn half_close_case(qpp: bool) {
     const SEED: u64 = 7;
     const LEN: u64 = 1 << 20;
@@ -129,7 +170,8 @@ async fn half_close_case(qpp: bool) {
     let responder = ResponderServer::start(SEED, LEN).await.expect("responder");
     let mut tunnel = Tunnel::builder(responder.target())
         .case(Case::new().qpp(qpp))
-        // The default is 30 s, which would only delay the FIN this case is about.
+        // The server's default of 30 s would only postpone the target's EOF, which
+        // `e2e_closewait_delays_each_sides_teardown` measures. The client keeps its default, 0.
         .server_args(["-closewait", "0"])
         .start()
         .await
@@ -137,51 +179,83 @@ async fn half_close_case(qpp: bool) {
 
     let mut app = tunnel.connect().await.expect("connect");
     app.write_all(REQUEST).await.expect("request");
+    let half_closed = Instant::now();
     app.shutdown().await.expect("half-close");
 
-    // The target answers only once the half-close has reached it.
+    let what = format!("qpp={qpp}");
+    let (answer, end, ended) =
+        read_the_end(&mut app, half_closed, Duration::from_secs(30), &what).await;
+    assert_eq!(
+        answer, 0,
+        "{what}: {answer} bytes of an answer arrived after the half-close"
+    );
+    assert_eq!(
+        end,
+        StreamEnd::Eof,
+        "{what}: nothing owed to the application was thrown away"
+    );
+    assert!(
+        ended < PROMPTLY,
+        "{what}: the connection ended {ended:?} after the half-close; the client's -closewait \
+         is 0, so it must tear down at once"
+    );
+
+    // The target got the whole request, then its EOF, from the server's teardown at once.
     let records = responder
         .wait_for_records(1, Duration::from_secs(30))
         .await
         .expect("request record");
-    assert_eq!(records[0].request_bytes, REQUEST.len() as u64);
+    assert_eq!(records.len(), 1, "{what}: one target connection");
+    assert_eq!(
+        records[0].request_bytes,
+        REQUEST.len() as u64,
+        "{what}: the request reached the target whole"
+    );
+    let target_eof = records[0].eof_at.saturating_duration_since(half_closed);
+    assert!(
+        target_eof < PROMPTLY,
+        "{what}: the target's EOF came {target_eof:?} after the half-close, with the server's \
+         -closewait 0"
+    );
 
-    // Wait until the server has finished the stream: it wrote the whole response and sent its own
-    // FIN, while the application has not read a byte. Without this the case would only be testing
-    // a race it usually wins, so this is part of the test, not decoration. It is a bounded poll
-    // rather than a fixed sleep: nothing is read from `app` until the line appears, so a slow
-    // machine waits longer instead of failing.
-    tunnel
-        .server()
-        .wait_for_log_async(
-            "the server finishing the stream",
+    // Both sides close the stream, and neither reports an error for it: tearing a half-closed
+    // connection down is the normal end of a connection, not a failure.
+    for side in ["client", "server"] {
+        let proc = match side {
+            "client" => tunnel.client(),
+            _ => tunnel.server(),
+        };
+        proc.wait_for_log_async(
+            &format!("the {side} closing the stream"),
             Duration::from_secs(30),
             |l| l.contains("stream closed in:"),
         )
         .await
-        .unwrap_or_else(|e| {
-            panic!("qpp={qpp}: the response and the FIN had not arrived before the read: {e}")
-        });
-
-    let sha = hash_exact(&mut app, LEN).await.expect("response");
-    assert_eq!(
-        sha,
-        responder.expected_sha256(),
-        "qpp={qpp}: response bytes"
-    );
-    expect_eof(&mut app).await.expect("clean end of response");
+        .unwrap_or_else(|e| panic!("{what}: {e}"));
+    }
+    for (side, log) in [
+        ("client", tunnel.client_log()),
+        ("server", tunnel.server_log()),
+    ] {
+        let errors: Vec<&str> = log.lines().filter(|l| l.contains("pipe:")).collect();
+        assert!(
+            errors.is_empty(),
+            "{what}: the {side} logged an error for the torn-down connection:\n{}",
+            errors.join("\n")
+        );
+    }
     tunnel.check_alive().unwrap_or_else(|e| panic!("{e}"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "needs the Rust binaries: cargo build --release -p kcptun-client -p kcptun-server"]
-async fn e2e_half_close_response_is_complete() {
+async fn e2e_half_close_ends_the_connection() {
     e2e_case(Duration::from_secs(120), half_close_case(false)).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "needs the Rust binaries: cargo build --release -p kcptun-client -p kcptun-server"]
-async fn e2e_half_close_response_is_complete_with_qpp() {
+async fn e2e_half_close_ends_the_connection_with_qpp() {
     e2e_case(Duration::from_secs(120), half_close_case(true)).await;
 }
 
@@ -189,50 +263,105 @@ async fn e2e_half_close_response_is_complete_with_qpp() {
 // closewait
 // ---------------------------------------------------------------------------------------
 
-/// Runs one half-close through a server with `-closewait <seconds>` and returns how long after
-/// the target was dialled it saw the application's EOF.
-async fn eof_delay(closewait: u32) -> Duration {
+/// When each end saw a half-closed connection end, measured from the application's half-close.
+#[derive(Debug)]
+struct Ends {
+    /// The application read the end of its connection: the client's teardown.
+    app: Duration,
+    /// The target read its EOF: the server's teardown.
+    target: Duration,
+}
+
+/// Runs one half-close through a tunnel whose client has `-closewait client` (its default of 0
+/// for `None`) and whose server has `-closewait server`, and returns when each end saw the
+/// connection end.
+async fn teardown_delays(client: Option<u32>, server: u32) -> Ends {
     const SEED: u64 = 11;
     const LEN: u64 = 4096;
 
     let responder = ResponderServer::start(SEED, LEN).await.expect("responder");
-    let mut tunnel = Tunnel::builder(responder.target())
-        .server_args(["-closewait", &closewait.to_string()])
-        .start()
-        .await
-        .unwrap_or_else(|e| panic!("{e}"));
+    let mut builder =
+        Tunnel::builder(responder.target()).server_args(["-closewait", &server.to_string()]);
+    if let Some(client) = client {
+        builder = builder.client_args(["-closewait", &client.to_string()]);
+    }
+    let mut tunnel = builder.start().await.unwrap_or_else(|e| panic!("{e}"));
 
     let mut app = tunnel.connect().await.expect("connect");
     app.write_all(b"q").await.expect("request");
+    let half_closed = Instant::now();
     app.shutdown().await.expect("half-close");
+
+    let what = format!(
+        "client -closewait {}, server -closewait {server}",
+        client.map_or_else(|| "0 (default)".to_string(), |c| c.to_string())
+    );
+    let (answer, end, app_end) =
+        read_the_end(&mut app, half_closed, Duration::from_secs(60), &what).await;
+    // However late the end comes, it brings no answer: the target answers only after its EOF.
+    assert_eq!(answer, 0, "{what}: an answer arrived");
+    assert_eq!(
+        end,
+        StreamEnd::Eof,
+        "{what}: the application's end of stream"
+    );
 
     let records = responder
         .wait_for_records(1, Duration::from_secs(60))
         .await
         .expect("request record");
-    // The answer still has to arrive in full, whatever the delay was.
-    let sha = hash_exact(&mut app, LEN).await.expect("response");
-    assert_eq!(sha, responder.expected_sha256());
+    assert_eq!(records[0].request_bytes, 1, "{what}: the request");
     tunnel.check_alive().unwrap_or_else(|e| panic!("{e}"));
-    records[0].eof_after
+    let ends = Ends {
+        app: app_end,
+        target: records[0].eof_at.saturating_duration_since(half_closed),
+    };
+    eprintln!("{what}: {ends:?}");
+    ends
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "needs the Rust binaries: cargo build --release -p kcptun-client -p kcptun-server"]
-async fn e2e_closewait_delays_the_half_close_of_the_target() {
+async fn e2e_closewait_delays_each_sides_teardown() {
     e2e_case(Duration::from_secs(180), async {
-        // Control: `-closewait 0` forwards the EOF as soon as the pipe sees it.
-        let prompt = eof_delay(0).await;
+        // What "about 2 s" may measure on a loaded machine.
+        let about_two_seconds = Duration::from_millis(1500)..Duration::from_secs(8);
+
+        // Control: `-closewait 0` on both sides, so both ends see the end at once.
+        let prompt = teardown_delays(None, 0).await;
         assert!(
-            prompt < Duration::from_secs(1),
-            "closewait 0 delayed the target's EOF by {prompt:?}"
+            prompt.app < PROMPTLY && prompt.target < PROMPTLY,
+            "-closewait 0 on both sides: {prompt:?}"
         );
 
-        // kcptun's own knob: the server sleeps this long before `CloseWrite` on the target.
-        let delayed = eof_delay(2).await;
+        // The server's grace holds the target alone: the client tears the application's
+        // connection down at once, and the server closes the target 2 s later. This is the
+        // server's default of 30 s, shortened.
+        let server = teardown_delays(None, 2).await;
         assert!(
-            (Duration::from_millis(1500)..Duration::from_secs(8)).contains(&delayed),
-            "closewait 2 gave the target's EOF after {delayed:?}"
+            server.app < PROMPTLY,
+            "server -closewait 2 held the application for {:?}",
+            server.app
+        );
+        assert!(
+            about_two_seconds.contains(&server.target),
+            "server -closewait 2 gave the target its EOF after {:?}",
+            server.target
+        );
+
+        // The client's grace holds the whole connection: no half-close crosses the tunnel, so
+        // the server hears nothing until the client tears down, and both ends see the end about
+        // 2 s after the half-close.
+        let client = teardown_delays(Some(2), 0).await;
+        assert!(
+            about_two_seconds.contains(&client.app),
+            "client -closewait 2 ended the application's connection after {:?}",
+            client.app
+        );
+        assert!(
+            about_two_seconds.contains(&client.target),
+            "client -closewait 2 gave the target its EOF after {:?}",
+            client.target
         );
     })
     .await;
