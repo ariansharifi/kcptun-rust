@@ -307,11 +307,11 @@ impl PipeEnd for SmuxStream {
     }
 
     /// Received data nobody has taken yet (a frame tail kept by `poll_read`, or the stream's own
-    /// buffer), or a stream that was cut off: closed (its session died) before the peer's
-    /// `cmdFIN` arrived.
+    /// buffer), or a stream that was cut off: nothing more will arrive (its session died, or the
+    /// session's receive side failed) although the peer's `cmdFIN` never came.
     fn undelivered(&self) -> bool {
         let s = &self.stream;
-        self.pending.is_some() || s.buffered_len() > 0 || (s.is_closed() && !s.got_fin())
+        self.pending.is_some() || s.buffered_len() > 0 || (s.peer_finished() && !s.got_fin())
     }
 
     /// smux has no RST frame; the peer sees the `cmdFIN` that dropping the stream sends.

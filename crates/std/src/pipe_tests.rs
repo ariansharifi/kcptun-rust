@@ -1506,3 +1506,166 @@ async fn test_streams_starving_their_session_are_ended_and_the_session_recovers(
     assert_eq!(&got, b"alive");
     drop(peers);
 }
+
+// ---------------------------------------------------------------------------------------
+// A congested session, and other edges the review found
+// ---------------------------------------------------------------------------------------
+
+/// A client session whose connection's peer never reads, with a second stream's large write
+/// stuck in the send task, so nothing more leaves the session; and the raw peer end, through
+/// which the test hands the session frames. Returns the stream to pipe (id 3).
+async fn congested_session(
+    config: kcptun_smux::Config,
+) -> (
+    crate::smuxio::SmuxStream,
+    DuplexStream,
+    Vec<Box<dyn std::any::Any + Send>>,
+) {
+    use kcptun_smux::conn::SplitConn;
+
+    let (ours, peer) = duplex(512);
+    let cli = kcptun_smux::client(SplitConn::new(ours), Some(config)).expect("session");
+    let piped = cli.open_stream().await.expect("open the piped stream");
+    let bulk = cli.open_stream().await.expect("open the bulk stream");
+    let stuck = tokio::spawn(async move {
+        let _ = bulk.write(&vec![7u8; 64 * 1024]).await;
+        bulk
+    });
+    // Let the bulk write fill the connection, so the send task blocks for good.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let keep: Vec<Box<dyn std::any::Any + Send>> = vec![Box::new(stuck), Box::new(cli)];
+    (crate::smuxio::SmuxStream::new(piped), peer, keep)
+}
+
+/// Writes one `cmdPSH` for stream `sid` from the raw peer.
+async fn peer_push(peer: &mut DuplexStream, sid: u32, payload: &[u8]) {
+    use kcptun_smux::frame::{CMD_PSH, RawHeader};
+    let header = RawHeader::new(2, CMD_PSH, payload.len() as u16, sid);
+    peer.write_all(header.as_bytes()).await.expect("header");
+    peer.write_all(payload).await.expect("payload");
+}
+
+/// The first read of a stream (and every half window after it) owes the peer a window update.
+/// When the session cannot send it, the payload that made it due must still reach the
+/// application: a read that waited for the update held the payload where the pipe could not
+/// see it, and a teardown then dropped it without a trace.
+#[tokio::test]
+async fn test_a_payload_is_delivered_while_its_window_update_cannot_be_sent() {
+    let (stream, mut peer, _keep) = congested_session(crate::smuxio::tests::test_config(2)).await;
+    let (mut app, tcp_end) = tcp_pair().await;
+    let piped =
+        tokio::spawn(async move { pipe_with(tcp_end, stream, 0, default_buf_pool(), FAST).await });
+
+    peer_push(&mut peer, 3, b"RESPONSE").await;
+    let mut got = [0u8; 8];
+    tokio::time::timeout(Duration::from_secs(2), app.read_exact(&mut got))
+        .await
+        .expect("the payload is not held back by its window update")
+        .expect("read");
+    assert_eq!(&got, b"RESPONSE");
+
+    // The application ends its side; the pipe ends at once and the application sees its
+    // connection close, after having received everything.
+    app.shutdown().await.expect("shutdown");
+    let (err_a, err_b) = tokio::time::timeout(Duration::from_secs(5), piped)
+        .await
+        .expect("the pipe ends")
+        .expect("pipe task");
+    err_a.unwrap();
+    err_b.unwrap();
+}
+
+/// A stream starving its session while the session cannot send window updates: the reader must
+/// keep draining what arrived instead of waiting on the send path, so the data reaches the
+/// application and the session's receive buffer frees up again.
+#[tokio::test]
+async fn test_a_starving_stream_drains_while_its_session_cannot_send() {
+    let config = kcptun_smux::Config {
+        max_receive_buffer: 65_536,
+        max_stream_buffer: 65_536,
+        ..crate::smuxio::tests::test_config(2)
+    };
+    let (stream, mut peer, _keep) = congested_session(config).await;
+    let (mut app, tcp_end) = tcp_pair().await;
+    let piped =
+        tokio::spawn(async move { pipe_with(tcp_end, stream, 0, default_buf_pool(), FAST).await });
+
+    // 96 KiB into a 64 KiB session buffer: the session starves until the reader drains.
+    let pusher = tokio::spawn(async move {
+        for i in 0..3u8 {
+            peer_push(&mut peer, 3, &[i; 32 * 1024]).await;
+        }
+        peer
+    });
+    let mut got = vec![0u8; 96 * 1024];
+    tokio::time::timeout(Duration::from_secs(5), app.read_exact(&mut got))
+        .await
+        .expect("all of it reaches the application")
+        .expect("read");
+    for (i, chunk) in got.chunks(32 * 1024).enumerate() {
+        assert!(chunk.iter().all(|&b| b == i as u8), "frame {i} intact");
+    }
+    let _peer = pusher.await.expect("pusher");
+    piped.abort();
+}
+
+/// A stream cut short by its session's receive side failing (no `cmdFIN`, and the session is
+/// not even closed) is a truncation, so the application gets a reset after the data it was
+/// given, not a clean end of stream.
+#[tokio::test]
+async fn test_a_stream_cut_by_a_failed_session_resets_the_application() {
+    use crate::smuxio::tests::{session_pair, stream_pair};
+
+    let (cli, srv) = session_pair(2);
+    let (ours, mut theirs) = stream_pair(&cli, &srv).await;
+    let (mut app, tcp_end) = tcp_pair().await;
+    let piped =
+        tokio::spawn(async move { pipe_with(ours, tcp_end, 0, default_buf_pool(), FAST).await });
+    theirs.write_all(b"PARTIAL").await.expect("write");
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    // The far side's connection goes away; its stream handle stays alive, so no FIN is sent.
+    drop(srv);
+
+    let (err_a, err_b) = tokio::time::timeout(Duration::from_secs(5), piped)
+        .await
+        .expect("the pipe ends")
+        .expect("pipe task");
+    assert!(err_a.is_err(), "the smux read failed");
+    err_b.unwrap();
+    let mut got = Vec::new();
+    let end = tokio::time::timeout(Duration::from_secs(5), app.read_to_end(&mut got))
+        .await
+        .expect("the application sees the end");
+    assert_eq!(got, b"PARTIAL", "what arrived was delivered");
+    assert_eq!(
+        end.expect_err("a reset, not a clean end").kind(),
+        io::ErrorKind::ConnectionReset
+    );
+    drop(theirs);
+}
+
+/// A zero probe period is raised to the minimum instead of spinning: a parked pipe on a paused
+/// clock still lets everything else run.
+#[tokio::test(start_paused = true)]
+async fn test_a_zero_watch_period_does_not_spin() {
+    let log = new_log();
+    let (alice, bob, mut parked) = parked_pair(&log);
+    let pool = test_pool();
+    let timing = Timing {
+        watch: Duration::ZERO,
+        ..Timing::DEFAULT
+    };
+
+    fill(&mut parked.alice_client).await;
+    let outcome = tokio::time::timeout(
+        Duration::from_secs(5),
+        pipe_with(alice, bob, 0, &pool, timing),
+    )
+    .await;
+    assert!(outcome.is_err(), "parked and quiet: the pipe keeps going");
+    assert!(
+        knobs(&parked.alice).probes <= 5_001,
+        "probed {} times in 5 s",
+        knobs(&parked.alice).probes
+    );
+}

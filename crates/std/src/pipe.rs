@@ -805,11 +805,18 @@ struct Lifetime {
     drained_at: Option<Instant>,
 }
 
+/// The shortest probe period [`Lifetime`] accepts: a zero [`Timing::watch`] would re-arm an
+/// already expired timer forever and never yield.
+const MIN_WATCH: Duration = Duration::from_millis(1);
+
 impl Lifetime {
     fn new(close_wait: i64, timing: Timing) -> Lifetime {
         Lifetime {
             close_wait,
-            timing,
+            timing: Timing {
+                watch: timing.watch.max(MIN_WATCH),
+                ..timing
+            },
             life: Life::Open,
             watch: None,
             watching: false,
