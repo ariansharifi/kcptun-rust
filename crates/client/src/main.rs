@@ -13,7 +13,7 @@
 //! **Memory.** No per-connection or per-stream buffer is allocated up front. The copy buffers
 //! come from the process-wide pool only once a direction has data (DECISIONS D17), and the
 //! smux → TCP direction takes none at all: it drains received frames straight into the local
-//! socket (`kcptun_std::pipe::HalfCloseWrite::FRAME_SOURCE`).
+//! socket (`kcptun_std::pipe::PipeEnd::FRAME_SOURCE`).
 //!
 //! **Locks.** The accept loop owns `muxes` outright and the scavenger owns its own list; the only
 //! thing they share is the bounded channel between them. A `wait_conn` that blocks the accept
@@ -33,7 +33,7 @@ use kcptun_std::config::{self, ClientConfig};
 use kcptun_std::kcpconn::KcpConn;
 use kcptun_std::mainutil::{GoAddr, QppPad, check_qpp, qpp_pad, setsockopt_error};
 use kcptun_std::multiport::{MultiPort, MultiPortError};
-use kcptun_std::pipe::{HalfCloseWrite, pipe};
+use kcptun_std::pipe::{PipeEnd, pipe};
 use kcptun_std::smuxio::SmuxStream;
 use kcptun_std::{crypt, goaddr, log, logf, logln, multiport, pprof, runtime, signal, smuxcfg};
 use tokio::sync::mpsc;
@@ -406,6 +406,16 @@ async fn serve<C, F>(
             Err(err) => log::fatal(&err),
         };
         let idx = usize::from(rr % numconn);
+
+        // Let go of every session that has died, not only the one this connection is about to
+        // use. Go keeps a dead session in its slot until round-robin lands there again, and with
+        // it the KCP socket and its queues (two windows of `-mtu` segments each); nothing else
+        // looks at a closed slot, so releasing it early is invisible otherwise (DECISIONS D35).
+        for slot in &mut muxes {
+            if slot.as_ref().is_some_and(|mux| mux.session.is_closed()) {
+                *slot = None;
+            }
+        }
 
         // Refresh the selected session if it is missing, closed, or past its TTL.
         let refresh = match &muxes[idx] {
@@ -838,7 +848,7 @@ async fn handle_client<P1, C>(
     p1: P1,
     p1_addr: String,
 ) where
-    P1: HalfCloseWrite + Unpin,
+    P1: PipeEnd + Unpin,
     C: SmuxConn,
 {
     let quiet = config.base.quiet;
@@ -857,6 +867,11 @@ async fn handle_client<P1, C>(
             return;
         }
     };
+
+    // The stream holds what it needs of the session. Holding the `Session` itself for the life of
+    // the pipe would only keep a dead session's KCP socket and queues around until the last of
+    // its pipes ends; the pool (`muxes`) and the scavenger hold live sessions.
+    drop(session);
 
     let s2 = SmuxStream::new(p2);
     // Go: fmt.Sprintf("%v(%d)", p2.RemoteAddr(), p2.ID())

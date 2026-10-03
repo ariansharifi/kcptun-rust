@@ -928,6 +928,7 @@ dependencies = [
  "sha1",
  "signal-hook",
  "snap",
+ "socket2",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",

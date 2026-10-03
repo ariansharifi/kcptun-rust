@@ -75,7 +75,7 @@ async fn a_half_close_ends_the_peer_read_without_closing_the_stream() {
 
     a.write_all(b"question").await.expect("write");
     a.flush().await.expect("flush");
-    HalfCloseWriteExt::close_write(&mut a).await.expect("fin");
+    CloseExt::close_write(&mut a).await.expect("fin");
 
     let mut got = Vec::new();
     b.read_to_end(&mut got).await.expect("read to end");
@@ -93,27 +93,41 @@ async fn a_half_close_ends_the_peer_read_without_closing_the_stream() {
 async fn a_repeated_half_close_is_not_an_error() {
     let (cli, srv) = session_pair(1);
     let (mut a, _b) = stream_pair(&cli, &srv).await;
-    HalfCloseWriteExt::close_write(&mut a).await.expect("fin");
-    HalfCloseWriteExt::close_write(&mut a)
-        .await
-        .expect("second fin");
+    CloseExt::close_write(&mut a).await.expect("fin");
+    CloseExt::close_write(&mut a).await.expect("second fin");
     a.shutdown().await.expect("shutdown after fin");
 }
 
-/// `poll_close_write` / `poll_close` as futures, so the tests read like the rest of the file.
-pub(crate) trait HalfCloseWriteExt: HalfCloseWrite + Unpin {
+/// Go's `CloseWrite` and `Close` as futures, so the tests read like the rest of the file. The
+/// half-close is the adapter's `poll_shutdown`; the full close is [`SmuxStream::poll_close`].
+pub(crate) trait CloseExt: AsyncWrite + Unpin {
+    /// The smux adapter underneath.
+    fn smux(&mut self) -> &mut SmuxStream;
+
     fn close_write(&mut self) -> impl Future<Output = io::Result<()>> {
-        std::future::poll_fn(move |cx| Pin::new(&mut *self).poll_close_write(cx))
+        AsyncWriteExt::shutdown(self)
     }
 
     // Only `qpp_tests.rs` calls this one, so it is dead in a build without the `qpp` feature.
     #[cfg_attr(not(feature = "qpp"), allow(dead_code))]
     fn close(&mut self) -> impl Future<Output = io::Result<()>> {
-        std::future::poll_fn(move |cx| Pin::new(&mut *self).poll_close(cx))
+        let s = self.smux();
+        std::future::poll_fn(move |cx| s.poll_close(cx))
     }
 }
 
-impl<T: HalfCloseWrite + Unpin + ?Sized> HalfCloseWriteExt for T {}
+impl CloseExt for SmuxStream {
+    fn smux(&mut self) -> &mut SmuxStream {
+        self
+    }
+}
+
+#[cfg(feature = "qpp")]
+impl CloseExt for crate::qpp::QppStream<SmuxStream> {
+    fn smux(&mut self) -> &mut SmuxStream {
+        self.inner_mut()
+    }
+}
 
 // ---------------------------------------------------------------------------------------
 // The frame-drain fast path (step 09.1; Go: io.Copy preferring stream.WriteTo)
@@ -129,14 +143,14 @@ async fn frames_are_drained_whole_and_end_with_none() {
     for version in [1isize, 2] {
         let (cli, srv) = session_pair(version);
         let (mut a, mut b) = stream_pair(&cli, &srv).await;
-        const { assert!(<SmuxStream as HalfCloseWrite>::FRAME_SOURCE) };
+        const { assert!(<SmuxStream as PipeEnd>::FRAME_SOURCE) };
 
         // Two writes, each one frame (well under the 32 KiB default frame size).
         a.write_all(b"first").await.expect("write");
         a.flush().await.expect("flush");
         a.write_all(b"second").await.expect("write");
         a.flush().await.expect("flush");
-        HalfCloseWriteExt::close_write(&mut a).await.expect("fin");
+        CloseExt::close_write(&mut a).await.expect("fin");
 
         let mut got = Vec::new();
         while let Some(frame) = read_frame(&mut b).await.expect("frame") {

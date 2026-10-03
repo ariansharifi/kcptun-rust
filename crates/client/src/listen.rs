@@ -81,10 +81,11 @@ impl LocalListener {
             match self {
                 LocalListener::Tcp { listener, addr } => match listener.accept().await {
                     Ok((stream, peer)) => {
-                        // Go turns Nagle off on every accepted TCP connection; tokio does not,
-                        // and the error is dropped there too.
-                        // Go: net/tcpsock_posix.go:newTCPConn(), `setNoDelay(fd, true)`
-                        let _ = stream.set_nodelay(true);
+                        // Go turns Nagle off and TCP keepalive on (15 s/15 s/9) for every
+                        // accepted TCP connection; tokio does neither (D36). Errors are dropped
+                        // there too.
+                        // Go: net/tcpsock_posix.go:newTCPConn()
+                        kcptun_std::mainutil::set_go_tcp_options(&stream);
                         // A dual-stack listener (`-l :12948`) reports an IPv4 peer as
                         // `::ffff:a.b.c.d`; Go's `net.IP.String()` unmaps it and prints the
                         // dotted quad, Rust's `SocketAddr` does not. The same string goes into

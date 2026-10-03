@@ -10,6 +10,7 @@
 //! - [`op_error`] and [`setsockopt_error`], which spell a failed syscall the way Go's
 //!   `*net.OpError` does (`listen udp :29900: bind: address already in use`);
 //! - [`GoAddr`], the `%v` of a possibly-nil `net.Addr`;
+//! - [`set_go_tcp_options`], the socket options Go's `newTCPConn` gives every TCP connection;
 //!
 //! Everything that differs between the two binaries: the flag tables, the startup block, the
 //! listeners and the proxy loops: stays in the binaries.
@@ -214,6 +215,41 @@ impl std::fmt::Display for GoAddr {
             None => f.write_str("<nil>"),
         }
     }
+}
+
+/// Go's TCP keepalive defaults (`net/dial.go`: `defaultTCPKeepAliveIdle`,
+/// `defaultTCPKeepAliveInterval`, `defaultTCPKeepAliveCount`).
+// Go: go1.27.1 net/dial.go:18-27
+pub const GO_TCP_KEEPALIVE_IDLE: std::time::Duration = std::time::Duration::from_secs(15);
+/// See [`GO_TCP_KEEPALIVE_IDLE`].
+pub const GO_TCP_KEEPALIVE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
+/// See [`GO_TCP_KEEPALIVE_IDLE`].
+pub const GO_TCP_KEEPALIVE_COUNT: u32 = 9;
+
+/// The options Go's `newTCPConn` sets on every TCP connection it accepts or dials, which covers
+/// kcptun's client listener (`net.ListenTCP`) and the server's target (`net.DialTimeout`):
+/// Nagle off, and TCP keepalive on with 15 s idle, 15 s interval and 9 probes.
+///
+/// tokio sets neither. Without keepalive a TCP peer that vanishes silently (a host powered off, a
+/// NAT mapping dropped) is never noticed on an idle connection, so its pipe, stream and
+/// descriptor live until the far side of the tunnel ends the stream, which for a long-lived idle
+/// stream may be never. With it, the kernel fails the socket with `ETIMEDOUT` about 150 s after
+/// the last sign of life, which ends the pipe (DECISIONS D36). Errors are dropped, as Go drops
+/// them.
+// Go: go1.27.1 net/tcpsock.go:newTCPConn(), net/tcpsock_posix.go (accept and dial)
+pub fn set_go_tcp_options(stream: &tokio::net::TcpStream) {
+    let _ = stream.set_nodelay(true);
+    let keepalive = socket2::TcpKeepalive::new()
+        .with_time(GO_TCP_KEEPALIVE_IDLE)
+        .with_interval(GO_TCP_KEEPALIVE_INTERVAL);
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "android",
+        target_vendor = "apple",
+        target_os = "freebsd"
+    ))]
+    let keepalive = keepalive.with_retries(GO_TCP_KEEPALIVE_COUNT);
+    let _ = socket2::SockRef::from(stream).set_tcp_keepalive(&keepalive);
 }
 
 #[cfg(test)]

@@ -13,7 +13,7 @@
 //! come from the process-wide pool only once a direction has data (DECISIONS D17), and the
 //! smux → target direction takes none at all: it drains received frames straight into the
 //! target socket, which is what Go's `Copy` does through `io.WriterTo`
-//! (`kcptun_std::pipe::HalfCloseWrite::FRAME_SOURCE`).
+//! (`kcptun_std::pipe::PipeEnd::FRAME_SOURCE`).
 #![forbid(unsafe_code)]
 
 use std::io;
@@ -29,7 +29,7 @@ use kcptun_std::kcpconn::KcpConn;
 // The QPP pad and the `net.OpError` texts are shared with the client binary, which needs every
 // one of them (`kcptun_std::mainutil`).
 use kcptun_std::mainutil::{GoAddr, QppPad, check_qpp, op_error, qpp_pad, setsockopt_error};
-use kcptun_std::pipe::{HalfCloseWrite, pipe};
+use kcptun_std::pipe::{PipeEnd, pipe};
 use kcptun_std::smuxio::SmuxStream;
 use kcptun_std::{crypt, goaddr, log, logf, logln, multiport, pprof, runtime, signal, smuxcfg};
 use tokio::net::TcpStream;
@@ -505,11 +505,12 @@ async fn serve_stream(
     match target_type {
         TargetType::Tcp => match tokio::time::timeout(DIAL_TIMEOUT, dial_tcp(target)).await {
             Ok(Ok(p2)) => {
-                // Go turns Nagle off on every TCP connection it dials; tokio does not, and
-                // Nagle on the target socket would add delay the Go server never has. The
-                // error is dropped there too.
-                // Go: net/tcpsock_posix.go:newTCPConn(), `setNoDelay(fd, true)`
-                let _ = p2.set_nodelay(true);
+                // Go turns Nagle off and TCP keepalive on (15 s/15 s/9) for every TCP
+                // connection it dials; tokio does neither. Nagle on the target socket would add
+                // delay the Go server never has, and without keepalive a target that vanishes
+                // silently is never noticed (D36). Errors are dropped there too.
+                // Go: net/tcpsock_posix.go:newTCPConn()
+                kcptun_std::mainutil::set_go_tcp_options(&p2);
                 let addr = p2
                     .peer_addr()
                     .map_or_else(|_| target.to_string(), |a| a.to_string());
@@ -607,7 +608,7 @@ async fn handle_client<P2>(
     p2_addr: String,
     config: &ServerConfig,
 ) where
-    P2: HalfCloseWrite + Unpin,
+    P2: PipeEnd + Unpin,
 {
     let quiet = config.base.quiet;
     let s1 = SmuxStream::new(p1);

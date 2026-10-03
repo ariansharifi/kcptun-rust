@@ -377,6 +377,11 @@ impl StreamInner {
         self.fin_event.is_cancelled()
     }
 
+    /// The peer's advertised receive window (protocol version 2).
+    pub(crate) fn peer_window(&self) -> u32 {
+        self.peer_window.load(Ordering::Acquire)
+    }
+
     /// Drops everything still buffered and reports how many tokens that frees.
     ///
     /// Go calls this from `streamClosed` for every close, which is what deviation V11 is about;
@@ -1015,6 +1020,33 @@ impl Stream {
     // Go: smux@v1.5.55 stream.go:stream.chFinEvent
     pub fn got_fin(&self) -> bool {
         self.inner.got_fin()
+    }
+
+    /// Whether nothing more will ever arrive on this stream: the peer's `cmdFIN` has come, the
+    /// stream or its session is closed, or the session's receive side has failed. What is
+    /// already buffered stays readable.
+    ///
+    /// Not part of Go's API. The proxy pipe uses it to tell a destination that is merely slow
+    /// from one that is holding the last of a stream nobody will add to (DECISIONS D35).
+    pub fn peer_finished(&self) -> bool {
+        self.inner.got_fin() || self.inner.is_closed() || self.sess.recv_failed()
+    }
+
+    /// Whether the session's receive buffer is spent: its token bucket is at or below zero, so
+    /// no frame for any stream is read (data, `cmdFIN`, `cmdUPD` or keepalive) until a reader
+    /// returns tokens. With `-smuxbuf` equal to `-streambuf` one unread stream is enough.
+    ///
+    /// Not part of Go's API; see [`peer_finished`](Self::peer_finished).
+    pub fn recv_starved(&self) -> bool {
+        self.sess.recv_starved()
+    }
+
+    /// The peer's advertised receive window in bytes (protocol version 2). The peer grants new
+    /// credit only after its reader has consumed half of it, so this is the step in which a
+    /// writer waiting for credit sees progress. Version 1 has no window and reports smux's
+    /// initial value.
+    pub fn peer_window(&self) -> u32 {
+        self.inner.peer_window()
     }
 
     /// Test hook: what the last `cmdUPD` said (consumed bytes, peer window).

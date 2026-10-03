@@ -14,7 +14,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 use super::*;
 use crate::smuxio::SmuxStream;
-use crate::smuxio::tests::{HalfCloseWriteExt, session_pair, stream_pair};
+use crate::smuxio::tests::{CloseExt, session_pair, stream_pair};
 
 /// The key kcptun ships as the default; shorter than `QPPMinimumSeedLength(8)`, as most are.
 const KEY: &str = "it's a secrect";
@@ -416,7 +416,7 @@ async fn round_trip_over_an_in_memory_smux_pair() {
             }
             a.write_all(&sent[8..]).await.expect("bulk write");
             a.flush().await.expect("flush");
-            HalfCloseWriteExt::close_write(&mut a).await.expect("fin");
+            CloseExt::close_write(&mut a).await.expect("fin");
             a
         });
 
@@ -444,7 +444,7 @@ async fn v04_a_half_close_keeps_the_reverse_direction_alive() {
             .await
             .expect("request");
         a.flush().await.expect("flush");
-        HalfCloseWriteExt::close_write(&mut a).await.expect("fin");
+        CloseExt::close_write(&mut a).await.expect("fin");
 
         // The peer reads the request to its end, exactly as a proxied server would.
         let mut request = Vec::new();
@@ -457,7 +457,7 @@ async fn v04_a_half_close_keeps_the_reverse_direction_alive() {
         let responder = tokio::spawn(async move {
             b.write_all(&sent).await.expect("answer");
             b.flush().await.expect("flush");
-            HalfCloseWriteExt::close_write(&mut b).await.expect("fin");
+            CloseExt::close_write(&mut b).await.expect("fin");
             b
         });
 
@@ -469,7 +469,7 @@ async fn v04_a_half_close_keeps_the_reverse_direction_alive() {
         // Both directions have ended, so smux has already torn the stream down: Go's `dieOnce`
         // makes this second close report `io: read/write on closed pipe`, and `pipe` discards
         // the value exactly as Go discards `alice.Close()`'s error.
-        match HalfCloseWriteExt::close(&mut a).await {
+        match CloseExt::close(&mut a).await {
             Ok(()) => {}
             Err(e) => assert_eq!(e.to_string(), "io: read/write on closed pipe"),
         }
@@ -478,9 +478,9 @@ async fn v04_a_half_close_keeps_the_reverse_direction_alive() {
 
 #[tokio::test]
 async fn the_wrapper_is_usable_as_a_pipe_endpoint() {
-    // `pipe` needs `HalfCloseWrite + Unpin`; this is a compile-time check that the wrapped
-    // smux stream satisfies it, which is what step 09 wires up.
-    fn assert_pipe_endpoint<T: HalfCloseWrite + Unpin>() {}
+    // `pipe` needs `PipeEnd + Unpin`; this is a compile-time check that the wrapped smux stream
+    // satisfies it, which is what step 09 wires up.
+    fn assert_pipe_endpoint<T: crate::pipe::PipeEnd + Unpin>() {}
     assert_pipe_endpoint::<QppStream<SmuxStream>>();
     assert_pipe_endpoint::<QppStream<tokio::net::TcpStream>>();
 }
@@ -521,10 +521,22 @@ impl AsyncWrite for DuplexEnd {
     }
 }
 
-impl HalfCloseWrite for DuplexEnd {
-    fn poll_close_write(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.get_mut().0).poll_shutdown(cx)
+impl crate::pipe::PipeEnd for DuplexEnd {
+    fn probe(&self) -> crate::pipe::Probe {
+        crate::pipe::Probe {
+            failed: None,
+            finished: false,
+            starving: false,
+            unsent: None,
+            progress: crate::pipe::Progress::Fine,
+        }
     }
+
+    fn undelivered(&self) -> bool {
+        false
+    }
+
+    fn abort(&self) {}
 }
 
 /// Regression: a `poll_write` may never report bytes the connection has not taken.
@@ -560,9 +572,8 @@ async fn the_pipe_delivers_the_last_chunk_when_the_source_goes_quiet() {
         .expect("read");
     assert_eq!(got, payload);
 
-    // Wind both directions down so the pipe returns: EOF on the source, then EOF from the peer.
+    // EOF on the source ends the pipe (deviation V24: one finished direction closes both ends).
     drop(source);
-    HalfCloseWriteExt::close_write(&mut qb).await.expect("fin");
     let (err_a, err_b) = tokio::time::timeout(Duration::from_secs(20), piped)
         .await
         .expect("the pipe ends")

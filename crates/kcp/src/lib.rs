@@ -7,8 +7,8 @@
 //! Go reference source: `reference/kcptun/vendor/github.com/xtaci/kcp-go/v5/`.
 //! Wire format summary: `docs/WIRE-FORMAT.md`.
 //!
-//! `unsafe` is only permitted in the batched UDP I/O and SIMD modules, and every block needs a
-//! `// SAFETY:` comment.
+//! `unsafe` is only permitted in the batched UDP I/O and SIMD modules and in the small OS helpers
+//! (`rlimit`, `memory`, `sockinfo`), and every block needs a `// SAFETY:` comment.
 
 pub mod addr;
 pub mod autotune;
@@ -36,6 +36,7 @@ pub mod rs;
 pub mod segment;
 pub mod session;
 pub mod snmp;
+pub mod sockinfo;
 pub mod tx;
 
 pub use bufpool::{BufferPool, PacketBuf};

@@ -33,6 +33,8 @@ pbkdf2 = { workspace = true }
 regex = { workspace = true }
 sha1 = { workspace = true }
 snap = { workspace = true }
+# TCP keepalive at Go's defaults on proxied connections (DECISIONS D36): `with_retries` needs "all".
+socket2 = { workspace = true, features = ["all"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = [
     "io-util",

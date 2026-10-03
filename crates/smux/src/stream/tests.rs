@@ -18,7 +18,9 @@ use tokio::time::{Instant, sleep, timeout};
 
 use super::*;
 use crate::conn::{SmuxConn, SplitConn};
-use crate::frame::{CMD_FIN, CMD_PSH, CMD_SYN, CMD_UPD, HEADER_SIZE, RawHeader, UpdHeader};
+use crate::frame::{
+    CMD_FIN, CMD_PSH, CMD_SYN, CMD_UPD, HEADER_SIZE, INITIAL_PEER_WINDOW, RawHeader, UpdHeader,
+};
 use crate::mux::{Config, client, default_config, server};
 use crate::session::Session;
 
@@ -1314,4 +1316,90 @@ async fn a_blocked_reader_sees_eof_when_the_half_close_completes() {
         })
         .await;
     }
+}
+
+// ---------------------------------------------------------------------------------------
+// What the proxy pipe reads off a stream (DECISIONS D35)
+// ---------------------------------------------------------------------------------------
+
+/// `peer_finished`: nothing more will arrive. The peer's FIN says so, and so does the stream's
+/// session dying; what is already buffered stays readable either way.
+#[tokio::test]
+async fn peer_finished_follows_the_fin_and_the_session() {
+    // The peer's FIN.
+    let (session, peer) = peered(quiet_config(2));
+    let stream = peer.open(&session, 2, 3).await;
+    assert!(!stream.peer_finished());
+    peer.write_frame(2, CMD_PSH, 3, b"tail").await;
+    peer.write_frame(2, CMD_FIN, 3, &[]).await;
+    wait_until("the FIN", || stream.peer_finished()).await;
+    assert_eq!(read_to_end(&stream).await, b"tail");
+
+    // The session closing, with no FIN at all.
+    let (session, peer) = peered(quiet_config(2));
+    let stream = peer.open(&session, 2, 5).await;
+    peer.write_frame(2, CMD_PSH, 5, b"held").await;
+    wait_until("the data", || stream.buffered_len() == 4).await;
+    session.close().await.expect("close");
+    assert!(stream.peer_finished());
+    assert!(!stream.got_fin(), "no FIN came: the stream was cut");
+    assert_eq!(read_exact_from(&stream, 4).await, b"held");
+
+    // The session's receive side failing (the peer goes away mid-stream).
+    let (session, peer) = peered(quiet_config(2));
+    let stream = peer.open(&session, 2, 7).await;
+    drop(peer);
+    wait_until("the read error", || stream.peer_finished()).await;
+    assert!(!session.is_closed(), "a read error alone does not close the session");
+}
+
+/// `recv_starved`: the session's token bucket is spent, so it reads no frame for any stream.
+#[tokio::test]
+async fn recv_starved_reports_a_spent_bucket() {
+    let config = Config {
+        max_receive_buffer: 8192,
+        max_stream_buffer: 8192,
+        ..quiet_config(2)
+    };
+    let (session, peer) = peered(config);
+    let stream = peer.open(&session, 2, 3).await;
+    assert!(!stream.recv_starved());
+
+    peer.write_frame(2, CMD_PSH, 3, &payload(1, 8192)).await;
+    wait_until("the bucket to run out", || stream.recv_starved()).await;
+    assert_eq!(stream.buffered_len(), 8192);
+
+    // Reading gives the tokens back.
+    let _ = read_exact_from(&stream, 8192).await;
+    assert!(!stream.recv_starved());
+}
+
+/// `peer_window`: the window the peer advertises, starting from smux's initial 256 KiB.
+#[tokio::test]
+async fn peer_window_follows_the_peers_updates() {
+    let (session, peer) = peered(quiet_config(2));
+    let stream = peer.open(&session, 2, 3).await;
+    assert_eq!(stream.peer_window(), INITIAL_PEER_WINDOW);
+    peer.write_frame(2, CMD_UPD, 3, UpdHeader::new(0, 16 << 20).as_bytes())
+        .await;
+    wait_until("the window update", || stream.peer_window() == 16 << 20).await;
+}
+
+/// A closed session lets go of its streams, so their buffers live only as long as their own
+/// handles: the client keeps a dead session in its pool until a new connection replaces it.
+#[tokio::test]
+async fn a_closed_session_lets_go_of_its_streams() {
+    let (session, peer) = peered(quiet_config(2));
+    let stream = peer.open(&session, 2, 3).await;
+    peer.write_frame(2, CMD_PSH, 3, b"data").await;
+    wait_until("the data", || stream.buffered_len() == 4).await;
+    let weak = Arc::downgrade(&stream.inner);
+
+    session.close().await.expect("close");
+    assert_eq!(session.num_streams(), 0);
+    // The stream still works through its handle...
+    assert_eq!(read_exact_from(&stream, 4).await, b"data");
+    // ...and once the handle is gone, nothing keeps it alive.
+    drop(stream);
+    assert!(weak.upgrade().is_none(), "the session still held the stream");
 }
