@@ -21,7 +21,10 @@
 //!
 //! 1. **Deviation V04**: Go's `QPPPort` has no `CloseWrite`, so `std.Pipe`'s type assertion
 //!    fails and it falls back to a full `Close`, which can truncate the reverse direction.
-//!    [`QppStream`] forwards the half-close ([`HalfCloseWrite::poll_close_write`]).
+//!    [`QppStream`] forwards the half-close ([`AsyncWrite::poll_shutdown`]). Since deviation V24
+//!    the pipe never half-closes, so nothing in the binaries asks for it any more; the wrapper
+//!    still forwards it for anyone who does, and forwards the pipe's probes
+//!    ([`PipeEnd`]) to the stream it wraps.
 //! 2. Go encrypts **in the caller's buffer** (`r.pad.EncryptWithPRNG(p, r.wprng)` mutates `p`
 //!    before handing it to the connection). A Rust `poll_write` gets `&[u8]`, so the ciphertext
 //!    is built in an owned scratch buffer; see [`QppStream::poll_write`] for what that means for
@@ -35,7 +38,7 @@ use std::task::{Context, Poll, ready};
 use kcptun_qpp::{qpp_minimum_pads, qpp_minimum_seed_length};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::pipe::HalfCloseWrite;
+use crate::pipe::{PipeEnd, Probe};
 
 /// Re-exported so that callers building the process-wide pad (`qpp.NewQPP([]byte(config.Key),
 /// uint16(config.QPPCount))` in Go's `main`) and the per-stream generators need no direct
@@ -293,33 +296,23 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for QppStream<S> {
     }
 }
 
-/// Deviation V04: the half-close is **forwarded**, where Go's `QPPPort` does not implement
-/// `closeWriter` at all, so `std.Pipe`'s `if cw, ok := dst.(closeWriter); ok` fails and the
-/// fallback `dst.Close()` tears the whole stream down, which can truncate the direction that is
-/// still running. Forwarding sends only the smux `cmdFIN`, a frame every Go peer already handles
-/// for non-QPP streams, so this is wire-compatible and strictly less lossy.
-impl<S: HalfCloseWrite + Unpin> HalfCloseWrite for QppStream<S> {
-    // Deviation V04: forward close_write through QPP (Go falls back to Close).
-    // Go: kcptun/std/copy.go:closeWriter.CloseWrite() (not implemented by QPPPort)
-    fn poll_close_write(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let me = self.get_mut();
-        // Everything written before the half-close has to be on the wire first, or forwarding
-        // would lose exactly the data V04 exists to save.
-        let drained = match me.poll_drain(cx) {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(r) => r,
-        };
-        ready!(Pin::new(&mut me.underlying).poll_close_write(cx))?;
-        Poll::Ready(drained)
+/// The pipe's view of a QPP stream is the view of the stream it wraps: QPP changes the bytes,
+/// not when they arrive. `FRAME_SOURCE` stays `false`, as Go's `QPPPort` has no `WriteTo`.
+///
+/// Staged ciphertext in `obuf` is not "undelivered" in [`PipeEnd`]'s sense: it is on its way
+/// *to* the wrapped stream, and the pipe's own `holds_data` already covers a write that did not
+/// complete.
+impl<S: PipeEnd + Unpin> PipeEnd for QppStream<S> {
+    fn probe(&self) -> Probe {
+        self.underlying.probe()
     }
 
-    /// Go: `QPPPort.Close()`, closes the underlying stream and nothing else. Ciphertext that a
-    /// failed write left in `obuf` is dropped here rather than retried, as Go's `Close` never
-    /// writes.
-    // Go: kcptun/std/qpp.go:QPPPort.Close()
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let me = self.get_mut();
-        Pin::new(&mut me.underlying).poll_close(cx)
+    fn undelivered(&self) -> bool {
+        self.underlying.undelivered()
+    }
+
+    fn abort(&self) {
+        self.underlying.abort();
     }
 }
 

@@ -1,4 +1,5 @@
-//! A tokio [`AsyncRead`]/[`AsyncWrite`] view of a smux stream, with Go's `CloseWrite`.
+//! A tokio [`AsyncRead`]/[`AsyncWrite`] view of a smux stream, with Go's `CloseWrite` as
+//! [`poll_shutdown`](AsyncWrite::poll_shutdown).
 //!
 //! [`crate::pipe::pipe`] and `QppStream` (`crate::qpp`, feature `qpp`) are written against
 //! tokio's poll-based traits, because the other end of every proxied connection is a
@@ -10,15 +11,20 @@
 //!
 //! ```text
 //! TCP  <-->  pipe  <-->  QppStream<SmuxStream>  <-->  smux::Stream
-//!            ^ AsyncRead + AsyncWrite + HalfCloseWrite ^ async fn on &self
+//!            ^ AsyncRead + AsyncWrite + PipeEnd     ^ async fn on &self
 //! ```
 //!
 //! step 08 left this for step 09 (the pipe's doc comment says so), but
 //! step 07.3 needs it to wrap a real smux stream in QPP, so it lands here. Step 09.1 added the
 //! other piece, the `smux -> TCP` frame-drain fast path (Go gets it from `io.Copy` preferring
 //! `io.WriterTo`, i.e. [`Stream::write_to`](kcptun_smux::Stream::write_to)): it is
-//! [`HalfCloseWrite::poll_read_frame`] below, which [`pipe`](crate::pipe::pipe) uses in place of
+//! [`PipeEnd::poll_read_frame`] below, which [`pipe`](crate::pipe::pipe) uses in place of
 //! `poll_read` whenever the source is a smux stream. This adapter is the general path.
+//!
+//! The pipe never half-closes and never awaits a close (deviation V24): it drops the adapter,
+//! and `Drop for kcptun_smux::Stream` leaves the session at once and sends the `cmdFIN` from a
+//! detached task. [`SmuxStream::poll_close`] remains for callers that want to wait for the
+//! frame.
 
 use std::future::Future;
 use std::io;
@@ -31,7 +37,7 @@ use bytes::{Buf, Bytes};
 use kcptun_smux::{Error, Stream};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::pipe::HalfCloseWrite;
+use crate::pipe::{PipeEnd, Probe, Progress};
 
 /// A future of one smux operation, kept across polls so cancelling a poll cannot drop data.
 type BoxFut<T> = Pin<Box<dyn Future<Output = T> + Send>>;
@@ -201,14 +207,46 @@ impl AsyncWrite for SmuxStream {
         Poll::Ready(Ok(()))
     }
 
-    /// Shutting the write side down is Go's `CloseWrite` (one `cmdFIN`), like
-    /// `poll_shutdown` on a `TcpStream`.
+    /// Shutting the write side down is Go's `CloseWrite` (one `cmdFIN`), like `poll_shutdown`
+    /// on a `TcpStream`. A second call is not an error here (Go's returns
+    /// `io: read/write on closed pipe`).
+    // Go: smux@v1.5.55 stream.go:stream.CloseWrite()
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        HalfCloseWrite::poll_close_write(self, cx)
+        let me = self.get_mut();
+        if me.write_closed {
+            return Poll::Ready(Ok(()));
+        }
+        let r = ready!(SmuxStream::poll_op(
+            &mut me.close_write_fut,
+            &me.stream,
+            cx,
+            |s| async move { s.close_write().await }
+        ));
+        me.write_closed = true;
+        Poll::Ready(r)
     }
 }
 
-impl HalfCloseWrite for SmuxStream {
+impl SmuxStream {
+    /// Closes the stream in both directions and waits until its `cmdFIN` has been handed to the
+    /// session; a second call does nothing. Dropping the adapter closes it too, without waiting.
+    // Go: smux@v1.5.55 stream.go:stream.Close()
+    pub fn poll_close(&mut self, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        if self.closed {
+            return Poll::Ready(Ok(()));
+        }
+        let r = ready!(SmuxStream::poll_op(
+            &mut self.close_fut,
+            &self.stream,
+            cx,
+            |s| async move { s.close().await }
+        ));
+        self.closed = true;
+        Poll::Ready(r)
+    }
+}
+
+impl PipeEnd for SmuxStream {
     /// A smux stream is Go's `io.WriterTo`, so [`pipe`](crate::pipe::pipe) drains it frame by
     /// frame instead of reading it into a copy buffer.
     // Go: smux@v1.5.55 stream.go:stream.WriteTo(), selected by kcptun/std/copy.go:Copy()
@@ -251,37 +289,33 @@ impl HalfCloseWrite for SmuxStream {
         }
     }
 
-    // Go: smux@v1.5.55 stream.go:stream.CloseWrite()
-    fn poll_close_write(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let me = self.get_mut();
-        if me.write_closed {
-            return Poll::Ready(Ok(()));
+    /// A smux stream never fails on its own account: a dead session wakes every read and write
+    /// on the stream itself. Its state is what the stall rule reads: whether the peer will send
+    /// more, whether this stream is starving its session, and how the peer's reader shows
+    /// progress (credit, one `cmdUPD` per half window).
+    fn probe(&self) -> Probe {
+        let s = &self.stream;
+        Probe {
+            failed: None,
+            finished: s.peer_finished(),
+            starving: s.recv_starved() && s.buffered_len() > 0,
+            unsent: None,
+            progress: Progress::Credit {
+                window: s.peer_window(),
+            },
         }
-        let r = ready!(SmuxStream::poll_op(
-            &mut me.close_write_fut,
-            &me.stream,
-            cx,
-            |s| async move { s.close_write().await }
-        ));
-        me.write_closed = true;
-        Poll::Ready(r)
     }
 
-    // Go: smux@v1.5.55 stream.go:stream.Close()
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let me = self.get_mut();
-        if me.closed {
-            return Poll::Ready(Ok(()));
-        }
-        let r = ready!(SmuxStream::poll_op(
-            &mut me.close_fut,
-            &me.stream,
-            cx,
-            |s| async move { s.close().await }
-        ));
-        me.closed = true;
-        Poll::Ready(r)
+    /// Received data nobody has taken yet (a frame tail kept by `poll_read`, or the stream's own
+    /// buffer), or a stream that was cut off: closed (its session died) before the peer's
+    /// `cmdFIN` arrived.
+    fn undelivered(&self) -> bool {
+        let s = &self.stream;
+        self.pending.is_some() || s.buffered_len() > 0 || (s.is_closed() && !s.got_fin())
     }
+
+    /// smux has no RST frame; the peer sees the `cmdFIN` that dropping the stream sends.
+    fn abort(&self) {}
 }
 
 // `pub(crate)` so that `qpp_tests.rs` can build the same in-memory smux pair.

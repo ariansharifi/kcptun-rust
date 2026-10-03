@@ -13,7 +13,7 @@
 //! come from the process-wide pool only once a direction has data (DECISIONS D17), and the
 //! smux → target direction takes none at all: it drains received frames straight into the
 //! target socket, which is what Go's `Copy` does through `io.WriterTo`
-//! (`kcptun_std::pipe::HalfCloseWrite::FRAME_SOURCE`).
+//! (`kcptun_std::pipe::PipeEnd::FRAME_SOURCE`).
 #![forbid(unsafe_code)]
 
 use std::io;
@@ -29,7 +29,7 @@ use kcptun_std::kcpconn::KcpConn;
 // The QPP pad and the `net.OpError` texts are shared with the client binary, which needs every
 // one of them (`kcptun_std::mainutil`).
 use kcptun_std::mainutil::{GoAddr, QppPad, check_qpp, op_error, qpp_pad, setsockopt_error};
-use kcptun_std::pipe::{HalfCloseWrite, pipe};
+use kcptun_std::pipe::{PipeEnd, pipe};
 use kcptun_std::smuxio::SmuxStream;
 use kcptun_std::{crypt, goaddr, log, logf, logln, multiport, pprof, runtime, signal, smuxcfg};
 use tokio::net::TcpStream;
@@ -607,7 +607,7 @@ async fn handle_client<P2>(
     p2_addr: String,
     config: &ServerConfig,
 ) where
-    P2: HalfCloseWrite + Unpin,
+    P2: PipeEnd + Unpin,
 {
     let quiet = config.base.quiet;
     let s1 = SmuxStream::new(p1);

@@ -13,7 +13,7 @@
 //! **Memory.** No per-connection or per-stream buffer is allocated up front. The copy buffers
 //! come from the process-wide pool only once a direction has data (DECISIONS D17), and the
 //! smux → TCP direction takes none at all: it drains received frames straight into the local
-//! socket (`kcptun_std::pipe::HalfCloseWrite::FRAME_SOURCE`).
+//! socket (`kcptun_std::pipe::PipeEnd::FRAME_SOURCE`).
 //!
 //! **Locks.** The accept loop owns `muxes` outright and the scavenger owns its own list; the only
 //! thing they share is the bounded channel between them. A `wait_conn` that blocks the accept
@@ -33,7 +33,7 @@ use kcptun_std::config::{self, ClientConfig};
 use kcptun_std::kcpconn::KcpConn;
 use kcptun_std::mainutil::{GoAddr, QppPad, check_qpp, qpp_pad, setsockopt_error};
 use kcptun_std::multiport::{MultiPort, MultiPortError};
-use kcptun_std::pipe::{HalfCloseWrite, pipe};
+use kcptun_std::pipe::{PipeEnd, pipe};
 use kcptun_std::smuxio::SmuxStream;
 use kcptun_std::{crypt, goaddr, log, logf, logln, multiport, pprof, runtime, signal, smuxcfg};
 use tokio::sync::mpsc;
@@ -838,7 +838,7 @@ async fn handle_client<P1, C>(
     p1: P1,
     p1_addr: String,
 ) where
-    P1: HalfCloseWrite + Unpin,
+    P1: PipeEnd + Unpin,
     C: SmuxConn,
 {
     let quiet = config.base.quiet;
