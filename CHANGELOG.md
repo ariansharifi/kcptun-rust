@@ -8,6 +8,22 @@ All notable changes to this project are recorded here. The format follows
 project interoperates with Go kcptun `39935d5` (kcp-go v5.6.66, smux v1.5.55). A change that could
 break interoperability with those peers would be a major version and would be listed here first.
 
+## [0.2.4] - 2026-10-03
+
+A test release: the binaries are built from the same source as 0.2.3 and behave the same. Nothing
+changes on the wire.
+
+### Added
+
+* **Socket-leak regression tests for the teardown rules** ([V24](docs/differences.md)).
+  `crates/interop-tests/tests/teardown.rs` runs the real binaries through the ways a proxied
+  connection ends (the target closes or resets mid-transfer, a target that never reads, a server
+  killed under blocked streams, their mirrors on the server's target side, a starved session, and
+  Rust against Go in both directions) and checks that every Rust process returns to the sockets it
+  held before: no FIN-WAIT-2, no CLOSE-WAIT, no closed socket whose descriptor is still open.
+  `kcptun_testkit::sockets` does the counting, from `/proc` on Linux and `lsof` on macOS. The
+  tests are `#[ignore]`d and take about eight minutes.
+
 ## [0.2.3] - 2026-10-03
 
 Review fixes to 0.2.2's new teardown rules. They end fewer connections than 0.2.2, never more, and
