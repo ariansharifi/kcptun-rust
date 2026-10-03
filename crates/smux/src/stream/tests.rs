@@ -1350,7 +1350,10 @@ async fn peer_finished_follows_the_fin_and_the_session() {
     let stream = peer.open(&session, 2, 7).await;
     drop(peer);
     wait_until("the read error", || stream.peer_finished()).await;
-    assert!(!session.is_closed(), "a read error alone does not close the session");
+    assert!(
+        !session.is_closed(),
+        "a read error alone does not close the session"
+    );
 }
 
 /// `recv_starved`: the session's token bucket is spent, so it reads no frame for any stream.
@@ -1401,5 +1404,8 @@ async fn a_closed_session_lets_go_of_its_streams() {
     assert_eq!(read_exact_from(&stream, 4).await, b"data");
     // ...and once the handle is gone, nothing keeps it alive.
     drop(stream);
-    assert!(weak.upgrade().is_none(), "the session still held the stream");
+    assert!(
+        weak.upgrade().is_none(),
+        "the session still held the stream"
+    );
 }
