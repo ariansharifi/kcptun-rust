@@ -505,11 +505,12 @@ async fn serve_stream(
     match target_type {
         TargetType::Tcp => match tokio::time::timeout(DIAL_TIMEOUT, dial_tcp(target)).await {
             Ok(Ok(p2)) => {
-                // Go turns Nagle off on every TCP connection it dials; tokio does not, and
-                // Nagle on the target socket would add delay the Go server never has. The
-                // error is dropped there too.
-                // Go: net/tcpsock_posix.go:newTCPConn(), `setNoDelay(fd, true)`
-                let _ = p2.set_nodelay(true);
+                // Go turns Nagle off and TCP keepalive on (15 s/15 s/9) for every TCP
+                // connection it dials; tokio does neither. Nagle on the target socket would add
+                // delay the Go server never has, and without keepalive a target that vanishes
+                // silently is never noticed (D36). Errors are dropped there too.
+                // Go: net/tcpsock_posix.go:newTCPConn()
+                kcptun_std::mainutil::set_go_tcp_options(&p2);
                 let addr = p2
                     .peer_addr()
                     .map_or_else(|_| target.to_string(), |a| a.to_string());
