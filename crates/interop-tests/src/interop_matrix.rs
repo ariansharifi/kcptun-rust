@@ -40,32 +40,46 @@
 //!    directions;
 //! 2. **streams**: [`Workload::streams`] concurrent streams, each a
 //!    [`Workload::stream_bytes`] request/echo pair, SHA-256 verified;
-//! 3. **half-close**: one stream whose answer is produced only *after* the application's
-//!    `shutdown(SHUT_WR)`, so every response byte crosses a half-closed stream.
+//! 3. **half-close**: one stream that sends a request and then `shutdown(SHUT_WR)`s, to a target
+//!    that answers only once it has seen EOF: what an application that half-closes and waits
+//!    for its answer gets from each pairing.
 //!
-//! (1) and (2) read their whole answer *before* half-closing, so they never depend on half-close
-//! semantics; (3) depends on nothing else. Both processes' logs are then scanned for the
+//! (1) and (2) read their whole answer *before* half-closing, so they never depend on what a
+//! half-close does; (3) depends on nothing else. Both processes' logs are then scanned for the
 //! [`ERROR_MARKERS`] denylist: the substrings neither implementation prints in a healthy run,
 //! rather than against an allowlist of known-good lines.
 //!
-//! # The expected Go behaviours
+//! # What the half-close probe must show
 //!
-//! Exactly one thing is allowed to differ, and only in workload (3), and only with a **Go
-//! client**. Both halves of it reproduce in the `go -> go` control, which runs no Rust at all.
+//! Workload (3) is the one place where the pairings differ by design, and [`Expectation`]
+//! encodes what each must produce.
 //!
-//! * **V11**: Go's smux discards received-but-unread data when the peer's FIN completes a
-//!   half-close (`tryHalfCloseCleanup` -> `streamClosed` -> `recycleTokens`), so a Go client cuts
-//!   the answer at whatever was still unread in smux's buffer when the FIN landed, usually, but
-//!   not always, a frame boundary. Measured here on the real binaries: 57344 of 65536 bytes
-//!   (`go -> rs`) and 49152 of 65536 (`go -> go`).
-//! * **V04**, with `-QPP` on top, Go's `QPPPort` implements no `CloseWrite`, so kcptun's `Pipe`
-//!   falls back to a full `Close` (`std/copy.go:72`) and tears the stream down the instant the
-//!   application half-closes; nothing of the answer survives.
+//! * **V24**, every pairing with a Rust end. A Rust end carries no half-close across the
+//!   tunnel: when the first direction of a connection ends, it closes both ends `-closewait`
+//!   seconds later (`crates/std/src/pipe.rs`). A **Rust client** does that at the application's
+//!   EOF, with its default `-closewait` of 0. With a **Go client** the half-close crosses as a
+//!   `cmdFIN` (with `-QPP` the Go client closes the stream outright, V04), and a **Rust server**
+//!   tears down at that FIN (`-closewait 0` here). Either way the target sees EOF only as its
+//!   connection is being closed, so its answer has nowhere to go: the probe must read **exactly
+//!   0 bytes** and then the end of its connection (EOF or a reset) within [`PROMPT_END`] of the
+//!   half-close, and the target must have received the whole request before its EOF. Measured
+//!   on the real binaries: not one response byte in any `go -> rs`, `rs -> go` or `rs -> rs`
+//!   run, smoke or full matrix, and every one of them ended with an EOF.
+//! * **V11** and **V04**, `go -> go` only, the unchanged control. Go 2026's `Pipe` carries the
+//!   half-close across, and its smux discards received-but-unread data when the peer's FIN
+//!   completes a half-close (`tryHalfCloseCleanup` -> `streamClosed` -> `recycleTokens`, V11), so
+//!   the Go client cuts the answer at whatever was still unread when the FIN landed, usually,
+//!   but not always, a frame boundary (measured at the smoke workload: 40960 to 57344 of 65536
+//!   bytes). With `-QPP`, Go's `QPPPort` implements no `CloseWrite`, so `Pipe` falls back to a
+//!   full `Close` (`std/copy.go:72`) the instant the application half-closes, and nothing of
+//!   the answer survives (V04).
 //!
-//! [`Expectation`] encodes both. Whatever does arrive must still be a correct *prefix* of the
-//! expected stream, and the `pipe:` line the Go peer logs about its own torn-down stream is
-//! allowed (and recorded as a note). A **Rust client is held to a complete response against
-//! either server**: that is what V11 and V04 bought, and the `rs -> rs` control stays strict.
+//! Up to v0.2.1 the Rust ends did carry the half-close, and a Rust client was held to a
+//! complete answer here; that pipe is the one that leaked sockets in production (V24). Whatever
+//! does arrive must still be a correct *prefix* of the expected stream, whatever the row. The
+//! `pipe:` lines a Go peer logs about the stream its own half-close tore down are allowed (and
+//! recorded as a note); a Rust process may log none. The `rs -> rs` control is strict in every
+//! respect.
 //!
 //! # Running it
 //!
@@ -92,10 +106,11 @@ use std::time::{Duration, Instant};
 use kcptun_testkit::servers::{PrngStream, write_prng_stream};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::watch;
 
 use crate::bins::Impl;
 use crate::e2e::{
-    Acceptor, LocalStream, StartError, Tunnel, bind_tcp, hash_exact, panic_lines, serve,
+    Acceptor, LocalStream, StartError, StreamEnd, Tunnel, bind_tcp, hash_exact, panic_lines, serve,
 };
 use crate::matrix::{Case, Side, pairwise_indices};
 
@@ -591,16 +606,27 @@ pub fn select(cases: Vec<InteropCase>, filter: &str) -> Vec<InteropCase> {
 // Expectations
 // ---------------------------------------------------------------------------------------
 
-/// What the half-close workload may produce for one (case, pairing).
+/// What the half-close workload must produce for one (case, pairing).
 ///
-/// Only a **Go client** can truncate, and it can do so for two independent reasons; both are
-/// correct Go behaviour, and both are recorded in `docs/DECISIONS.md`.
+/// Wherever a Rust end is involved the outcome is fixed by deviation V24, and it is exact: no
+/// answer, then the end of the connection. Only `go -> go`, the control, still shows what Go
+/// 2026's half-close does, and there a short answer is Go behaving as Go does; both of its
+/// tags are recorded in `docs/DECISIONS.md`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Expectation {
-    /// The whole response must arrive, in order, hash-verified. This is what a **Rust** client
-    /// owes against either server, with or without `-QPP`.
-    Complete,
-    /// **V11**, a Go client without `-QPP`: once the application half-closes and the peer's FIN
+    /// **V24** at a **Rust client**, against either server: the client closes the whole
+    /// connection `-closewait` seconds after the application's EOF, and its default is 0. The
+    /// target sees EOF only once that teardown reaches it, so it never gets to answer through
+    /// the tunnel: not one response byte, then the end of the connection, at once.
+    RustClientTearsDown,
+    /// **V24** at a **Rust server**, with a Go client: the Go client carries the half-close
+    /// across as a `cmdFIN` (with `-QPP` it closes the stream outright, V04, which reads the
+    /// same here), and the server closes both its ends at that FIN, after its `-closewait` (0
+    /// in this matrix). The target's EOF *is* that teardown, so its answer has nowhere to go:
+    /// not one response byte, then the end of the connection, once the server's FIN reaches
+    /// the Go client.
+    RustServerTearsDown,
+    /// **V11**, `go -> go` without `-QPP`: once the application half-closes and the peer's FIN
     /// arrives, Go's smux runs `tryHalfCloseCleanup` → `streamClosed` → `recycleTokens`, which
     /// discards everything received but not yet read. The reader then sees EOF early, so the
     /// answer is cut at whatever was still buffered, usually, but not always, a frame boundary.
@@ -611,7 +637,7 @@ pub enum Expectation {
     /// 8192); a `0` is therefore noted in the report as worth a look rather than passed silently.
     // Go: smux@v1.5.55 stream.go:tryHalfCloseCleanup, session.go:streamClosed
     GoSmuxTruncation,
-    /// **V04 on top of V11**, a Go client with `-QPP`: `std.QPPPort` implements no `CloseWrite`,
+    /// **V04 on top of V11**, `go -> go` with `-QPP`: `std.QPPPort` implements no `CloseWrite`,
     /// so kcptun's `Pipe` falls back to `Close()` and tears the whole stream down the moment the
     /// application half-closes. Nothing of an answer that starts afterwards survives.
     // Go: kcptun@v0.0.0-20260208051026-39935d5307f0 std/qpp.go:QPPPort, std/copy.go:Pipe
@@ -621,22 +647,37 @@ pub enum Expectation {
 impl Expectation {
     /// The expectation for `case` under `pairing`.
     pub fn of(case: &InteropCase, pairing: Pairing) -> Self {
-        match (pairing.client, case.qpp()) {
-            (Impl::Go, true) => Expectation::GoQppTruncation,
-            (Impl::Go, false) => Expectation::GoSmuxTruncation,
-            (Impl::Rust, _) => Expectation::Complete,
+        match (pairing.client, pairing.server, case.qpp()) {
+            (Impl::Rust, _, _) => Expectation::RustClientTearsDown,
+            (Impl::Go, Impl::Rust, _) => Expectation::RustServerTearsDown,
+            (Impl::Go, Impl::Go, true) => Expectation::GoQppTruncation,
+            (Impl::Go, Impl::Go, false) => Expectation::GoSmuxTruncation,
         }
     }
 
-    /// True when a short response is not a failure.
-    pub fn allows_truncation(self) -> bool {
-        self != Expectation::Complete
+    /// True for the rows deviation V24 decides, where a Rust end tears the connection down.
+    /// They are exact: no answer, an end within [`PROMPT_END`], the whole request at the target.
+    pub fn is_v24(self) -> bool {
+        matches!(
+            self,
+            Expectation::RustClientTearsDown | Expectation::RustServerTearsDown
+        )
+    }
+
+    /// Whether receiving `got` of the `asked` response bytes is what this row must produce.
+    /// Every byte that did arrive has already been checked against the expected stream.
+    pub fn accepts(self, got: u64, asked: u64) -> bool {
+        if self.is_v24() {
+            got == 0
+        } else {
+            got <= asked
+        }
     }
 
     /// Short tag for the report.
     pub fn tag(self) -> &'static str {
         match self {
-            Expectation::Complete => "complete",
+            Expectation::RustClientTearsDown | Expectation::RustServerTearsDown => "V24",
             Expectation::GoSmuxTruncation => "V11",
             Expectation::GoQppTruncation => "V04+V11",
         }
@@ -696,17 +737,29 @@ impl TargetMode {
     }
 }
 
+/// What a [`MatrixTarget`] saw on a `Respond` connection, the half-close probe's: the request,
+/// and how it ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProbeRecord {
+    /// Request bytes received after the header, up to the end of the request.
+    pub request_bytes: u64,
+    /// Whether the request ended with EOF, rather than with a read error such as a reset.
+    pub eof: bool,
+}
+
 /// The matrix's one target server: it serves all three workloads, so a case needs a single `-t`.
 ///
 /// Every connection starts with a [`HEADER_LEN`]-byte header naming the mode. `Echo` is the
 /// ordinary echo target the bulk and concurrent-stream workloads use; `Respond` reads the request
-/// to EOF and only *then* answers, which is what puts every response byte on a half-closed
-/// stream.
+/// to EOF and only *then* answers, which is what makes the half-close probe show what each
+/// pairing does with the application's half-close. What it saw of that request is recorded
+/// ([`ProbeRecord`]).
 #[derive(Debug)]
 pub struct MatrixTarget {
     addr: SocketAddr,
     connections: Arc<AtomicU64>,
     bad_headers: Arc<AtomicU64>,
+    probes: watch::Receiver<Vec<ProbeRecord>>,
     acceptor: Acceptor,
 }
 
@@ -716,11 +769,14 @@ impl MatrixTarget {
         let (listener, addr) = bind_tcp().await?;
         let connections = Arc::new(AtomicU64::new(0));
         let bad_headers = Arc::new(AtomicU64::new(0));
+        let (probe_tx, probes) = watch::channel(Vec::new());
+        let probe_tx = Arc::new(probe_tx);
         let conns = Arc::clone(&connections);
         let bad = Arc::clone(&bad_headers);
         let acceptor = serve(listener, move |mut conn| {
             conns.fetch_add(1, Ordering::SeqCst);
             let bad = Arc::clone(&bad);
+            let probe_tx = Arc::clone(&probe_tx);
             async move {
                 let mut header = [0u8; HEADER_LEN];
                 if conn.read_exact(&mut header).await.is_err() {
@@ -749,12 +805,17 @@ impl MatrixTarget {
                     }
                     TargetMode::Respond { seed, len } => {
                         let mut sink = vec![0u8; BUF_SIZE];
-                        loop {
+                        let mut request_bytes = 0u64;
+                        let eof = loop {
                             match conn.read(&mut sink).await {
-                                Ok(0) => break,
-                                Ok(_) => {}
-                                Err(_) => return,
+                                Ok(0) => break true,
+                                Ok(n) => request_bytes += n as u64,
+                                Err(_) => break false,
                             }
+                        };
+                        probe_tx.send_modify(|v| v.push(ProbeRecord { request_bytes, eof }));
+                        if !eof {
+                            return;
                         }
                         if write_prng_stream(&mut conn, seed, len).await.is_ok() {
                             let _ = conn.shutdown().await;
@@ -770,8 +831,19 @@ impl MatrixTarget {
             addr,
             connections,
             bad_headers,
+            probes,
             acceptor,
         })
+    }
+
+    /// Waits up to `timeout` for the first `Respond` connection to reach the end of its request,
+    /// and returns what it saw; `None` if none did in time.
+    pub async fn wait_for_probe(&self, timeout: Duration) -> Option<ProbeRecord> {
+        let mut rx = self.probes.clone();
+        match tokio::time::timeout(timeout, rx.wait_for(|v| !v.is_empty())).await {
+            Ok(Ok(v)) => v.first().copied(),
+            _ => None,
+        }
     }
 
     /// The `-t` value for this target.
@@ -815,11 +887,12 @@ pub struct Workload {
     pub request_bytes: u64,
     /// How long the half-close probe waits after `shutdown(SHUT_WR)` before it starts reading.
     ///
-    /// The delay is what makes the probe *decisive* rather than a race: while it runs, the whole
-    /// answer and the peer's FIN pile up in the stream's receive buffer, which is exactly the
-    /// state in which Go's `recycleTokens` throws them away (V11). A Rust client must still hand
-    /// over every byte, so the strict side of the matrix gets harder, not easier, and a Go
-    /// client's truncation stops depending on how fast the machine happens to be.
+    /// In the `go -> go` control the delay is what makes the probe *decisive* rather than a
+    /// race: while it runs, the whole answer and the peer's FIN pile up in the stream's receive
+    /// buffer, which is exactly the state in which Go's `recycleTokens` throws them away (V11),
+    /// so the truncation stops depending on how fast the machine happens to be. Where a Rust end
+    /// tears the connection down (V24) it changes nothing: no answer is ever produced, and the
+    /// end of the connection is already there when the read starts.
     pub half_close_read_delay: Duration,
 }
 
@@ -910,12 +983,35 @@ async fn end_of_stream(stream: &mut LocalStream) -> Result<(), String> {
     }
 }
 
-/// The half-close probe: send a request, `shutdown(SHUT_WR)`, then read the answer the target
-/// only starts producing once it has seen that EOF.
+/// How long the half-close probe waits for its connection to end before the run fails: far
+/// longer than any pairing needs, and short of [`CASE_TIMEOUT`], so a connection that is never
+/// closed is reported as that rather than as a timed-out case.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How soon after its half-close the probe's connection must have ended where a Rust end tears
+/// it down (V24, with `-closewait 0` on both sides here). It ends within milliseconds, so the
+/// probe finds it ended as soon as its [`Workload::half_close_read_delay`] is over; the margin
+/// is for a loaded machine.
+pub const PROMPT_END: Duration = Duration::from_secs(5);
+
+/// What the half-close probe saw after its `shutdown(SHUT_WR)`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ProbeOutcome {
+    /// Response bytes that arrived, every one of them checked against the expected stream.
+    bytes: u64,
+    /// How the connection ended.
+    end: StreamEnd,
+    /// How long after the half-close it ended.
+    after: Duration,
+}
+
+/// The half-close probe: send a request, `shutdown(SHUT_WR)`, then read whatever comes back from
+/// a target that only starts answering once it has seen that EOF, up to the end of the
+/// connection.
 ///
-/// Returns how many response bytes arrived. Every byte that arrives is checked against the
-/// expected stream as it arrives, so a truncation allowed by [`Expectation`] still cannot hide
-/// corruption: a wrong byte fails the run whatever the expectation says.
+/// Every byte that arrives is checked against the expected stream as it arrives, so a
+/// truncation allowed by [`Expectation`] still cannot hide corruption: a wrong byte fails the
+/// run whatever the expectation says.
 async fn half_close_probe(
     stream: &mut LocalStream,
     seed: u64,
@@ -923,52 +1019,73 @@ async fn half_close_probe(
     request_bytes: u64,
     read_delay: Duration,
     expected: &[u8],
-) -> Result<u64, String> {
+) -> Result<ProbeOutcome, String> {
     send_header(stream, TargetMode::Respond { seed, len })
         .await
         .map_err(|e| format!("half-close probe: sending the header: {e}"))?;
     write_prng_stream(stream, seed ^ 0x5a5a, request_bytes)
         .await
         .map_err(|e| format!("half-close probe: sending the request: {e}"))?;
+    let half_closed = Instant::now();
     stream
         .shutdown()
         .await
         .map_err(|e| format!("half-close probe: shutdown(SHUT_WR): {e}"))?;
-    // Let the answer and the peer's FIN arrive before reading a byte of either; see
+    // Let whatever comes arrive before reading a byte of it; see
     // `Workload::half_close_read_delay`.
     tokio::time::sleep(read_delay).await;
 
     let mut got: Vec<u8> = Vec::with_capacity(expected.len());
     let mut buf = vec![0u8; BUF_SIZE];
-    loop {
-        let n = match stream.read(&mut buf).await {
-            Ok(0) => break,
-            Ok(n) => n,
-            // The peer resetting after a V04 teardown is the truncation itself, not a new fault;
-            // the caller decides whether the resulting length is acceptable.
-            Err(e) if e.kind() == io::ErrorKind::ConnectionReset => break,
-            Err(e) => return Err(format!("half-close probe: reading the response: {e}")),
-        };
-        if got.len() + n > expected.len() {
+    let read = tokio::time::timeout(PROBE_TIMEOUT, async {
+        loop {
+            let n = match stream.read(&mut buf).await {
+                Ok(0) => return Ok(StreamEnd::Eof),
+                Ok(n) => n,
+                // A reset is an end like EOF here: it is how a V04 teardown reaches the
+                // application, and how a V24 one does when it throws data away. Whether the
+                // length that arrived is acceptable is the caller's call.
+                Err(e) if e.kind() == io::ErrorKind::ConnectionReset => {
+                    return Ok(StreamEnd::Reset);
+                }
+                Err(e) => return Err(format!("half-close probe: reading the response: {e}")),
+            };
+            if got.len() + n > expected.len() {
+                return Err(format!(
+                    "half-close probe: the response is longer than the {} bytes asked for",
+                    expected.len()
+                ));
+            }
+            if buf[..n] != expected[got.len()..got.len() + n] {
+                let at = got.len()
+                    + buf[..n]
+                        .iter()
+                        .zip(&expected[got.len()..])
+                        .position(|(a, b)| a != b)
+                        .unwrap_or(0);
+                return Err(format!(
+                    "half-close probe: the response differs from the expected stream at byte {at}"
+                ));
+            }
+            got.extend_from_slice(&buf[..n]);
+        }
+    })
+    .await;
+    let end = match read {
+        Ok(end) => end?,
+        Err(_) => {
             return Err(format!(
-                "half-close probe: the response is longer than the {} bytes asked for",
-                expected.len()
+                "half-close probe: the connection was still open {PROBE_TIMEOUT:?} after the \
+                 half-close, {} response bytes in",
+                got.len()
             ));
         }
-        if buf[..n] != expected[got.len()..got.len() + n] {
-            let at = got.len()
-                + buf[..n]
-                    .iter()
-                    .zip(&expected[got.len()..])
-                    .position(|(a, b)| a != b)
-                    .unwrap_or(0);
-            return Err(format!(
-                "half-close probe: the response differs from the expected stream at byte {at}"
-            ));
-        }
-        got.extend_from_slice(&buf[..n]);
-    }
-    Ok(got.len() as u64)
+    };
+    Ok(ProbeOutcome {
+        bytes: got.len() as u64,
+        end,
+        after: half_closed.elapsed(),
+    })
 }
 
 // ---------------------------------------------------------------------------------------
@@ -1008,7 +1125,7 @@ pub struct RunReport {
     pub case_id: String,
     /// Which pairing ran.
     pub pairing: Pairing,
-    /// What the half-close workload was allowed to do.
+    /// What the half-close workload had to produce.
     pub expectation: Expectation,
     /// How many response bytes the half-close probe received.
     pub half_close_bytes: u64,
@@ -1021,18 +1138,20 @@ pub struct RunReport {
 }
 
 impl RunReport {
-    /// The table cell: `ok` for a strict run, or `ok (V11 253952/262144)` for one where a Go
-    /// client was allowed to truncate: the numbers say how much of the half-close answer
-    /// survived, so `262144/262144` means the expected truncation did not happen on this run.
+    /// The table cell: `ok` for a run whose half-close probe is exact (every V24 row: no answer
+    /// at all), or `ok (V11 253952/262144)` in the `go -> go` control, where Go was allowed to
+    /// truncate: the numbers say how much of the half-close answer survived, so
+    /// `262144/262144` means the expected truncation did not happen on this run.
     pub fn status(&self) -> String {
-        match self.expectation {
-            Expectation::Complete => "ok".to_string(),
-            e => format!(
+        if self.expectation.is_v24() {
+            "ok".to_string()
+        } else {
+            format!(
                 "ok ({} {}/{})",
-                e.tag(),
+                self.expectation.tag(),
                 self.half_close_bytes,
                 self.response_bytes
-            ),
+            )
         }
     }
 
@@ -1091,10 +1210,12 @@ async fn run_case_inner(
         .client_impl(pairing.client)
         .server_impl(pairing.server)
         .key(case.key.clone())
-        // Every stream of this matrix is torn down by the application, and `-closewait` delays
-        // exactly that teardown by its full number of seconds per direction. The default of 30 s
-        // would add minutes per case and pins nothing this matrix is about: 09.3's
-        // `e2e_closewait_delays_the_half_close_of_the_target` owns that behaviour.
+        // The server's default `-closewait` of 30 s is how long a Rust server keeps a connection
+        // after its stream ends (V24), and how long a Go server waits before each direction's
+        // half-close. Either would hold the half-close probe for 30 s, and in `go -> go` the end
+        // of every stream as well, while pinning nothing this matrix is about: 09.3's
+        // `e2e_closewait_delays_each_sides_teardown` owns that behaviour. The client keeps its
+        // default of 0, like an operator's.
         .server_args(["-closewait", "0"])
         .start()
         .await
@@ -1115,7 +1236,7 @@ async fn run_case_inner(
         // still a correct (empty) prefix, so it is not a failure, but it is worth a look.
         notes.push(
             "the half-close probe returned 0 bytes on a V11 row; V11 normally cuts only part of \
-             the answer, so compare this crossing with its go->go control"
+             the answer, so this go->go run is worth a look"
                 .to_string(),
         );
     }
@@ -1127,7 +1248,7 @@ async fn run_case_inner(
             target.bad_headers()
         ));
     }
-    check_target_connections(&target, workload, half_close_bytes, expectation).await?;
+    check_target(&target, workload, half_close_bytes, expectation).await?;
     check_logs(&tunnel, expectation, &mut notes)?;
     target.shutdown().await;
 
@@ -1195,7 +1316,7 @@ async fn drive(
         .connect()
         .await
         .map_err(|e| format!("half-close: connecting to the client: {e}"))?;
-    let got = half_close_probe(
+    let probe = half_close_probe(
         &mut app,
         seed,
         workload.response_bytes,
@@ -1206,35 +1327,57 @@ async fn drive(
     .await?;
     drop(app);
 
-    // A short answer is a failure unless the expectation names the Go behaviour that shortens
-    // it; when it does, the report's byte count says how much survived.
-    if got != workload.response_bytes && !expectation.allows_truncation() {
+    // Where a Rust end tears the connection down (V24) the outcome is exact: no answer, and the
+    // end at once. In the go->go control a short answer is Go's own behaviour, and the report's
+    // byte count says how much survived.
+    let mut notes = Vec::new();
+    if !expectation.accepts(probe.bytes, workload.response_bytes) {
         return Err(format!(
-            "half-close probe: {got} of {} response bytes arrived; a complete response is \
-             required here",
-            workload.response_bytes
+            "half-close probe: {} of {} response bytes arrived; {} ends the connection at the \
+             half-close, before the target can answer, so none may",
+            probe.bytes,
+            workload.response_bytes,
+            expectation.tag()
         ));
     }
-    Ok((got, Vec::new()))
+    if expectation.is_v24() {
+        if probe.after >= PROMPT_END {
+            return Err(format!(
+                "half-close probe: the connection ended {:?} after the half-close; V24 with \
+                 -closewait 0 ends it at once (limit {PROMPT_END:?})",
+                probe.after
+            ));
+        }
+        if probe.end == StreamEnd::Reset {
+            // Accepted (a reset is still the end of the connection), but V24 resets only when it
+            // throws data away, and there is none to throw away here, so it is worth seeing.
+            notes.push("the half-close probe's connection ended with a reset, not EOF".to_string());
+        }
+    }
+    Ok((probe.bytes, notes))
 }
 
 /// The workload is only worth what it actually pushed through, so the target's own count has to
-/// agree: one bulk stream, [`Workload::streams`] concurrent ones, and the half-close probe.
+/// agree: one bulk stream, [`Workload::streams`] concurrent ones, and the half-close probe. And
+/// whatever a pairing does with the half-close, it must not cut what the application sent
+/// before it: wherever the probe's connection is certain, the target must have received the
+/// whole request, ended by EOF.
 ///
-/// The probe's connection is the one exception. When `-QPP` makes a Go client close the stream
-/// outright (V04) the application sees EOF as soon as the *client* gives up, which can be before
-/// the server has finished dialling the target, and since no response byte arrives there is
-/// nothing to wait for. Such a run therefore requires only that the dial has not produced a
-/// *spurious* extra connection. Every other run must show all of them, after a short grace period
-/// for the server's dial.
-async fn check_target_connections(
+/// The probe's connection is certain unless the `go -> go` control came back empty. When `-QPP`
+/// makes a Go client close the stream outright (V04) the application sees EOF as soon as the
+/// *client* gives up, which can be before the server has finished dialling the target, and since
+/// no response byte arrives there is nothing to wait for. Such a run therefore requires only that
+/// the dial has not produced a *spurious* extra connection. Every other run must show all of
+/// them, after a short grace period for the server's dial: a V24 row always, since a teardown
+/// at the half-close must still deliver everything sent before it.
+async fn check_target(
     target: &MatrixTarget,
     workload: &Workload,
     half_close_bytes: u64,
     expectation: Expectation,
 ) -> Result<(), String> {
     let all = workload.streams as u64 + 2;
-    let probe_certain = half_close_bytes > 0 || !expectation.allows_truncation();
+    let probe_certain = half_close_bytes > 0 || expectation.is_v24();
     let required = if probe_certain { all } else { all - 1 };
     let deadline = Instant::now() + Duration::from_secs(5);
     while target.connections() < required && Instant::now() < deadline {
@@ -1254,6 +1397,27 @@ async fn check_target_connections(
             "the target saw {seen} connections, more than the {all} the workload opens"
         ));
     }
+    if probe_certain {
+        let probe = target
+            .wait_for_probe(Duration::from_secs(5))
+            .await
+            .ok_or_else(|| {
+                "the target never saw the end of the half-close probe's request".to_string()
+            })?;
+        if probe
+            != (ProbeRecord {
+                request_bytes: workload.request_bytes,
+                eof: true,
+            })
+        {
+            return Err(format!(
+                "the target received {} of the half-close probe's {} request bytes, ended by {}",
+                probe.request_bytes,
+                workload.request_bytes,
+                if probe.eof { "EOF" } else { "a read error" }
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -1268,6 +1432,23 @@ fn logs_of(tunnel: &Tunnel) -> String {
     )
 }
 
+/// Whether the `pipe:` lines of the process on `side`, an `implementation` binary, are expected
+/// in a row with this expectation rather than a fault.
+///
+/// Only Go's own half-close produces them: it tears the stream down under its `Pipe` (V11, and
+/// V04 with `-QPP`), so the reverse copy ends with an error rather than EOF and kcptun logs it.
+/// That happens in both processes of the `go -> go` control and in a Go client facing a Rust
+/// server. A Rust process never half-closes, and must log no `pipe:` line in any row: tearing
+/// a connection down is how its connections end, not an error.
+pub fn expects_pipe_lines(expectation: Expectation, side: Side, implementation: Impl) -> bool {
+    implementation == Impl::Go
+        && match expectation {
+            Expectation::GoSmuxTruncation | Expectation::GoQppTruncation => true,
+            Expectation::RustServerTearsDown => side == Side::Client,
+            Expectation::RustClientTearsDown => false,
+        }
+}
+
 /// Fails on any log line matching the [`ERROR_MARKERS`] denylist.
 ///
 /// This is a denylist, not an allowlist: a line neither implementation prints in a healthy run
@@ -1279,30 +1460,30 @@ fn check_logs(
     expectation: Expectation,
     notes: &mut Vec<String>,
 ) -> Result<(), String> {
-    for (what, log) in [
-        ("client", tunnel.client_log()),
-        ("server", tunnel.server_log()),
+    for (side, implementation, log) in [
+        (Side::Client, tunnel.client_impl(), tunnel.client_log()),
+        (Side::Server, tunnel.server_impl(), tunnel.server_log()),
     ] {
+        let what = side.bin_name();
         let panics = panic_lines(&log);
         if !panics.is_empty() {
             return Err(format!("{what} panicked:\n{}", panics.join("\n")));
         }
+        // A `pipe:` line from Go's own half-close *is* the expected behaviour, not a second
+        // fault (see `expects_pipe_lines`). Everything else still fails, on both sides.
+        let pipe_ok = expects_pipe_lines(expectation, side, implementation);
         let bad: Vec<&str> = error_lines(&log)
             .into_iter()
-            // A Go client tears its own half-closed stream down (V11, and V04 as well with
-            // `-QPP`), so the reverse copy of its own `Pipe` ends with an error rather than EOF
-            // and kcptun logs it. That `pipe:` line *is* the expected behaviour, not a second
-            // fault. Everything else still fails, on both sides.
-            .filter(|l| !(expectation.allows_truncation() && l.contains("pipe:")))
+            .filter(|l| !(pipe_ok && l.contains("pipe:")))
             .collect();
         if !bad.is_empty() {
             return Err(format!(
-                "{what} logged {} unexpected line(s):\n{}",
+                "{what} ({implementation}) logged {} unexpected line(s):\n{}",
                 bad.len(),
                 bad.join("\n")
             ));
         }
-        if expectation.allows_truncation() && log.lines().any(|l| l.contains("pipe:")) {
+        if pipe_ok && log.lines().any(|l| l.contains("pipe:")) {
             notes.push(format!("{what} logged `pipe:` for the torn-down stream"));
         }
     }
@@ -1540,26 +1721,35 @@ pub fn preamble() -> String {
          interop_matrix_full\n```\n\n",
     );
     s.push_str(
-        "`ok` means every byte of every workload arrived and neither process logged anything \
-         unexpected. `ok (V11 a/b)` and `ok (V04+V11 a/b)` mean the same, except that the \
-         half-close probe was allowed to come back short and `a` of its `b` bytes did.\n\n",
+        "`ok` means every byte of the bulk and concurrent-stream workloads arrived, the \
+         half-close probe ended the way its pairing must (below), and neither process logged \
+         anything unexpected. `ok (V11 a/b)` and `ok (V04+V11 a/b)` appear in the `go->go` \
+         control only: they mean the same, except that the probe's answer was allowed to come \
+         back short and `a` of its `b` bytes did.\n\n",
     );
     s.push_str(
-        "Those two tags are the **only** tolerated difference, they apply only to the half-close \
-         probe, and only with a **Go client**:\n\n\
-         * **V11**: Go's smux discards received-but-unread data when the peer's FIN completes a \
-         half-close (`tryHalfCloseCleanup` → `streamClosed` → `recycleTokens`), so the answer is \
-         cut, usually at a frame boundary.\n\
-         * **V04**, with `-QPP` on top, Go's `std.QPPPort` implements no `CloseWrite`, so \
-         kcptun's `Pipe` falls back to `Close()` and tears the whole stream down; nothing of the \
-         answer survives, hence the `0/…` rows.\n\n\
-         Both reproduce in the `go->go` control. Every byte that *does* arrive is still checked \
-         against the expected stream, so a truncation can never hide corruption, and a **Rust \
-         client is held to a complete response against either server**: that is what V11 and \
-         V04 bought. `b/b` on a V11 row means the expected truncation happened not to occur that \
-         run: it is a race inside Go, not a difference between the peers. A V11 row is only ever \
-         a statement that what arrived was a correct prefix: `0/b` would be accepted too, so a \
-         run that produces one carries a note saying to compare it with its `go->go` control.\n\n",
+        "The half-close probe sends a request and then `shutdown(SHUT_WR)`, to a target that \
+         answers only once it has seen EOF. What it gets depends on the pairing, by design:\n\n\
+         * **V24**, every pairing with a Rust end. A Rust end carries no half-close across the \
+         tunnel: when the first direction of a connection ends, it closes the whole connection \
+         `-closewait` seconds later. A Rust client does so at the application's half-close (its \
+         default `-closewait` is 0); a Rust server does so at the FIN a Go client sends for the \
+         half-close. Either way the target sees EOF only as its connection is being closed, so \
+         its answer has nowhere to go: the probe must read **exactly 0 bytes** and then the end \
+         of its connection, promptly, and the target must have received the whole request. Up \
+         to v0.2.1 a Rust client was held to a complete answer here instead; that half-close \
+         pipe is the one that leaked sockets in production.\n\
+         * **V11**, `go->go`: Go's smux discards received-but-unread data when the peer's FIN \
+         completes a half-close (`tryHalfCloseCleanup` → `streamClosed` → `recycleTokens`), so \
+         the answer is cut, usually at a frame boundary.\n\
+         * **V04**, `go->go` with `-QPP` on top: Go's `std.QPPPort` implements no `CloseWrite`, \
+         so kcptun's `Pipe` falls back to `Close()` and tears the whole stream down; nothing of \
+         the answer survives, hence the `0/…` cells.\n\n\
+         Every byte that *does* arrive is still checked against the expected stream, so a \
+         truncation can never hide corruption. `b/b` on a V11 cell means the expected truncation \
+         happened not to occur that run: it is a race inside Go. A V11 cell is only ever a \
+         statement that what arrived was a correct prefix: `0/b` would be accepted too, so a run \
+         that produces one carries a note.\n\n",
     );
     s.push_str("## Cases\n\n");
     s.push_str(&case_table());
@@ -1582,11 +1772,12 @@ pub fn section(results: &[CaseResult], workload: &Workload) -> String {
     ));
     s.push_str(&format!(
         "Workload per run: {bulk} each way on one bulk stream, {streams} concurrent streams of \
-         {sb} each way, and a half-close probe that asks for {rb} after `shutdown(SHUT_WR)` \
-         (having waited {delay:?} first, so the answer and the peer's FIN are both buffered): \
-         all SHA-256 verified, with both processes' logs scanned afterwards. The harness adds \
-         `-closewait 0` to the server so teardown is not delayed by 30 s per direction; nothing \
-         else is added to a case's flags.\n\n",
+         {sb} each way, and a half-close probe: a request, `shutdown(SHUT_WR)`, {delay:?} of \
+         waiting, then a read of whatever a target that answers {rb} only after its EOF gets \
+         back through the tunnel. All SHA-256 verified, with both processes' logs scanned \
+         afterwards. The harness adds `-closewait 0` to the server, so that neither a Rust \
+         server's teardown nor a Go server's half-close waits 30 s; nothing else is added to a \
+         case's flags.\n\n",
         bulk = bytes_human(workload.bulk_bytes),
         streams = workload.streams,
         sb = bytes_human(workload.stream_bytes),
@@ -1805,44 +1996,99 @@ mod tests {
     }
 
     #[test]
-    fn expectations_follow_v11_and_v04() {
+    fn expectations_follow_v24_v11_and_v04() {
         let plain = &crypt_cases()[0];
         let qpp = pairwise_cases()
             .into_iter()
             .find(|c| c.qpp())
             .expect("a QPP case");
-        for p in PAIRINGS {
-            let want = match p.client {
-                // V11 applies to a Go client with or without QPP.
-                Impl::Go => Expectation::GoSmuxTruncation,
-                Impl::Rust => Expectation::Complete,
+        for case in [plain, &qpp] {
+            let label = if case.qpp() {
+                "with QPP"
+            } else {
+                "without QPP"
             };
-            assert_eq!(Expectation::of(plain, p), want, "{p} without QPP");
-            let want = match p.client {
-                Impl::Go => Expectation::GoQppTruncation,
-                Impl::Rust => Expectation::Complete,
-            };
-            assert_eq!(Expectation::of(&qpp, p), want, "{p} with QPP");
+            for p in PAIRINGS {
+                let want = match (p.client, p.server) {
+                    // V24: a Rust client tears down at the application's half-close, against
+                    // either server and whatever the QPP setting.
+                    (Impl::Rust, _) => Expectation::RustClientTearsDown,
+                    // V24 at the far end: a Rust server tears down at the Go client's FIN.
+                    (Impl::Go, Impl::Rust) => Expectation::RustServerTearsDown,
+                    // The go->go control keeps Go's own half-close: V11, and V04 on top with QPP.
+                    (Impl::Go, Impl::Go) if case.qpp() => Expectation::GoQppTruncation,
+                    (Impl::Go, Impl::Go) => Expectation::GoSmuxTruncation,
+                };
+                assert_eq!(Expectation::of(case, p), want, "{p} {label}");
+                // V24 decides every row with a Rust end.
+                assert_eq!(
+                    want.is_v24(),
+                    p.client == Impl::Rust || p.server == Impl::Rust,
+                    "{p} {label}"
+                );
+            }
         }
-        // The Rust client stays strict against a Go server, QPP or not: that is what the two
-        // decisions bought.
-        let rs_go = Pairing {
-            client: Impl::Rust,
-            server: Impl::Go,
-        };
-        assert_eq!(Expectation::of(&qpp, rs_go), Expectation::Complete);
-        assert_eq!(Expectation::of(plain, rs_go), Expectation::Complete);
-        assert!(!Expectation::Complete.allows_truncation());
-        assert!(Expectation::GoSmuxTruncation.allows_truncation());
-        assert!(Expectation::GoQppTruncation.allows_truncation());
+
+        // A V24 row is exact: not one byte of the answer. A Go row takes any correct prefix.
+        for v24 in [
+            Expectation::RustClientTearsDown,
+            Expectation::RustServerTearsDown,
+        ] {
+            assert!(v24.is_v24());
+            assert!(v24.accepts(0, 1024));
+            assert!(!v24.accepts(1, 1024));
+            assert!(
+                !v24.accepts(1024, 1024),
+                "a complete answer is a V24 failure"
+            );
+            assert_eq!(v24.tag(), "V24");
+        }
+        for go in [Expectation::GoSmuxTruncation, Expectation::GoQppTruncation] {
+            assert!(!go.is_v24());
+            assert!(go.accepts(0, 1024) && go.accepts(512, 1024) && go.accepts(1024, 1024));
+        }
         assert_eq!(
             [
-                Expectation::Complete.tag(),
                 Expectation::GoSmuxTruncation.tag(),
                 Expectation::GoQppTruncation.tag()
             ],
-            ["complete", "V11", "V04+V11"]
+            ["V11", "V04+V11"]
         );
+    }
+
+    #[test]
+    fn only_gos_own_half_close_may_log_pipe_lines() {
+        use Expectation::*;
+        for e in [
+            RustClientTearsDown,
+            RustServerTearsDown,
+            GoSmuxTruncation,
+            GoQppTruncation,
+        ] {
+            for side in [Side::Client, Side::Server] {
+                assert!(
+                    !expects_pipe_lines(e, side, Impl::Rust),
+                    "a Rust {side:?} never half-closes, so it logs no `pipe:` ({e:?})"
+                );
+            }
+        }
+        // Both Go processes of the go->go control.
+        for e in [GoSmuxTruncation, GoQppTruncation] {
+            assert!(expects_pipe_lines(e, Side::Client, Impl::Go));
+            assert!(expects_pipe_lines(e, Side::Server, Impl::Go));
+        }
+        // go->rs: the Go client's half-close tears its own stream down; rs->go: the Go server
+        // only ever sees an ordinary FIN.
+        assert!(expects_pipe_lines(
+            RustServerTearsDown,
+            Side::Client,
+            Impl::Go
+        ));
+        assert!(!expects_pipe_lines(
+            RustClientTearsDown,
+            Side::Server,
+            Impl::Go
+        ));
     }
 
     #[test]
@@ -1906,16 +2152,17 @@ mod tests {
 
     /// A minimal set of results for the document tests.
     fn sample_results() -> Vec<CaseResult> {
+        let case = &crypt_cases()[0];
         PAIRINGS
             .iter()
             .map(|&pairing| CaseResult {
-                case_id: "crypt/aes".to_string(),
+                case_id: case.id.clone(),
                 pairing,
                 outcome: Ok(RunReport {
-                    case_id: "crypt/aes".to_string(),
+                    case_id: case.id.clone(),
                     pairing,
-                    expectation: Expectation::Complete,
-                    half_close_bytes: 1024,
+                    expectation: Expectation::of(case, pairing),
+                    half_close_bytes: 0,
                     response_bytes: 1024,
                     elapsed: Duration::from_millis(500),
                     notes: Vec::new(),
@@ -2035,8 +2282,8 @@ mod tests {
                 outcome: Ok(RunReport {
                     case_id: "crypt/aes".to_string(),
                     pairing,
-                    expectation: Expectation::Complete,
-                    half_close_bytes: 1024,
+                    expectation: Expectation::RustClientTearsDown,
+                    half_close_bytes: 0,
                     response_bytes: 1024,
                     elapsed: Duration::from_secs(1),
                     notes: Vec::new(),
@@ -2045,6 +2292,7 @@ mod tests {
             .collect();
         let t = result_table(&results);
         assert!(t.starts_with("| Case | go->rs | rs->go | go->go | rs->rs |\n"));
+        // A V24 run is exact, so its cell is a plain `ok`.
         assert!(t.contains("| `crypt/aes` | ok | ok | ok | ok |"), "{t}");
         // A missing run is a failure, not a blank.
         let t = result_table(&results[..2]);

@@ -67,7 +67,8 @@ async fn poll_for<T>(timeout: Duration, mut probe: impl FnMut() -> Option<T>) ->
 
 /// A tunnel tuned for throughput rather than for kcptun's defaults: no FEC, no compression (the
 /// payload is random, so snappy would only cost CPU), a window and buffers that keep the link
-/// full, and `-closewait 0` so the stream ends when the data does.
+/// full, and a server `-closewait 0`, so the server closes each target connection as soon as its
+/// stream ends instead of holding it for 30 s (a thousand of them in the short-streams case).
 ///
 /// It is deliberately close to the "production profile" of 09.4, minus its `-crypt xor`: these
 /// cases exercise the *default* cipher under load.
@@ -183,10 +184,10 @@ async fn e2e_slow_one_thousand_short_streams() {
         assert_eq!(echo.connections(), STREAMS as u64, "target connections");
         assert_eq!(echo.bytes(), STREAMS as u64 * LEN, "bytes echoed");
 
-        // `echo_round_trip` returns on the last echoed byte, but the client only logs
-        // `stream closed` once its pipe has joined, which additionally needs the smux FIN and the
-        // half-close of the application socket. Poll until both counts are in rather than sampling
-        // a log the client is still writing.
+        // `echo_round_trip` returns once it has half-closed, after the last echoed byte. The
+        // client logs `stream closed` when its pipe ends, which since V24 is when it has read
+        // that half-close (its `-closewait` is 0), but that happens in the client's own time.
+        // Poll until both counts are in rather than sampling a log the client is still writing.
         let client_log = poll_for(Duration::from_secs(30), || {
             let log = tunnel.client_log();
             let opened = log_values(&log, "stream opened in: ").len();

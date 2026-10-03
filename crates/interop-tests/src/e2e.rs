@@ -13,7 +13,7 @@
 //! |---|---|
 //! | [`Tunnel`] / [`TunnelBuilder`] | spawn both binaries, wait until they listen, connect to the client |
 //! | [`LocalStream`] | the application side of the tunnel, TCP or unix |
-//! | [`ResponderServer`] | a target that answers only *after* the peer's EOF (half-close and `closewait`) |
+//! | [`ResponderServer`] | a target that answers only *after* the peer's EOF, and records when that EOF came (V24 teardown and `closewait`) |
 //! | [`UnixEchoServer`] | an echo target on a unix socket (testkit's servers are TCP only) |
 //! | [`serial_guard`] | runs the end-to-end tests one at a time |
 //!
@@ -652,28 +652,68 @@ pub async fn expect_eof<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<()> {
     }
 }
 
-/// Sends the `(seed, len)` [`PrngStream`], half-closes, and returns the SHA-256 of what came
-/// back: the round trip an echo target completes.
+/// How a connection ended for the side reading it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamEnd {
+    /// A clean end of stream: the peer closed (or half-closed) normally.
+    Eof,
+    /// `ECONNRESET`: the peer closed abortively, which kcptun does when it throws away data
+    /// that was owed to this reader (V24 rule 4).
+    Reset,
+}
+
+/// Reads until the connection ends and returns how many bytes arrived before the end, and how it
+/// ended. The bytes are counted, not kept. Any read error other than a reset is returned as is.
+pub async fn read_until_closed<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<(u64, StreamEnd)> {
+    let mut buf = vec![0u8; BUF_SIZE];
+    let mut total = 0u64;
+    loop {
+        match r.read(&mut buf).await {
+            Ok(0) => return Ok((total, StreamEnd::Eof)),
+            Ok(n) => total += n as u64,
+            Err(e) if e.kind() == io::ErrorKind::ConnectionReset => {
+                return Ok((total, StreamEnd::Reset));
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+/// Sends the `(seed, len)` [`PrngStream`] while reading the echo, half-closes once the whole
+/// echo is in, and returns its SHA-256: the round trip an echo target completes.
+///
+/// The half-close comes last on purpose. A tunnel ends the whole connection at the
+/// application's EOF, `-closewait` seconds later (deviation V24, `crates/std/src/pipe.rs`), and
+/// the client's default is 0, so a half-close sent while the echo is still on its way would cut
+/// the echo short. An application that wants its whole answer reads it before it closes.
 pub async fn echo_round_trip<S>(stream: &mut S, seed: u64, len: u64) -> io::Result<String>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send,
 {
-    let (mut r, mut w) = tokio::io::split(stream);
-    let send = async {
-        write_prng_stream(&mut w, seed, len).await?;
-        w.shutdown().await
+    let (written, sha) = {
+        let (mut r, mut w) = tokio::io::split(&mut *stream);
+        // Both halves run in this task; `tokio::spawn` would need a `'static` stream.
+        tokio::join!(
+            write_prng_stream(&mut w, seed, len),
+            hash_exact(&mut r, len)
+        )
     };
-    // Both halves run in this task; `tokio::spawn` would need a `'static` stream.
-    let (written, sha) = tokio::join!(send, hash_exact(&mut r, len));
     // The read result leads (a truncated echo says more than the write error it causes) but the
     // write error is carried along rather than dropped: "the echo stopped at 0 bytes" and "the
     // request never went out" are very different failures, and only the second names a cause.
-    match (sha, written) {
-        (Ok(sha), Ok(())) => Ok(sha),
-        (Ok(_), Err(w)) => Err(io::Error::new(w.kind(), format!("request: {w}"))),
-        (Err(r), Ok(())) => Err(r),
-        (Err(r), Err(w)) => Err(io::Error::new(r.kind(), format!("{r} (request: {w})"))),
-    }
+    let sha = match (sha, written) {
+        (Ok(sha), Ok(())) => sha,
+        (Ok(_), Err(w)) => return Err(io::Error::new(w.kind(), format!("request: {w}"))),
+        (Err(r), Ok(())) => return Err(r),
+        (Err(r), Err(w)) => {
+            return Err(io::Error::new(r.kind(), format!("{r} (request: {w})")));
+        }
+    };
+    stream
+        .shutdown()
+        .await
+        .map_err(|e| io::Error::new(e.kind(), format!("half-close after the echo: {e}")))?;
+    Ok(sha)
 }
 
 /// The SHA-256 an [`echo_round_trip`] of `(seed, len)` must return.
@@ -720,14 +760,19 @@ pub struct ResponderRecord {
     pub request_bytes: u64,
     /// How long after the connection was accepted the peer's EOF arrived.
     pub eof_after: Duration,
+    /// When the peer's EOF arrived, so a test can measure it from its own half-close.
+    pub eof_at: Instant,
 }
 
 /// A TCP target that reads the request **to EOF**, then sends the `(seed, len)`
 /// [`PrngStream`] and closes.
 ///
-/// This is the shape the plan's half-close case needs: the application shuts its write side while
-/// the answer is still to come, so every response byte crosses a smux stream whose peer has
-/// already sent FIN. It also measures `closewait`, which delays exactly that EOF.
+/// This is the shape of an application protocol that half-closes and then waits for its answer.
+/// Since deviation V24 (`crates/std/src/pipe.rs`) the tunnel does not carry that half-close
+/// across: the client closes the application's connection `-closewait` seconds after its EOF (0
+/// by default), and this target sees its own EOF only when the server tears its side down, so
+/// its answer never makes it back through the tunnel. What it does show is *when* that EOF came:
+/// the server's `-closewait` after the client's teardown reached it.
 #[derive(Debug)]
 pub struct ResponderServer {
     addr: SocketAddr,
@@ -757,10 +802,12 @@ impl ResponderServer {
                         Err(_) => return,
                     }
                 }
+                let eof_at = Instant::now();
                 rec_tx.send_modify(|v| {
                     v.push(ResponderRecord {
                         request_bytes,
-                        eof_after: started.elapsed(),
+                        eof_after: eof_at.duration_since(started),
+                        eof_at,
                     });
                 });
                 if write_prng_stream(&mut conn, seed, len).await.is_ok() {
