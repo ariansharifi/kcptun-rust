@@ -233,6 +233,19 @@ pub(crate) struct StreamInner {
     /// Write deadline.
     // Go: smux@v1.5.55 stream.go:stream.writeDeadline
     write_deadline: std::sync::Mutex<Option<Instant>>,
+    /// The window update [`Stream::read_chunk`] owes the peer and has not handed to the session
+    /// yet, and whether a sender task is running (DECISIONS D35).
+    pending_update: std::sync::Mutex<PendingUpdate>,
+}
+
+/// A window update waiting for [`Stream::read_chunk`]'s sender task.
+#[derive(Debug, Default)]
+struct PendingUpdate {
+    /// The `consumed` value of the newest update due; 0 when none is (Go's `notifyConsumed`
+    /// uses the same sentinel). Updates carry an absolute count, so only the newest matters.
+    consumed: u32,
+    /// Whether a task is sending updates for this stream; it takes `consumed` until none is left.
+    sending: bool,
 }
 
 impl StreamInner {
@@ -258,6 +271,7 @@ impl StreamInner {
             peer_window: AtomicU32::new(INITIAL_PEER_WINDOW),
             read_deadline: std::sync::Mutex::new(None),
             write_deadline: std::sync::Mutex::new(None),
+            pending_update: std::sync::Mutex::new(PendingUpdate::default()),
         })
     }
 
@@ -532,22 +546,20 @@ impl StreamInner {
         }
     }
 
-    /// Takes the next whole payload out of the receive buffer, without copying it.
+    /// Takes the next whole payload out of the receive buffer, without copying it, together with
+    /// the `consumed` value of the window update the read made due (0 for none).
     ///
-    /// This is [`StreamInner::read`] one frame at a time: the token accounting and the
-    /// version-2 window update are the same, only the copy into the caller's buffer is gone.
+    /// This is [`StreamInner::read`] one frame at a time: the token accounting is the same, only
+    /// the copy into the caller's buffer is gone, and the window update is left to the caller
+    /// ([`Stream::read_chunk`]) instead of being sent before the payload is handed over.
     /// `Ok(None)` is the end of the stream.
     // Go: smux@v1.5.55 stream.go:stream.Read() + writeToV1()/writeToV2() (the pop half)
-    async fn read_chunk(&self, sess: &SessionShared) -> Result<Option<Bytes>, Error> {
+    async fn read_chunk(&self, sess: &SessionShared) -> Result<Option<(Bytes, u32)>, Error> {
         loop {
             let (chunk, notify_consumed) = self.pop_chunk(sess);
             if let Some(chunk) = chunk {
                 sess.return_tokens(chunk.len());
-                if notify_consumed > 0 {
-                    // See `try_read` for why the error is dropped once bytes were delivered.
-                    let _ = self.send_window_update(sess, notify_consumed).await;
-                }
-                return Ok(Some(chunk));
+                return Ok(Some((chunk, notify_consumed)));
             }
             if self.die.is_cancelled() {
                 return Ok(None);
@@ -921,8 +933,67 @@ impl Stream {
     /// This is the drain path for the proxy (step 09): the same token accounting and the same
     /// version-2 window updates as [`read`](Self::read), but the buffer the session received
     /// goes straight to the caller.
+    ///
+    /// **The window update does not hold the payload back** (DECISIONS D35). Go's `Read` sends a
+    /// due `cmdUPD` before it returns, and its `WriteTo` (the path kcptun's `Copy` takes) writes
+    /// the payload out first and sends the update after. Here the payload is returned at once and
+    /// the update is queued to a per-stream sender task, which coalesces updates that pile up
+    /// while one is in flight (each carries an absolute count, so the newest supersedes the
+    /// rest). Otherwise a congested send path (a full KCP window toward a dead or starved peer)
+    /// would park the reader with a payload already taken out of the buffer: invisible to the
+    /// proxy, lost if the connection is torn down, and holding up the drain of a stream that may
+    /// be starving its whole session. A failed update is dropped, as [`read`](Self::read) drops
+    /// one once bytes were delivered: every cause is sticky, so the next blocking call reports it.
     pub async fn read_chunk(&self) -> Result<Option<Bytes>, Error> {
-        self.inner.read_chunk(&self.sess).await
+        let Some((chunk, consumed)) = self.inner.read_chunk(&self.sess).await? else {
+            return Ok(None);
+        };
+        if consumed > 0 {
+            self.queue_window_update(consumed);
+        }
+        Ok(Some(chunk))
+    }
+
+    /// Hands `consumed` to this stream's update sender, starting one if none is running.
+    fn queue_window_update(&self, consumed: u32) {
+        {
+            let mut pending = lock(&self.inner.pending_update);
+            pending.consumed = consumed;
+            if pending.sending {
+                // The running sender takes the newest value when its current update is out.
+                return;
+            }
+            pending.sending = true;
+        }
+        let inner = Arc::clone(&self.inner);
+        let sess = Arc::clone(&self.sess);
+        let send = async move {
+            loop {
+                let consumed = {
+                    let mut pending = lock(&inner.pending_update);
+                    let consumed = std::mem::take(&mut pending.consumed);
+                    if consumed == 0 || inner.is_closed() {
+                        pending.consumed = 0;
+                        pending.sending = false;
+                        return;
+                    }
+                    consumed
+                };
+                if inner.send_window_update(&sess, consumed).await.is_err() {
+                    let mut pending = lock(&inner.pending_update);
+                    pending.consumed = 0;
+                    pending.sending = false;
+                    return;
+                }
+            }
+        };
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => {
+                handle.spawn(send);
+            }
+            // Unreachable from an async caller; without a runtime nothing can be sent anyway.
+            Err(_) => lock(&self.inner.pending_update).sending = false,
+        }
     }
 
     /// Drains the stream into `w` until it ends or either side fails, returning how many bytes
