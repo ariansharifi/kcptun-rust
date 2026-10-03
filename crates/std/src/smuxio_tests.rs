@@ -179,3 +179,83 @@ async fn a_frame_tail_left_by_poll_read_is_delivered_first() {
     let tail = read_frame(&mut b).await.expect("frame").expect("tail");
     assert_eq!(&tail[..], b"defgh");
 }
+
+// ---------------------------------------------------------------------------------------
+// What the pipe reads off the adapter (deviation V24)
+// ---------------------------------------------------------------------------------------
+
+/// The probe reports the stream's end as the pipe needs it: a fresh stream is open, shows its
+/// reader's progress as credit and never fails on its own account; the peer's FIN finishes it,
+/// and data it holds is undelivered until read.
+#[tokio::test]
+async fn the_probe_follows_the_stream() {
+    let (cli, srv) = session_pair(2);
+    let (a, mut b) = stream_pair(&cli, &srv).await;
+    let fresh = a.probe();
+    assert!(fresh.failed.is_none() && !fresh.finished && !fresh.starving);
+    assert_eq!(fresh.progress, crate::pipe::Progress::Credit);
+    assert_eq!(fresh.unsent, None);
+    assert!(!a.undelivered());
+
+    b.write_all(b"tail").await.expect("write");
+    b.flush().await.expect("flush");
+    CloseExt::close_write(&mut b).await.expect("fin");
+    let mut a = a;
+    for _ in 0..500 {
+        if a.probe().finished {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(a.probe().finished, "the FIN finishes it");
+    assert!(a.undelivered(), "the tail is still unread");
+    let mut got = Vec::new();
+    a.read_to_end(&mut got).await.expect("read");
+    assert_eq!(got, b"tail");
+    assert!(!a.undelivered(), "complete: FIN and nothing left");
+}
+
+/// A stream whose session closed before the peer's FIN is cut off: finished, and undelivered
+/// even with nothing buffered, so the pipe resets the application's socket.
+#[tokio::test]
+async fn a_stream_cut_by_its_session_is_undelivered() {
+    let (cli, srv) = session_pair(2);
+    let (a, _b) = stream_pair(&cli, &srv).await;
+    cli.close().await.expect("close");
+    assert!(a.probe().finished);
+    assert!(a.undelivered());
+    drop(srv);
+}
+
+/// Starving takes a spent session buffer *and* a real share of it: a stream holding a sliver is
+/// not the one to blame.
+#[tokio::test]
+async fn starving_needs_a_quarter_of_the_session_buffer() {
+    let config = Config {
+        max_receive_buffer: 65_536,
+        max_stream_buffer: 65_536,
+        ..test_config(2)
+    };
+    let (a, b) = tokio::io::duplex(PIPE_CAPACITY);
+    let cli = client(SplitConn::new(a), Some(config)).expect("client");
+    let srv = server(SplitConn::new(b), Some(config)).expect("server");
+    let (big, big_peer) = stream_pair(&cli, &srv).await;
+    let (small, small_peer) = stream_pair(&cli, &srv).await;
+
+    small_peer.inner().write(&[1u8; 1024]).await.expect("small");
+    // More than the session buffer: smux's initial window lets the peer send 256 KiB.
+    let writer = tokio::spawn(async move {
+        let _ = big_peer.inner().write(&[2u8; 128 * 1024]).await;
+        big_peer
+    });
+    for _ in 0..500 {
+        if big.inner().recv_starved() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(big.inner().recv_starved(), "the session buffer is spent");
+    assert!(big.probe().starving, "the big holder starves the session");
+    assert!(!small.probe().starving, "1 KiB is not a quarter of 64 KiB");
+    writer.abort();
+}

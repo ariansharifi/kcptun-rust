@@ -618,3 +618,29 @@ where
         .expect("read encrypted payload");
     assert_eq!(buf, payload, "payload mismatch");
 }
+
+/// The QPP wrapper is the stream it wraps as far as the pipe's probes go: the peer's FIN and the
+/// stream's unread data show through it.
+#[tokio::test]
+async fn the_wrapper_forwards_the_pipes_probes() {
+    use crate::pipe::PipeEnd;
+
+    let (cli, srv) = session_pair(2);
+    let (a, b) = stream_pair(&cli, &srv).await;
+    let qa = QppStream::new(a, pad(61), KEY.as_bytes());
+    let mut qb = QppStream::new(b, pad(61), KEY.as_bytes());
+    assert!(!qa.probe().finished && !qa.undelivered());
+
+    qb.write_all(b"tail").await.expect("write");
+    qb.flush().await.expect("flush");
+    CloseExt::close_write(&mut qb).await.expect("fin");
+    for _ in 0..500 {
+        if qa.probe().finished {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(qa.probe().finished, "the FIN shows through the wrapper");
+    assert!(qa.undelivered(), "and so does the unread tail");
+    assert_eq!(qa.probe().progress, crate::pipe::Progress::Credit);
+}

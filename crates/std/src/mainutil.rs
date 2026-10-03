@@ -392,4 +392,42 @@ mod tests {
             "127.0.0.1:1"
         );
     }
+
+    /// Go's `newTCPConn`: Nagle off, keepalive on at 15 s idle, 15 s interval, 9 probes (D36).
+    #[tokio::test]
+    async fn go_tcp_options_are_gos() {
+        let listener = {
+            let _guard = kcptun_testkit::socket_creation_guard();
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind")
+        };
+        let addr = listener.local_addr().expect("addr");
+        let stream = tokio::net::TcpStream::connect(addr).await.expect("connect");
+        let socket = socket2::SockRef::from(&stream);
+        assert!(!socket.keepalive().expect("keepalive"), "tokio's default");
+
+        set_go_tcp_options(&stream);
+        assert!(stream.nodelay().expect("nodelay"));
+        assert!(socket.keepalive().expect("keepalive"));
+        assert_eq!(
+            socket.tcp_keepalive_time().expect("idle"),
+            GO_TCP_KEEPALIVE_IDLE
+        );
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "android",
+            target_vendor = "apple",
+            target_os = "freebsd"
+        ))]
+        {
+            assert_eq!(
+                socket.tcp_keepalive_interval().expect("interval"),
+                GO_TCP_KEEPALIVE_INTERVAL
+            );
+            assert_eq!(
+                socket.tcp_keepalive_retries().expect("count"),
+                GO_TCP_KEEPALIVE_COUNT
+            );
+        }
+        drop(listener);
+    }
 }

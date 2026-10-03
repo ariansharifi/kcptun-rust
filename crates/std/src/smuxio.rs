@@ -291,18 +291,18 @@ impl PipeEnd for SmuxStream {
 
     /// A smux stream never fails on its own account: a dead session wakes every read and write
     /// on the stream itself. Its state is what the stall rule reads: whether the peer will send
-    /// more, whether this stream is starving its session, and how the peer's reader shows
-    /// progress (credit, one `cmdUPD` per half window).
+    /// more, and whether this stream is starving its session. A stream counts as starving only
+    /// while the session reads nothing and this stream holds at least a quarter of the session's
+    /// receive buffer: ending one that holds a sliver would not let the session read again.
     fn probe(&self) -> Probe {
         let s = &self.stream;
         Probe {
             failed: None,
             finished: s.peer_finished(),
-            starving: s.recv_starved() && s.buffered_len() > 0,
+            starving: s.recv_starved()
+                && s.buffered_len().saturating_mul(4) >= s.session_receive_buffer(),
             unsent: None,
-            progress: Progress::Credit {
-                window: s.peer_window(),
-            },
+            progress: Progress::Credit,
         }
     }
 

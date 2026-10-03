@@ -1112,6 +1112,14 @@ impl Stream {
         self.sess.recv_starved()
     }
 
+    /// The session's whole receive buffer in bytes (`MaxReceiveBuffer`, kcptun's `-smuxbuf`): the
+    /// token bucket every stream's unread data is charged to.
+    ///
+    /// Not part of Go's API; see [`recv_starved`](Self::recv_starved).
+    pub fn session_receive_buffer(&self) -> usize {
+        usize::try_from(self.sess.config().max_receive_buffer).unwrap_or(0)
+    }
+
     /// The peer's advertised receive window in bytes (protocol version 2). The peer grants new
     /// credit only after its reader has consumed half of it, so this is the step in which a
     /// writer waiting for credit sees progress. Version 1 has no window and reports smux's

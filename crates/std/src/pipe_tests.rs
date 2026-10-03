@@ -209,6 +209,14 @@ fn test_pool() -> BufPool {
     BufPool::new(4, 64)
 }
 
+/// Fails the test instead of hanging it when a teardown regression keeps a pipe alive. Two
+/// hours: far beyond any case here, and free on a paused clock.
+async fn bounded<F: Future>(case: F) -> F::Output {
+    tokio::time::timeout(Duration::from_secs(7200), case)
+        .await
+        .expect("the case never finished: a pipe that should have ended did not")
+}
+
 /// Runs `piped` and reports when it returned.
 async fn timed<F: Future>(piped: F) -> (F::Output, Instant) {
     let out = piped.await;
@@ -253,7 +261,7 @@ async fn test_pipe_bidirectional() {
         drop(alice_client);
         drop(bob_client);
     };
-    let ((err_a, err_b), ()) = tokio::join!(piped, driver);
+    let ((err_a, err_b), ()) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -294,7 +302,7 @@ async fn test_pipe_copies_more_than_one_buffer() {
         drop(bob_client);
         drop(alice_client);
     };
-    let ((err_a, err_b), ()) = tokio::join!(piped, driver);
+    let ((err_a, err_b), ()) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -333,7 +341,7 @@ async fn test_pipe_one_finished_direction_closes_both_ends() {
         assert_eq!(alice_client.read(&mut [0u8; 16]).await.unwrap(), 0);
         started
     };
-    let (((err_a, err_b), ended), started) = tokio::join!(piped, driver);
+    let (((err_a, err_b), ended), started) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -373,7 +381,7 @@ async fn test_pipe_close_wait_is_the_grace_before_both_ends_close() {
         assert_eq!(Instant::now() - started, Duration::from_secs(3));
         started
     };
-    let (((err_a, err_b), ended), started) = tokio::join!(piped, driver);
+    let (((err_a, err_b), ended), started) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -399,7 +407,7 @@ async fn test_pipe_ends_early_when_both_directions_finish() {
         bob_client.shutdown().await.unwrap();
         started
     };
-    let (((err_a, err_b), ended), started) = tokio::join!(piped, driver);
+    let (((err_a, err_b), ended), started) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -420,7 +428,7 @@ async fn test_pipe_negative_close_wait_does_not_wait() {
         alice_client.shutdown().await.unwrap();
         started
     };
-    let (((err_a, err_b), ended), started) = tokio::join!(piped, driver);
+    let (((err_a, err_b), ended), started) = bounded(async { tokio::join!(piped, driver) }).await;
     err_a.unwrap();
     err_b.unwrap();
     assert_eq!(ended, started);
@@ -464,7 +472,7 @@ async fn test_pipe_reports_write_error() {
         drop(bob_client);
         alice_client
     };
-    let ((err_a, err_b), _alice_client) = tokio::join!(piped, driver);
+    let ((err_a, err_b), _alice_client) = bounded(async { tokio::join!(piped, driver) }).await;
 
     assert_eq!(
         err_a.expect_err("the write to bob fails").kind(),
@@ -490,7 +498,7 @@ async fn test_pipe_reports_write_zero() {
         drop(bob_client);
         alice_client
     };
-    let ((err_a, err_b), _alice_client) = tokio::join!(piped, driver);
+    let ((err_a, err_b), _alice_client) = bounded(async { tokio::join!(piped, driver) }).await;
 
     let err_a = err_a.expect_err("a zero-length write is an error");
     assert_eq!(err_a.kind(), io::ErrorKind::WriteZero);
@@ -524,7 +532,7 @@ async fn test_pipe_reports_flush_error() {
         assert_eq!(&got, b"ping");
         (alice_client, bob_client)
     };
-    let ((err_a, err_b), _clients) = tokio::join!(piped, driver);
+    let ((err_a, err_b), _clients) = bounded(async { tokio::join!(piped, driver) }).await;
 
     let err_a = err_a.expect_err("the flush to bob fails");
     assert_eq!(err_a.kind(), io::ErrorKind::BrokenPipe);
@@ -560,7 +568,7 @@ async fn test_pipe_flush_error_does_not_mask_the_copy_error() {
 /// both ends' knobs.
 struct Parked {
     alice_client: DuplexStream,
-    _bob_client: DuplexStream,
+    bob_client: DuplexStream,
     alice: SharedKnobs,
     bob: SharedKnobs,
 }
@@ -573,7 +581,7 @@ fn parked_pair(log: &Arc<Mutex<Vec<Event>>>) -> (TestConn, TestConn, Parked) {
         bob_server,
         Parked {
             alice_client,
-            _bob_client: bob_client,
+            bob_client,
             alice,
             bob,
         },
@@ -597,7 +605,8 @@ async fn test_pipe_a_source_failing_while_parked_ends_the_pipe() {
         knobs(&parked.alice).failed = Some(io::ErrorKind::ConnectionReset);
         (failed_at, parked)
     };
-    let (((err_a, err_b), ended), (failed_at, parked)) = tokio::join!(piped, driver);
+    let (((err_a, err_b), ended), (failed_at, parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
 
     assert_eq!(
         err_a
@@ -616,8 +625,8 @@ async fn test_pipe_a_source_failing_while_parked_ends_the_pipe() {
     assert!(knobs(&parked.bob).probes > 0);
 }
 
-/// The grace a probe starts is armed once: a failure that keeps showing on every later probe
-/// does not push the end of the pipe back.
+/// A failure a probe finds starts the `closewait` grace, which then runs out on its own: the pipe
+/// stops probing once it is closing, so nothing can push the end back.
 #[tokio::test(start_paused = true)]
 async fn test_pipe_a_failure_starts_the_grace_once() {
     let log = new_log();
@@ -632,7 +641,8 @@ async fn test_pipe_a_failure_starts_the_grace_once() {
         knobs(&parked.alice).failed = Some(io::ErrorKind::ConnectionReset);
         (started, parked)
     };
-    let (((err_a, _err_b), ended), (started, _parked)) = tokio::join!(piped, driver);
+    let (((err_a, _err_b), ended), (started, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
 
     assert!(err_a.is_err());
     // Probed at 6 s, which starts the 10 s grace.
@@ -655,7 +665,8 @@ async fn test_pipe_stalls_out_after_the_source_finished() {
         knobs(&parked.alice).finished = true;
         (started, parked)
     };
-    let (((err_a, err_b), ended), (started, _parked)) = tokio::join!(piped, driver);
+    let (((err_a, err_b), ended), (started, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
 
     let err_a = err_a.expect_err("the stalled direction reports it");
     assert_eq!(err_a.kind(), io::ErrorKind::TimedOut);
@@ -687,7 +698,8 @@ async fn test_pipe_stall_limit_follows_a_longer_close_wait() {
         knobs(&parked.alice).finished = true;
         (started, parked)
     };
-    let (((err_a, _), ended), (started, _parked)) = tokio::join!(piped, driver);
+    let (((err_a, _), ended), (started, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
 
     assert_eq!(err_a.unwrap_err().kind(), io::ErrorKind::TimedOut);
     let after = ended - started;
@@ -718,7 +730,8 @@ async fn test_pipe_a_draining_send_queue_is_progress() {
         }
         (started, parked)
     };
-    let (((err_a, _), ended), (started, _parked)) = tokio::join!(piped, driver);
+    let (((err_a, _), ended), (started, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
 
     assert_eq!(err_a.unwrap_err().kind(), io::ErrorKind::TimedOut);
     // The last shrink was seen at the probe at 120 s or 121 s; 30 s later the pipe ends.
@@ -737,10 +750,19 @@ async fn test_pipe_a_parked_direction_alone_is_backpressure() {
     let (alice, bob, mut parked) = parked_pair(&log);
     let pool = test_pool();
 
-    fill(&mut parked.alice_client).await;
     let piped = pipe_with_pool(alice, bob, 0, &pool);
-    let outcome = tokio::time::timeout(Duration::from_secs(3600), piped).await;
-    assert!(outcome.is_err(), "the pipe ended on its own: {outcome:?}");
+    let driver = async {
+        fill(&mut parked.alice_client).await;
+        tokio::time::sleep(Duration::from_secs(3600)).await;
+    };
+    tokio::select! {
+        ended = piped => panic!("the pipe ended on its own: {ended:?}"),
+        () = driver => {}
+    }
+    assert!(
+        knobs(&parked.alice).probes > 3000,
+        "parked, and probed, the whole hour"
+    );
 }
 
 /// A source starving its session (smux: no frame of any stream is read until it is drained) is
@@ -758,7 +780,8 @@ async fn test_pipe_a_starving_source_stalls_out() {
         knobs(&parked.alice).starving = true;
         (started, parked)
     };
-    let (((err_a, _), ended), (started, _parked)) = tokio::join!(piped, driver);
+    let (((err_a, _), ended), (started, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
 
     assert_eq!(err_a.unwrap_err().kind(), io::ErrorKind::TimedOut);
     let after = ended - started;
@@ -768,50 +791,111 @@ async fn test_pipe_a_starving_source_stalls_out() {
     );
 }
 
-/// A smux destination's reader shows progress only as credit, half a window at a time, so its
-/// stall limit is longer: two minutes, or half the window at 16 KiB/s when that is longer.
+/// A direction parked on a smux destination is never stalled out: its reader's progress only
+/// shows as credit, once per half window, and ending it could only send a `cmdFIN` that the far
+/// application would read as a complete stream.
 #[tokio::test(start_paused = true)]
-async fn test_pipe_a_credit_destination_is_given_longer() {
+async fn test_pipe_never_stalls_out_a_credit_destination() {
+    let log = new_log();
+    let (alice, bob, mut parked) = parked_pair(&log);
+    let pool = test_pool();
+    knobs(&parked.bob).progress = Some(Progress::Credit);
+
+    let piped = pipe_with_pool(alice, bob, 0, &pool);
+    let driver = async {
+        fill(&mut parked.alice_client).await;
+        knobs(&parked.alice).finished = true;
+        knobs(&parked.alice).starving = true;
+        tokio::time::sleep(Duration::from_secs(3600)).await;
+    };
+    tokio::select! {
+        ended = piped => panic!("a credit destination was stalled out: {ended:?}"),
+        () = driver => {}
+    }
+    assert!(
+        knobs(&parked.alice).probes > 3000,
+        "the parked pipe was probed throughout"
+    );
+}
+
+/// The stall clock starts when the end signal is first seen, not at the last movement: a reader
+/// that was merely paused (plain backpressure, for as long as it likes) still gets the whole
+/// limit after the far end stops.
+#[tokio::test(start_paused = true)]
+async fn test_pipe_stall_clock_starts_at_the_end_signal() {
     let log = new_log();
     let (alice, bob, mut parked) = parked_pair(&log);
     let pool = test_pool();
 
     let piped = timed(pipe_with_pool(alice, bob, 0, &pool));
     let driver = async {
-        let started = Instant::now();
-        knobs(&parked.bob).progress = Some(Progress::Credit {
-            window: 16 * 1024 * 1024,
-        });
         fill(&mut parked.alice_client).await;
+        tokio::time::sleep(Duration::from_secs(600)).await;
+        let signalled = Instant::now();
         knobs(&parked.alice).finished = true;
-        (started, parked)
+        (signalled, parked)
     };
-    let (((err_a, _), ended), (started, _parked)) = tokio::join!(piped, driver);
+    let (((err_a, _), ended), (signalled, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
 
     assert_eq!(err_a.unwrap_err().kind(), io::ErrorKind::TimedOut);
-    let after = ended - started;
+    let after = ended - signalled;
     assert!(
-        (Duration::from_secs(512)..=Duration::from_secs(513)).contains(&after),
-        "ended after {after:?}"
+        (Duration::from_secs(30)..=Duration::from_secs(32)).contains(&after),
+        "ended {after:?} after the signal"
+    );
+}
+
+/// Starvation has to last: a dip of the session's bucket (another stream's burst on a busy
+/// session) that lifts again ends nothing, and the clock starts over when it returns.
+#[tokio::test(start_paused = true)]
+async fn test_pipe_a_passing_starvation_ends_nothing() {
+    let log = new_log();
+    let (alice, bob, mut parked) = parked_pair(&log);
+    let pool = test_pool();
+
+    let piped = timed(pipe_with_pool(alice, bob, 0, &pool));
+    let driver = async {
+        fill(&mut parked.alice_client).await;
+        tokio::time::sleep(Duration::from_secs(600)).await;
+        for _ in 0..5 {
+            knobs(&parked.alice).starving = true;
+            tokio::time::sleep(Duration::from_secs(20)).await;
+            knobs(&parked.alice).starving = false;
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+        let lasting = Instant::now();
+        knobs(&parked.alice).starving = true;
+        (lasting, parked)
+    };
+    let (((err_a, _), ended), (lasting, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
+
+    assert_eq!(err_a.unwrap_err().kind(), io::ErrorKind::TimedOut);
+    let after = ended - lasting;
+    assert!(
+        (Duration::from_secs(30)..=Duration::from_secs(32)).contains(&after),
+        "ended {after:?} after the starvation became lasting"
     );
 }
 
 #[test]
 fn test_timing_stall_limits() {
     let t = Timing::DEFAULT;
-    assert_eq!(t.stall_limit(Progress::Fine, 0), Duration::from_secs(30));
-    assert_eq!(t.stall_limit(Progress::Fine, -1), Duration::from_secs(30));
-    assert_eq!(t.stall_limit(Progress::Fine, 45), Duration::from_secs(45));
-    // smux's initial window, and kcptun's default `-streambuf` of 2 MiB: the 120 s floor.
-    let credit = |window| Progress::Credit { window };
-    assert_eq!(t.stall_limit(credit(262_144), 0), Duration::from_secs(120));
-    assert_eq!(t.stall_limit(credit(2 << 20), 0), Duration::from_secs(120));
-    // 16 MiB: 8 MiB at 16 KiB/s.
-    assert_eq!(t.stall_limit(credit(16 << 20), 0), Duration::from_secs(512));
     assert_eq!(
-        t.stall_limit(credit(16 << 20), 600),
-        Duration::from_secs(600)
+        t.stall_limit(Progress::Fine, 0),
+        Some(Duration::from_secs(30))
     );
+    assert_eq!(
+        t.stall_limit(Progress::Fine, -1),
+        Some(Duration::from_secs(30))
+    );
+    assert_eq!(
+        t.stall_limit(Progress::Fine, 45),
+        Some(Duration::from_secs(45))
+    );
+    assert_eq!(t.stall_limit(Progress::Credit, 0), None);
+    assert_eq!(t.stall_limit(Progress::Credit, 600), None);
     assert_eq!(Timing::default(), Timing::DEFAULT);
 }
 
@@ -852,7 +936,7 @@ async fn test_pipe_resets_the_end_whose_data_is_thrown_away() {
         alice_client.shutdown().await.unwrap();
         (alice_client, bob_client)
     };
-    let ((err_a, err_b), _clients) = tokio::join!(piped, driver);
+    let ((err_a, err_b), _clients) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -915,7 +999,7 @@ async fn test_pipe_holds_no_buffer_while_idle() {
         drop(alice_client);
         drop(bob_client);
     };
-    let ((err_a, err_b), ()) = tokio::join!(piped, driver);
+    let ((err_a, err_b), ()) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -1054,7 +1138,7 @@ impl PipeEnd for FrameConn {
             finished: self.frames.is_empty(),
             starving: false,
             unsent: None,
-            progress: Progress::Credit { window: 262_144 },
+            progress: Progress::Credit,
         }
     }
 
@@ -1171,7 +1255,7 @@ async fn test_pipe_uses_the_process_wide_pool() {
         assert_eq!(bob_client.read(&mut [0u8; 1]).await.unwrap(), 0);
         assert_eq!(alice_client.read(&mut [0u8; 1]).await.unwrap(), 0);
     };
-    let ((err_a, err_b), ()) = tokio::join!(piped, driver);
+    let ((err_a, err_b), ()) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -1204,7 +1288,7 @@ async fn test_pipe_over_tcp_and_unix_sockets() {
         assert_eq!(alice_client.read(&mut [0u8; 1]).await.unwrap(), 0);
         assert_eq!(bob_client.read(&mut [0u8; 1]).await.unwrap(), 0);
     };
-    let ((err_a, err_b), ()) = tokio::join!(piped, driver);
+    let ((err_a, err_b), ()) = bounded(async { tokio::join!(piped, driver) }).await;
 
     err_a.unwrap();
     err_b.unwrap();
@@ -1265,8 +1349,6 @@ async fn test_a_unix_probe_sees_the_peer_close() {
 const FAST: Timing = Timing {
     watch: Duration::from_millis(50),
     socket_stall: Duration::from_millis(500),
-    credit_stall: Duration::from_millis(500),
-    credit_rate: u32::MAX,
 };
 
 /// The production failure, at the scale of one pipe: the application resets its connection
@@ -1276,18 +1358,17 @@ const FAST: Timing = Timing {
 async fn test_a_reset_reaches_a_parked_pipe() {
     let log = new_log();
     let (mut app, tcp_end) = tcp_pair().await;
-    let (stuck, _stuck_peer, _) = conn("stuck", &log, Fault::None);
+    let (stuck, _stuck_peer, stuck_knobs) = conn("stuck", &log, Fault::None);
 
     let piped =
         tokio::spawn(
             async move { pipe_with(tcp_end, stuck, 0, &BufPool::new(4, 4096), FAST).await },
         );
-    // More than the duplex and the socket buffers can hold.
-    let chunk = vec![0u8; 64 * 1024];
-    while tokio::time::timeout(Duration::from_millis(100), app.write_all(&chunk))
-        .await
-        .is_ok()
-    {}
+    // Enough to park the pipe (the stuck duplex and the pipe's buffer hold 8 KiB between them)
+    // while leaving the socket's receive window open: an RST that lands outside a nearly closed
+    // window is dropped by XNU, and the reset would never arrive.
+    app.write_all(&[0u8; 16 * 1024]).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
     app.set_zero_linger().unwrap();
     drop(app);
 
@@ -1300,6 +1381,10 @@ async fn test_a_reset_reaches_a_parked_pipe() {
         io::ErrorKind::ConnectionReset
     );
     err_b.unwrap();
+    assert!(
+        knobs(&stuck_knobs).probes > 0,
+        "the probe, not a read, saw the reset"
+    );
 }
 
 /// [`PipeEnd::abort`] really is a reset: the reader gets `ECONNRESET`, not a clean short stream.
@@ -1430,11 +1515,11 @@ async fn test_teardown_never_waits_for_a_fin_it_cannot_send() {
 
     let piped =
         tokio::spawn(async move { pipe_with(tcp_end, stream, 0, default_buf_pool(), FAST).await });
-    let chunk = vec![0u8; 64 * 1024];
-    while tokio::time::timeout(Duration::from_millis(200), app.write_all(&chunk))
-        .await
-        .is_ok()
-    {}
+    // Enough to park the pipe on the congested session (its 32 KiB copy buffer and the session's
+    // 16 KiB connection), but not enough to close the socket's receive window (see
+    // `test_a_reset_reaches_a_parked_pipe`).
+    app.write_all(&[0u8; 64 * 1024]).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
     app.set_zero_linger().unwrap();
     drop(app);
 
@@ -1667,5 +1752,187 @@ async fn test_a_zero_watch_period_does_not_spin() {
         knobs(&parked.alice).probes <= 5_001,
         "probed {} times in 5 s",
         knobs(&parked.alice).probes
+    );
+}
+
+// ---------------------------------------------------------------------------------------
+// The other direction (bob -> alice) and the rest of the review's gaps
+// ---------------------------------------------------------------------------------------
+
+/// [`parked_pair`] the other way round: alice's reader never reads, so `bob -> alice` parks.
+struct ParkedMirror {
+    bob_client: DuplexStream,
+    /// Held open and never read, which is what parks `bob -> alice`.
+    _alice_client: DuplexStream,
+    alice: SharedKnobs,
+    bob: SharedKnobs,
+}
+
+fn parked_mirror(log: &Arc<Mutex<Vec<Event>>>) -> (TestConn, TestConn, ParkedMirror) {
+    let (alice_server, alice_client, alice) = conn("alice", log, Fault::None);
+    let (bob_server, bob_client, bob) = conn("bob", log, Fault::None);
+    (
+        alice_server,
+        bob_server,
+        ParkedMirror {
+            bob_client,
+            _alice_client: alice_client,
+            alice,
+            bob,
+        },
+    )
+}
+
+/// Rule 5 for `bob -> alice`: bob's failure is bob's direction's result, and the data that
+/// direction still held for alice makes alice's close a reset.
+#[tokio::test(start_paused = true)]
+async fn test_pipe_a_failure_on_bob_is_bobs_directions() {
+    let log = new_log();
+    let (alice, bob, mut parked) = parked_mirror(&log);
+    let pool = test_pool();
+
+    let piped = pipe_with_pool(alice, bob, 0, &pool);
+    let driver = async {
+        fill(&mut parked.bob_client).await;
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        knobs(&parked.bob).failed = Some(io::ErrorKind::ConnectionReset);
+        parked
+    };
+    let ((err_a, err_b), _parked) = bounded(async { tokio::join!(piped, driver) }).await;
+
+    err_a.unwrap();
+    assert_eq!(err_b.unwrap_err().kind(), io::ErrorKind::ConnectionReset);
+    assert!(aborted(&log, "alice") && !aborted(&log, "bob"));
+}
+
+/// Rule 6 for `bob -> alice` reads the stall limit off alice, its destination: a credit
+/// destination is never stalled out, a socket one after 30 s.
+#[tokio::test(start_paused = true)]
+async fn test_pipe_bobs_stall_uses_alices_progress() {
+    // alice as a smux stream: never.
+    let log = new_log();
+    let (alice, bob, mut parked) = parked_mirror(&log);
+    let pool = test_pool();
+    knobs(&parked.alice).progress = Some(Progress::Credit);
+    let piped = pipe_with_pool(alice, bob, 0, &pool);
+    let driver = async {
+        fill(&mut parked.bob_client).await;
+        knobs(&parked.bob).finished = true;
+        tokio::time::sleep(Duration::from_secs(3600)).await;
+    };
+    tokio::select! {
+        ended = piped => panic!("stalled out on a credit destination: {ended:?}"),
+        () = driver => {}
+    }
+
+    // alice as a socket: 30 s after the signal.
+    let log = new_log();
+    let (alice, bob, mut parked) = parked_mirror(&log);
+    let piped = timed(pipe_with_pool(alice, bob, 0, &pool));
+    let driver = async {
+        fill(&mut parked.bob_client).await;
+        let signalled = Instant::now();
+        knobs(&parked.bob).finished = true;
+        (signalled, parked)
+    };
+    let (((err_a, err_b), ended), (signalled, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
+    err_a.unwrap();
+    assert_eq!(err_b.unwrap_err().kind(), io::ErrorKind::TimedOut);
+    let after = ended - signalled;
+    assert!(
+        (Duration::from_secs(30)..=Duration::from_secs(32)).contains(&after),
+        "ended {after:?} after the signal"
+    );
+    assert!(aborted(&log, "alice"));
+}
+
+/// "Nothing moved in either direction": a stalled direction is kept alive while the other one
+/// still carries data, and the clock starts at its last byte.
+#[tokio::test(start_paused = true)]
+async fn test_pipe_a_stall_is_kept_alive_by_the_other_direction() {
+    let log = new_log();
+    let (alice, bob, mut parked) = parked_pair(&log);
+    let pool = test_pool();
+
+    let piped = timed(pipe_with_pool(alice, bob, 0, &pool));
+    let driver = async {
+        fill(&mut parked.alice_client).await;
+        knobs(&parked.alice).finished = true;
+        // bob keeps answering alice for two minutes.
+        let mut last = Instant::now();
+        for _ in 0..12 {
+            tokio::time::sleep(Duration::from_secs(10)).await;
+            parked.bob_client.write_all(b"tick").await.unwrap();
+            let mut got = [0u8; 4];
+            parked.alice_client.read_exact(&mut got).await.unwrap();
+            last = Instant::now();
+        }
+        (last, parked)
+    };
+    let (((err_a, _), ended), (last, _parked)) =
+        bounded(async { tokio::join!(piped, driver) }).await;
+
+    assert_eq!(err_a.unwrap_err().kind(), io::ErrorKind::TimedOut);
+    let after = ended - last;
+    assert!(
+        (Duration::from_secs(30)..=Duration::from_secs(32)).contains(&after),
+        "ended {after:?} after the other direction's last byte"
+    );
+}
+
+/// A smux stream whose session is closed while nothing is buffered and nothing is in flight is
+/// still a truncation: its `cmdFIN` never came, so the application gets a reset.
+#[tokio::test]
+async fn test_a_stream_cut_by_a_closed_session_resets_the_application() {
+    use crate::smuxio::tests::{session_pair, stream_pair};
+
+    let (cli, srv) = session_pair(2);
+    let (ours, theirs) = stream_pair(&cli, &srv).await;
+    let (mut app, tcp_end) = tcp_pair().await;
+    let piped =
+        tokio::spawn(async move { pipe_with(ours, tcp_end, 0, default_buf_pool(), FAST).await });
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    cli.close().await.expect("close");
+
+    let _ = tokio::time::timeout(Duration::from_secs(5), piped)
+        .await
+        .expect("the pipe ends")
+        .expect("pipe task");
+    let got = tokio::time::timeout(Duration::from_secs(5), app.read(&mut [0u8; 16]))
+        .await
+        .expect("the application sees the end");
+    assert_eq!(
+        got.expect_err("a reset, not a clean end").kind(),
+        io::ErrorKind::ConnectionReset
+    );
+    drop((theirs, srv));
+}
+
+/// A unix socket cannot signal a truncation: there is no reset on a unix socket, so its reader
+/// sees a clean end of stream even when the pipe threw away data owed to it. Pinned, so nothing
+/// claims more.
+#[cfg(unix)]
+#[tokio::test]
+async fn test_a_unix_end_cannot_signal_a_truncation() {
+    let log = new_log();
+    let (alice, alice_client, alice_knobs) = conn("alice", &log, Fault::None);
+    let (unix_end, mut reader) = {
+        let _guard = kcptun_testkit::socket_creation_guard();
+        tokio::net::UnixStream::pair().unwrap()
+    };
+    knobs(&alice_knobs).undelivered = true;
+    drop(alice_client);
+
+    let (err_a, err_b) = pipe(alice, unix_end, 0).await;
+    err_a.unwrap();
+    err_b.unwrap();
+    assert_eq!(
+        reader
+            .read(&mut [0u8; 16])
+            .await
+            .expect("no error on a unix socket"),
+        0,
+        "a clean end of stream"
     );
 }

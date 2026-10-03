@@ -36,9 +36,10 @@
 //!    from a detached task (`Drop for kcptun_smux::Stream`). Nothing waits for that frame, so a
 //!    congested session cannot hold the socket open behind it. If data owed to a socket's reader
 //!    is being thrown away (a direction still holds bytes, or its smux source still has data
-//!    buffered or was cut off by its session dying), that socket is **reset** instead
+//!    buffered or was cut off by its session dying), a TCP socket is **reset** instead
 //!    ([`PipeEnd::abort`]), so the truncation reaches the application as `ECONNRESET` rather than
-//!    a clean but short stream.
+//!    a clean but short stream. A unix socket and a smux stream have no reset to send, so their
+//!    readers see a normal end of stream either way.
 //!
 //! Rule 2 alone does not end every pipe, because a direction can wait on its destination
 //! forever without either end telling it anything. While a direction is **parked** (its last
@@ -48,22 +49,32 @@
 //! 5. **A failed end** (a socket that was reset or timed out by TCP keepalive) counts as its
 //!    direction finishing: it starts the grace and is that direction's result. A parked direction
 //!    does not read its source, so it would not see the RST itself.
-//! 6. **A stall after the far end has stopped:** when the parked direction's source will send
-//!    nothing more (a smux `cmdFIN`, a dead session, a socket's FIN), or its source is a smux
-//!    stream starving its whole session (the session's receive buffer is spent while this stream
-//!    holds unread data, so no frame of any stream is read, not even a `cmdFIN`), and nothing has
-//!    moved in either direction for the stall limit, the pipe ends at once and the stalled
-//!    direction reports `i/o timeout`. "Moved" means a byte written by either direction, or a
-//!    socket destination's kernel send queue shrinking: a reader the kernel can see consuming is
-//!    alive however slowly it goes. The limit is `close_wait` but at least
-//!    [`Timing::socket_stall`] (30 s) for a socket destination, and at least
-//!    [`Timing::credit_stall`] (120 s, longer for a large window) for a smux destination, whose
-//!    reader's progress only shows as credit granted once per half window.
+//! 6. **A stall after the far end has stopped:** a direction parked on a **socket** whose source
+//!    will send nothing more (a smux `cmdFIN`, a dead session, a failed session receive side), or
+//!    whose source is a smux stream starving its session (the session's receive buffer is spent
+//!    and this stream holds at least a quarter of it, so no frame of any stream is read, not
+//!    even a `cmdFIN`), ends the pipe once that has been true, and nothing has moved in either
+//!    direction, for the stall limit: `close_wait`, but at least [`Timing::socket_stall`] (30 s).
+//!    The stalled direction reports `i/o timeout`, and the socket is reset (rule 4). "Moved"
+//!    means a byte written by either direction, or the socket's kernel send queue shrinking: a
+//!    reader the kernel can see consuming is alive however slowly it goes. The clock starts at
+//!    the later of the last movement and the first probe that saw the end signal, and a
+//!    starvation that lifts in between starts it again, so a reader that was merely paused is
+//!    given the full limit after the far end stops, and a brief dip in a busy session ends
+//!    nothing.
+//!
+//!    A direction parked on a **smux stream** is never ended this way. Its reader's progress
+//!    shows only as credit, granted once per half window, so a slow reader cannot be told from a
+//!    stuck one; and ending it could only send a `cmdFIN`, which the far application would read
+//!    as a complete stream. Such a pipe ends when the stream's peer goes (its `cmdFIN` ends the
+//!    other direction), when the session dies, or when the socket fails (rule 5).
 //!
 //! What this gives up, deliberately: an application that half-closes and then waits for an
 //! answer gets its connection closed `close_wait` seconds after its half-close (immediately with
-//! the client's default of 0), exactly as with Go kcptun before 2026. And a reader that stops
-//! reading for 30 s after the far end has closed loses the tail it never read.
+//! the client's default of 0), exactly as with Go kcptun before 2026; that includes the part of
+//! an answer still on its way when the application half-closed. And a reader that takes nothing
+//! for 30 s after the far end has stopped, or while its unread data starves its session, loses
+//! the tail it never read.
 //!
 //! Step 09.1 added the other half of Go's `Copy`, the `io.WriterTo` fast path: a source whose
 //! [`PipeEnd::FRAME_SOURCE`] is `true` is drained frame by frame through
@@ -205,18 +216,16 @@ pub fn default_buf_pool() -> &'static BufPool {
 // The ends of a pipe
 // ---------------------------------------------------------------------------------------
 
-/// How a destination shows that its reader is taking data, which decides how long the stall
-/// rule waits before it calls that reader stuck (module docs, rule 6).
+/// How a destination shows that its reader is taking data, which decides whether the stall rule
+/// may ever call that reader stuck (module docs, rule 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Progress {
-    /// A socket: every window its reader reopens shows in [`Probe::unsent`] within moments.
+    /// A socket: every window its reader reopens shows in [`Probe::unsent`] (on Linux, in steps of
+    /// roughly the reader's receive window divided by 16, or one segment, whichever is larger).
     Fine,
-    /// A smux v2 stream: its reader's progress arrives as credit, one `cmdUPD` per half
-    /// `window` consumed, so a slow reader can show nothing for a long time.
-    Credit {
-        /// The peer's advertised receive window, in bytes.
-        window: u32,
-    },
+    /// A smux v2 stream: its reader's progress arrives as credit, one `cmdUPD` per half window
+    /// consumed, so a slow reader can show nothing for minutes. The stall rule leaves it alone.
+    Credit,
 }
 
 /// What a pipe learns about one of its ends without reading or writing it ([`PipeEnd::probe`]).
@@ -287,8 +296,9 @@ pub trait PipeEnd: AsyncRead + AsyncWrite {
 
     /// Makes dropping this end an abortive close: a TCP socket sends RST and frees its queues
     /// instead of sending a FIN behind data its reader will never take. Ends with no such thing
-    /// ignore it: a smux stream has no RST frame, and a unix socket already fails its peer's next
-    /// read with `ECONNRESET` when it is closed with data unread.
+    /// ignore it: a smux stream has no reset frame (its peer sees the `cmdFIN` of the drop), and
+    /// a unix socket has none either (its reader sees a clean end of stream), so neither can tell
+    /// its reader that data was thrown away.
     fn abort(&self);
 }
 
@@ -387,12 +397,6 @@ pub struct Timing {
     /// The shortest stall the stall rule waits out before ending a pipe whose stalled
     /// destination is a socket.
     pub socket_stall: Duration,
-    /// The same for a smux destination, whose reader's progress shows only as credit.
-    pub credit_stall: Duration,
-    /// The slowest reader a smux destination is still waited for, in bytes per second: the
-    /// limit grows to half the peer's window at this rate, which is how often such a reader
-    /// grants new credit.
-    pub credit_rate: u32,
 }
 
 impl Timing {
@@ -400,23 +404,16 @@ impl Timing {
     pub const DEFAULT: Timing = Timing {
         watch: Duration::from_secs(1),
         socket_stall: Duration::from_secs(30),
-        credit_stall: Duration::from_secs(120),
-        credit_rate: 16 * 1024,
     };
 
     /// How long the stall rule waits, with `-closewait` set to `close_wait`, before ending a pipe
-    /// whose stalled destination shows progress this way. `-closewait` can only lengthen it.
-    pub fn stall_limit(&self, progress: Progress, close_wait: i64) -> Duration {
-        let floor = match progress {
-            Progress::Fine => self.socket_stall,
-            Progress::Credit { window } => {
-                let half = u64::from(window / 2);
-                let rate = u64::from(self.credit_rate.max(1));
-                self.credit_stall
-                    .max(Duration::from_secs(half.div_ceil(rate)))
-            }
-        };
-        floor.max(close_wait_duration(close_wait))
+    /// whose stalled destination shows progress this way; `None` for a destination it never ends
+    /// a pipe on (a smux stream). `-closewait` can only lengthen it.
+    pub fn stall_limit(&self, progress: Progress, close_wait: i64) -> Option<Duration> {
+        match progress {
+            Progress::Fine => Some(self.socket_stall.max(close_wait_duration(close_wait))),
+            Progress::Credit => None,
+        }
     }
 }
 
@@ -803,6 +800,9 @@ struct Lifetime {
     unsent: [Option<usize>; 2],
     /// When a probe last saw a send queue shrink.
     drained_at: Option<Instant>,
+    /// When a probe first saw the current end signal of each direction (`alice -> bob`,
+    /// `bob -> alice`) while it was parked; cleared when a probe finds the signal gone.
+    signalled_at: [Option<Instant>; 2],
 }
 
 /// The shortest probe period [`Lifetime`] accepts: a zero [`Timing::watch`] would re-arm an
@@ -822,6 +822,7 @@ impl Lifetime {
             watching: false,
             unsent: [None; 2],
             drained_at: None,
+            signalled_at: [None; 2],
         }
     }
 
@@ -907,16 +908,16 @@ impl Lifetime {
         A: PipeEnd,
         B: PipeEnd,
     {
-        let at_alice = alice.probe();
-        let at_bob = bob.probe();
+        let mut at_alice = alice.probe();
+        let mut at_bob = bob.probe();
 
         // Rule 5: a failed end counts as the direction reading it finishing.
         let mut failed = false;
-        if let Some(err) = at_alice.failed {
+        if let Some(err) = at_alice.failed.take() {
             ab.report(err);
             failed = true;
         }
-        if let Some(err) = at_bob.failed {
+        if let Some(err) = at_bob.failed.take() {
             ba.report(err);
             failed = true;
         }
@@ -938,25 +939,40 @@ impl Lifetime {
         if let Some(drained_at) = self.drained_at {
             moved_at = moved_at.max(drained_at);
         }
-        let still = now.saturating_duration_since(moved_at);
 
-        // Rule 6: a parked direction whose source has stopped, or starves its session, and
-        // nothing has moved for the stall limit of its destination.
-        if ab.parked
-            && (at_alice.finished || at_alice.starving)
-            && still >= self.timing.stall_limit(at_bob.progress, self.close_wait)
-        {
+        // Rule 6: a parked direction whose source has stopped, or starves its session, ends the
+        // pipe once that has lasted, with nothing moving, for its destination's stall limit.
+        let ab_limit = self.timing.stall_limit(at_bob.progress, self.close_wait);
+        if self.stall_expired(0, ab, &at_alice, ab_limit, moved_at, now) {
             ab.report(stalled());
             return true;
         }
-        if ba.parked
-            && (at_bob.finished || at_bob.starving)
-            && still >= self.timing.stall_limit(at_alice.progress, self.close_wait)
-        {
+        let ba_limit = self.timing.stall_limit(at_alice.progress, self.close_wait);
+        if self.stall_expired(1, ba, &at_bob, ba_limit, moved_at, now) {
             ba.report(stalled());
             return true;
         }
         false
+    }
+
+    /// Rule 6 for one direction: records when its end signal was first seen, and says whether the
+    /// stall limit has run out since then (and since the last movement).
+    fn stall_expired(
+        &mut self,
+        dir: usize,
+        transfer: &Transfer<'_>,
+        source: &Probe,
+        limit: Option<Duration>,
+        moved_at: Instant,
+        now: Instant,
+    ) -> bool {
+        let signalled = transfer.parked && (source.finished || source.starving);
+        let Some(limit) = limit.filter(|_| signalled) else {
+            self.signalled_at[dir] = None;
+            return false;
+        };
+        let since = *self.signalled_at[dir].get_or_insert(now);
+        now.saturating_duration_since(moved_at.max(since)) >= limit
     }
 }
 
