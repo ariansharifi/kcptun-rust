@@ -49,7 +49,7 @@ EOF
    // Go (post-pin fix, V01): kcp-go@v5.6.72 ringbuffer.go:Discard()
    ```
 4. **Deviations** (anything observable that differs from Go) need a DECISIONS.md entry (V-xx) and a
-   comment at the site: `// Deviation V04: forward close_write through QPP (Go falls back to Close).`
+   comment at the site: `// Deviation V06: a usage error exits 2 here, 0 in Go.`
    Purely internal choices (data structures, task layout) need a D-xx entry only when architectural.
 5. **When in doubt, check Go**: run the Go code (§1) rather than guessing.
 
@@ -119,7 +119,10 @@ EOF
   `kcptun-kcp::memory` (added in step 12.3, and the only such call left after 12.3d deleted the
   rejected mimalloc allocator; `libc` exposes no safe wrapper for it, and the one
   `#[global_allocator]` left in the tree (`dhat`'s, in the `memprobe` test binary) needs no
-  `unsafe` at all), and,
+  `unsafe` at all), the `getrlimit`/`setrlimit` pair that raises the open-file limit as the Go
+  runtime does, and macOS's `sysctlbyname` for its ceiling (`kcptun-kcp::rlimit`, DECISIONS D34),
+  the one `ioctl`/`getsockopt` that asks how much of a socket's send queue its peer has not
+  consumed (`kcptun-kcp::sockinfo`, added for the proxy pipe's stall rule, D35), and,
   test code only, added in step 05.9: the two `getrusage(2)` calls
   of `kcptun-testkit::cpu`, which the benchmark harnesses need and `std` does not wrap. Every block
   has a `// SAFETY:` comment (`clippy::undocumented_unsafe_blocks`). All other crates
