@@ -8,7 +8,7 @@ All notable changes to this project are recorded here. The format follows
 project interoperates with Go kcptun `39935d5` (kcp-go v5.6.66, smux v1.5.55). A change that could
 break interoperability with those peers would be a major version and would be listed here first.
 
-## [Unreleased]
+## [0.2.3] - 2026-10-03
 
 Review fixes to 0.2.2's new teardown rules. They end fewer connections than 0.2.2, never more, and
 lose less data. Nothing changes on the wire.
