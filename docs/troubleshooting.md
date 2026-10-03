@@ -121,12 +121,90 @@ path itself, usually means the receiver cannot drain the socket in time:
 Rising `RetransSegs` with a flat `FECRecovered` means real loss that parity is not covering: raise
 `-parityshard`, or make retransmission more aggressive with `-mode fast3`.
 
+## Connections are left behind: FIN-WAIT-2, CLOSE-WAIT, or descriptors with no connection
+
+v0.2.1 of both binaries leaked finished connections, and so does Go kcptun 2026-02: once the far
+end dropped a stream, the connection's TCP socket was never read or closed again. In production
+that grew to thousands of sockets and to one server holding 827 MB of its host's 829 MB of TCP
+memory. **v0.2.2 fixes it** ([V24](differences.md#full-list)). The Go releases before 2026, which
+close both ends when either direction finishes, do not have it.
+
+**How to check**, on the host of the process you suspect (`<pid>` is its process id; `ss -p`
+needs root to name another user's process):
+
+```sh
+ss -tnp state fin-wait-2 | grep 'pid=<pid>,'  # the leak's signature: a full Recv-Q nobody reads
+ss -tnp state close-wait | grep 'pid=<pid>,'  # some are normal, see below
+ls -l /proc/<pid>/fd | grep -c socket:        # the sockets the process holds ...
+ss -tanp | grep -c 'pid=<pid>,'               # ... and the TCP ones the kernel still lists
+grep '^TCP:' /proc/net/sockstat               # host-wide: alloc far above inuse is sockets
+                                              # closed but still held
+cat /proc/sys/net/ipv4/tcp_mem                # sockstat's "mem" against the third value (pages)
+```
+
+A process holds a few sockets more than `ss -t` lists (its UDP sockets, for one). Thousands more
+are closed connections whose descriptor was never closed: no state table lists them any more, but
+their unread data is still charged to the host's TCP memory. Past the third value of `tcp_mem` the
+kernel starts refusing buffer memory to every TCP socket on the host, not only to kcptun's, and may
+log `TCP: out of memory -- consider tuning tcp_mem`.
+
+**What v0.2.2 changed.** Both binaries now:
+
+* close both ends of a connection `-closewait` seconds after its first direction finishes, and
+  never leave a socket half-closed and unread;
+* while one direction waits for its destination, check both ends once a second: a socket that was
+  reset, or that TCP keepalive gave up on, ends the connection, and so does a connection whose far
+  end has finished and on which nothing has moved for the stall limit (30 s when the stuck reader
+  is the application or the target, 120 s or more when it is the tunnel);
+* turn TCP keepalive on for the client's accepted connections and the server's target
+  connections, as Go does (15 s idle, 15 s interval, 9 probes, [D36](DECISIONS.md)), so a peer
+  that vanishes without a FIN or an RST is noticed after about 150 s;
+* let go of a dead session's socket and queues, and of a closed session's streams, at once
+  ([D35](DECISIONS.md)).
+
+A connection now ends at most `-closewait` seconds after one of its directions finishes, or after
+the stall limit when a reader stopped after the far end had finished. Some CLOSE-WAIT sockets are
+normal: a target that has closed waits there for the server's `-closewait` (30 s by default) before
+kcptun closes its end, and an application that sent its data and closed waits there while the tail
+of that data goes through the tunnel. With a Go peer, the Go side keeps its own leak; only this
+port's end is freed.
+
+**What it logs**, without `-quiet`, as `pipe: <error> in: <a> out: <b>`:
+
+| Error | Meaning |
+|---|---|
+| `i/o timeout` | The stall rule ended the connection: one side had finished, or its stream was holding up its whole session, and nothing moved for the stall limit. The reader that stopped loses what it had not read; if it is the application or the target, its socket is reset. |
+| `connection reset by peer` | The application or the target reset its connection. Since v0.2.2 that is noticed even while the other direction is waiting for the tunnel, and the connection ends. `connection timed out` is the same for a peer that TCP keepalive gave up on. |
+
+**Why an application may now see `ECONNRESET`.** When kcptun ends a connection while it still holds
+data on its way to an application (the grace ran out while an answer was arriving, the stall rule
+ended a connection whose application had stopped reading, or the session died before the far end
+finished), it resets that application's socket instead of closing it. The application reads
+`connection reset by peer` instead of a clean end of file, so a download cut short cannot pass for a
+complete one. On the server the same holds for the target, for an upload.
+
+**Applications that half-close.** v0.2.2 does not pass a half-close through the tunnel. When an
+application calls `shutdown(SHUT_WR)` (`nc -N`, HTTP/1.0-shaped clients, some RPC clients) and then
+waits for its answer, the client closes the whole connection `-closewait` seconds later, at once
+with the default of 0, and the target sees the end of the request only when the server closes its
+connection, after the client has closed its own. Give the **client** a `-closewait` as long as the
+answer can take. It helps only within that grace: an answer still on its way when the grace runs
+out is cut (with a reset if kcptun was holding part of it, otherwise as an early end of file), and
+it cannot help a target that waits for the end of the request before answering. It also applies to
+every other connection the client carries, each of which then sees its end of file that much later.
+
 ## A connection hangs for about 30 seconds when it finishes
 
-The server's `-closewait` default is **30 seconds**: the delay before it tears a connection down,
-and it applies once per direction, so a request/response round trip against the defaults can take a
-minute to close. This is Go's default and Go's behaviour. Set `-closewait 0` if your workload
-half-closes and you want teardown to be immediate.
+The server's `-closewait` default is **30 seconds**: the time between the first direction of a
+connection finishing and both ends being closed. When the target closes, the client application
+gets the target's data at once but its end of file only 30 s later, at teardown; when the client
+application closes, the target sees the end 30 s later. The default is Go's, and so is the
+behaviour. Up to v0.2.1 the wait applied once per direction, so a round trip could take a minute to
+close; since v0.2.2 it applies once per connection ([V24](differences.md#full-list)).
+
+Set the server's `-closewait 0` for an immediate teardown. Data already handed to the tunnel is
+still delivered; what is lost is anything the client application sends after the target has
+closed, which matters only to a target that half-closes and keeps reading.
 
 ## After the server restarts, existing clients take about a minute to recover
 
@@ -146,12 +224,17 @@ and dialling UDP does not fail.
 
 If the truncation happens with a **Go client** (against either server), it is Go's
 half-close data loss: Go's smux discards data that arrived but has not been read once the peer's FIN
-completes the half-close. It is reproducible with Go on both ends, and it is fixed in this port's
-client ([V11](differences.md#full-list), [V04](differences.md#full-list) with `-QPP`). The interop
-matrix records exactly this: a Rust client is held to a complete response, a Go client is not.
+completes the half-close, and with `-QPP` Go closes the whole stream instead
+([V11](differences.md#full-list), [V04](differences.md#full-list)). It is reproducible with Go on
+both ends, and the interop matrix records it.
 
-If the truncation happens with a **Rust client**, that is a bug: please report it with the flags
-and, if possible, a packet capture.
+If it happens with a **Rust client**, first check whether it is one of the cuts v0.2.2 makes on
+purpose ([V24](differences.md#full-list)): the application half-closed and the answer took longer
+than the client's `-closewait`, or the application stopped reading for 30 s after the far end had
+finished. See
+[Connections are left behind](#connections-are-left-behind-fin-wait-2-close-wait-or-descriptors-with-no-connection)
+for both. Anything else is a bug: please report it with the flags and, if possible, a packet
+capture.
 
 ## A flag seems to be ignored, or takes a strange value
 

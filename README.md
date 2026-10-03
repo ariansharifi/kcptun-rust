@@ -76,7 +76,7 @@ supported**. → [What is finished, and what is not](docs/status.md)
 | [Tuning](docs/tuning.md) | Throughput, latency, FEC, ciphers, memory, kernel limits |
 | [Troubleshooting](docs/troubleshooting.md) | What the common failures look like and what they mean |
 | [Compatibility](docs/compatibility.md) | The pinned Go reference and how it is verified |
-| [Differences from Go](docs/differences.md) | All 23, with what Go does and why this differs |
+| [Differences from Go](docs/differences.md) | All 24, with what Go does and why this differs |
 | [Status](docs/status.md) | What is finished and what is not |
 | [Performance report](docs/benchmarks/REPORT.md) | Go vs Rust, end to end, with every gap stated |
 | [Interop matrix](docs/interop-matrix.md) | Go ↔ Rust results per platform |

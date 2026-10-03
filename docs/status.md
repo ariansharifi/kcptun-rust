@@ -11,7 +11,7 @@ What is finished and tested:
 |---|---|
 | KCP ARQ, FEC / Reed-Solomon, all 15 `-crypt` modes, smux v1 and v2, snappy, QPP | Ported and verified against golden vectors generated from the Go code |
 | `kcptun-client` / `kcptun-server` | Complete: flags, JSON config, presets, logging, SNMP, signals, port ranges, Unix-socket targets |
-| Go ↔ Rust interop | 128/128 runs green on macOS/arm64 and on Linux/aarch64 ([matrix](interop-matrix.md)) |
+| Go ↔ Rust interop | 128/128 runs green on macOS/arm64 and on Linux/aarch64 ([matrix](interop-matrix.md)), recorded on 2026-09-23, before v0.2.2 changed how a connection ends ([V24](differences.md)) |
 | Startup-log and CLI behaviour | Differential-tested against the Go binaries across 50 command lines, with a closed allow-list of known differences |
 | Packaging | Cross-build script, Dockerfile, systemd units, sysctl drop-ins, example configurations |
 

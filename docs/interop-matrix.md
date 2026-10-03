@@ -127,6 +127,8 @@ No failures.
 <!-- platform: linux/aarch64 -->
 ## linux/aarch64: 2026-09-23 10:07:12Z
 
+*Recorded with the v0.2.1 binaries, before [V24](differences.md#full-list): the Rust-client half-close cells show the complete answer those binaries returned. The macOS section above is current.*
+
 **128/128** runs passed.
 
 Workload per run: 20 MB each way on one bulk stream, 100 concurrent streams of 16 KiB each way, and a half-close probe that asks for 256 KiB after `shutdown(SHUT_WR)` (having waited 250ms first, so the answer and the peer's FIN are both buffered), all SHA-256 verified, with both processes' logs scanned afterwards. The harness adds `-closewait 0` to the server so teardown is not delayed by 30 s per direction; nothing else is added to a case's flags.

@@ -8,6 +8,57 @@ All notable changes to this project are recorded here. The format follows
 project interoperates with Go kcptun `39935d5` (kcp-go v5.6.66, smux v1.5.55). A change that could
 break interoperability with those peers would be a major version and would be listed here first.
 
+## [0.2.2] - 2026-10-03
+
+A fix for a leak of finished connections in both binaries, found in production on 0.2.1. It
+changes how a connection ends: read **Changed** before upgrading if an application behind the
+tunnel half-closes its connections. Nothing changes on the wire.
+
+### Fixed
+
+* **Finished connections no longer leak their TCP side** ([V24](docs/differences.md), [D35]).
+  Up to 0.2.1 the proxy pipe was a port of Go kcptun's 2026 `Pipe`, which half-closes each
+  direction on its own and ends only once both have ended, and smux v1.5.55 does not wake a write
+  that is waiting for window credit when the peer's FIN arrives. Once the far end dropped a stream, the direction writing into it
+  waited forever, and the TCP socket the other direction had already half-closed was never read
+  or closed again. In production that showed as client sockets in FIN-WAIT-2 holding 10-18 MB of
+  unread data, haproxy's ends in CLOSE-WAIT, thousands of closed sockets whose descriptors stayed
+  open, the same on the servers' target side, and one server holding 827 MB of its host's 829 MB
+  of TCP memory. Go kcptun 2026-02 has the same hole; the Go releases before it do not, and
+  neither does this one. The client also lets go of a dead session (its socket and queues) at
+  once, not when the last connection through it ends or round-robin next lands on its slot, and a
+  closed session no longer holds on to its streams' buffers.
+  [How to check a host](docs/troubleshooting.md#connections-are-left-behind-fin-wait-2-close-wait-or-descriptors-with-no-connection).
+* **TCP keepalive on proxied connections, as Go does** ([D36]). Go turns keepalive on (15 s
+  idle, 15 s interval, 9 probes) for every TCP connection it accepts or dials; this port set only
+  `TCP_NODELAY`. An application or a target that vanishes without a FIN or an RST is now noticed
+  about 150 s after it went quiet, and its connection ends.
+
+### Changed
+
+* **A half-close is no longer passed through the tunnel** ([V24](docs/differences.md)). When
+  either direction of a connection finishes, both ends are closed `-closewait` seconds later
+  (client default 0, server 30), as in Go kcptun before 2026, and the far end sees the end of the
+  stream only then. An application that calls `shutdown(SHUT_WR)` and then waits for the answer
+  has its connection closed at once behind a client with the default `-closewait 0`; a longer
+  client `-closewait` gives the answer that long. `-closewait` now runs once per connection, not
+  once per direction, so a round trip against the server's default closes within 30 s, not 60.
+* **A connection stuck after its far end has finished is ended** ([V24](docs/differences.md)).
+  While one direction waits for its destination, both ends are checked once a second. A socket
+  that was reset, or that keepalive gave up on, ends the connection
+  (`pipe: connection reset by peer`). Once the far end has finished, or a stream is holding up its
+  whole session, a connection on which nothing has moved for `-closewait`, but at least 30 s (at
+  least 120 s when the reader that stopped is beyond the tunnel), is ended with
+  `pipe: i/o timeout`. A reader that stops for that long after the far end has finished loses the
+  tail it never read.
+* **A connection cut short is reset, not closed** ([V24](docs/differences.md)). When teardown
+  throws away data that kcptun holds for an application (or, on the server, for the target), that
+  socket is reset (`SO_LINGER 0`), so the application reads `ECONNRESET` instead of a clean end of
+  a short stream.
+
+[D35]: docs/DECISIONS.md
+[D36]: docs/DECISIONS.md
+
 ## [Unreleased]
 
 The first version. Nothing has been released or published yet: no tag, no crates.io package, no
@@ -86,7 +137,9 @@ Twenty-two intentional deviations (V01–V23, of which V13 was superseded by V18
 wire-compatible, are listed in [`docs/differences.md`](docs/differences.md) and registered with
 their evidence in [`docs/DECISIONS.md`](docs/DECISIONS.md). The ones a user notices:
 
-* half-closed connections return complete responses, where Go can truncate them (V11, V04);
+* half-closed connections returned complete responses, where Go can truncate them (V11, V04).
+  **No longer true since 0.2.2:** the binaries do not pass a half-close on at all, and a
+  connection is closed `-closewait` seconds after either side finishes (V24);
 * a usage error exits 2 instead of 0 (V06);
 * configurations that Go accepts and then crashes on are refused at startup: FEC above 256 shards
   (V07), `-QPPCount` and `-conn` values that overflow Go's `uint16` cast (V15, V19);

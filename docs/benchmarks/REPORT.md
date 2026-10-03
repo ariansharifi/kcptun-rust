@@ -565,8 +565,9 @@ Performance work that broke the wire format would be worthless, so this is part 
   profile: runs in all four pairings with both `go->go` and `rs->rs` controls. Per run: 20 MB each
   way on one bulk stream, 100 concurrent 16 KiB streams each way, and a half-close probe, all
   SHA-256 verified with both processes' logs scanned afterwards. The only tolerated difference is a
-  Go-side half-close truncation that reproduces in the `go->go` control (V11, V04); a Rust client is
-  held to a complete response against either server.
+  Go-side half-close truncation that reproduces in the `go->go` control (V11, V04); a Rust client was
+  held to a complete response against either server. That was before v0.2.2, which no longer passes
+  a half-close through at all (V24).
 * **No error marker in any collected log of any lab run**, across the 192-run impairment matrix, the
   27-run and 26-run WAN sessions, the 240 end-to-end baseline runs and four soak runs (the two 12.1 pages do
   not print a log scan; for those 240 runs that is `lab.py`'s check at run time, not a committed

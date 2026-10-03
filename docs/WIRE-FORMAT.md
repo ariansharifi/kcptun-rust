@@ -270,6 +270,9 @@ cmd: 0 SYN, 1 FIN, 2 PSH, 3 NOP, 4 UPD (v2 only; payload = consumed u32 LE | win
   `closeWait` seconds, then `CloseWrite()` the destination if supported (TCP, smux stream), else `Close()`
   it. After both directions finish, close both ends.
   - Go's QPP wrapper has no `CloseWrite`, so with QPP the smux side is fully closed. See DECISIONS V04.
+  - This port does not half-close (DECISIONS V24): when either direction finishes, both ends are
+    closed `closeWait` seconds later, as Go kcptun did before 2026. The frames are the same; only
+    when a stream's FIN is sent differs.
 - The server dials the target with a **10 s** timeout. The target is TCP if `net.SplitHostPort(target)`
   succeeds, otherwise a unix socket path. The client's local address uses the same rule.
 - Client session selection:
