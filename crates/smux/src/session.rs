@@ -567,11 +567,29 @@ impl SessionShared {
         }
         self.die.cancel();
 
-        // Go keeps the entries in the map; NumStreams reports 0 once the session is closed.
-        for stream in lock(&self.streams).values() {
+        // Go keeps the entries in the map (NumStreams reports 0 once the session is closed), so
+        // every stream's unread data lives as long as the session value does. kcptun's client
+        // keeps a closed session in its pool until a later connection lands on that slot, which
+        // with `-smuxbuf 16M -conn 4` can pin 64 MiB of dead streams' buffers (DECISIONS D35).
+        // The map is emptied here instead; each stream stays alive through its own handles, and
+        // its buffered data stays readable there (V11), until the last handle is dropped.
+        let streams = std::mem::take(&mut *lock(&self.streams));
+        for stream in streams.values() {
             stream.session_close();
         }
         true
+    }
+
+    /// Whether the receive side has stopped for good: the connection failed or sent garbage.
+    /// No frame for any stream will be read again.
+    pub(crate) fn recv_failed(&self) -> bool {
+        self.socket_read_error.is_set() || self.proto_error.is_set()
+    }
+
+    /// Whether the token bucket is spent, so `recv_loop` reads no frame at all (not even a
+    /// `cmdFIN` or `cmdUPD`) until some stream's reader returns tokens.
+    pub(crate) fn recv_starved(&self) -> bool {
+        self.bucket.load(Ordering::Acquire) <= 0
     }
 
     /// Test hook: place the stream-id counter near the `uint32` wrap, so `open_stream` can be
