@@ -407,6 +407,16 @@ async fn serve<C, F>(
         };
         let idx = usize::from(rr % numconn);
 
+        // Let go of every session that has died, not only the one this connection is about to
+        // use. Go keeps a dead session in its slot until round-robin lands there again, and with
+        // it the KCP socket and its queues (two windows of `-mtu` segments each); nothing else
+        // looks at a closed slot, so releasing it early is invisible otherwise (DECISIONS D35).
+        for slot in &mut muxes {
+            if slot.as_ref().is_some_and(|mux| mux.session.is_closed()) {
+                *slot = None;
+            }
+        }
+
         // Refresh the selected session if it is missing, closed, or past its TTL.
         let refresh = match &muxes[idx] {
             None => true,
@@ -857,6 +867,11 @@ async fn handle_client<P1, C>(
             return;
         }
     };
+
+    // The stream holds what it needs of the session. Holding the `Session` itself for the life of
+    // the pipe would only keep a dead session's KCP socket and queues around until the last of
+    // its pipes ends; the pool (`muxes`) and the scavenger hold live sessions.
+    drop(session);
 
     let s2 = SmuxStream::new(p2);
     // Go: fmt.Sprintf("%v(%d)", p2.RemoteAddr(), p2.ID())
