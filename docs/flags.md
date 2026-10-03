@@ -64,9 +64,10 @@ closed; 0 or less closes them at once. The defaults are Go's: 0 on the client, 3
 Since v0.2.2 the wait runs once per connection and nothing is half-closed meanwhile, so it is also
 how long an application that half-closed can still receive its answer
 ([V24](differences.md#full-list), [troubleshooting](troubleshooting.md#connections-are-left-behind-fin-wait-2-close-wait-or-descriptors-with-no-connection)).
-It is the floor of the stall limit too: a connection whose far end has finished and on which
-nothing moves is ended after `-closewait` seconds, but never sooner than 30 s, or 120 s when the
-reader that stopped is beyond the tunnel (512 s when the far side runs `-streambuf 16777216`).
+It is the floor of the stall limit too: a connection whose far end has finished, and whose
+application or target has taken nothing since, is ended after `-closewait` seconds, but never
+sooner than 30 s (counted from when the far end finished, v0.2.3). A reader waiting on the tunnel
+is never ended this way.
 
 Two environment variables matter and have no flag:
 

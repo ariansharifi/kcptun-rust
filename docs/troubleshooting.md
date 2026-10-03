@@ -154,8 +154,9 @@ log `TCP: out of memory -- consider tuning tcp_mem`.
   never leave a socket half-closed and unread;
 * while one direction waits for its destination, check both ends once a second: a socket that was
   reset, or that TCP keepalive gave up on, ends the connection, and so does a connection whose far
-  end has finished and on which nothing has moved for the stall limit (30 s when the stuck reader
-  is the application or the target, 120 s or more when it is the tunnel);
+  end has finished, or whose stream holds up its whole session, while its application or target
+  takes nothing for 30 s (`-closewait` if longer; since v0.2.3 counted from when that started, and
+  never applied to a reader waiting on the tunnel);
 * turn TCP keepalive on for the client's accepted connections and the server's target
   connections, as Go does (15 s idle, 15 s interval, 9 probes, [D36](DECISIONS.md)), so a peer
   that vanishes without a FIN or an RST is noticed after about 150 s;
@@ -163,7 +164,7 @@ log `TCP: out of memory -- consider tuning tcp_mem`.
   ([D35](DECISIONS.md)).
 
 A connection now ends at most `-closewait` seconds after one of its directions finishes, or after
-the stall limit when a reader stopped after the far end had finished. Some CLOSE-WAIT sockets are
+the stall limit when its application or target stopped reading after the far end had finished. Some CLOSE-WAIT sockets are
 normal: a target that has closed waits there for the server's `-closewait` (30 s by default) before
 kcptun closes its end, and an application that sent its data and closed waits there while the tail
 of that data goes through the tunnel. With a Go peer, the Go side keeps its own leak; only this
@@ -173,7 +174,7 @@ port's end is freed.
 
 | Error | Meaning |
 |---|---|
-| `i/o timeout` | The stall rule ended the connection: one side had finished, or its stream was holding up its whole session, and nothing moved for the stall limit. The reader that stopped loses what it had not read; if it is the application or the target, its socket is reset. |
+| `i/o timeout` | The stall rule ended the connection: the far end had finished, or the connection's stream was holding up its whole session, and the application or target took nothing for the stall limit. That reader loses what it had not read, and its socket is reset. |
 | `connection reset by peer` | The application or the target reset its connection. Since v0.2.2 that is noticed even while the other direction is waiting for the tunnel, and the connection ends. `connection timed out` is the same for a peer that TCP keepalive gave up on. |
 
 **Why an application may now see `ECONNRESET`.** When kcptun ends a connection while it still holds

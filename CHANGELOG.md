@@ -8,6 +8,31 @@ All notable changes to this project are recorded here. The format follows
 project interoperates with Go kcptun `39935d5` (kcp-go v5.6.66, smux v1.5.55). A change that could
 break interoperability with those peers would be a major version and would be listed here first.
 
+## [Unreleased]
+
+Review fixes to 0.2.2's new teardown rules. They end fewer connections than 0.2.2, never more, and
+lose less data. Nothing changes on the wire.
+
+### Fixed
+
+* **A payload is no longer held back by its window update** ([D35]). smux's frame read, the
+  proxy's drain path, waited to send the window update a read made due before handing the payload
+  over. With the session's send path congested (a full KCP window toward a dead or starved peer)
+  the payload sat where nothing could see it: a teardown lost it without a reset, and a stream
+  holding up its whole session stopped draining. The payload now goes first and the updates follow
+  from a per-stream task, the order Go's `WriteTo` uses.
+* **The stall rule no longer ends live transfers** ([V24](docs/differences.md)):
+  * its clock starts when the far end stops, or when the session starvation starts, so a reader
+    that was merely paused gets the whole 30 s after that, instead of being cut a second after a
+    FIN or after another stream's burst briefly filled the session;
+  * it no longer applies when the reader is beyond the tunnel: 0.2.2 ended such a transfer after
+    120 s without credit (512 s at `-streambuf 16777216`), and since smux has no reset, the far
+    application saw a clean but short stream;
+  * a stream counts as holding up its session only while it holds a quarter of the session's
+    buffer.
+* **A stream cut off by its session's receive side failing** (a socket or protocol error that does
+  not close the session) now resets the application's socket instead of ending it cleanly.
+
 ## [0.2.2] - 2026-10-03
 
 A fix for a leak of finished connections in both binaries, found in production on 0.2.1. It
@@ -59,11 +84,10 @@ tunnel half-closes its connections. Nothing changes on the wire.
 [D35]: docs/DECISIONS.md
 [D36]: docs/DECISIONS.md
 
-## [Unreleased]
+## [0.2.1] - 2026-09-25
 
-The first version. Nothing has been released or published yet: no tag, no crates.io package, no
-container image on a registry, no binaries. Everything below is in the repository and passes its
-tests; see the [README](README.md#status) for what is not finished.
+The first published versions, 0.1.0 to 0.2.1 (2026-09-24 and 2026-09-25), recorded together. See
+the [README](README.md#status) for what is not finished.
 
 ### Added
 
@@ -163,4 +187,3 @@ their evidence in [`docs/DECISIONS.md`](docs/DECISIONS.md). The ones a user noti
 * A `-snmplog` file name containing the `MST` time-layout token renders a numeric offset rather
   than a zone abbreviation (V14).
 * No Go-vs-Rust memory (RSS) comparison has been published yet.
-* Nothing in `.github/workflows/` has ever run: the repository has no remote.
