@@ -13,9 +13,9 @@
 name: fuzz
 
 on:
-  # Daily, at an odd minute (GitHub asks that schedules avoid the top of the hour).
+  # Monthly, at an odd minute (GitHub asks that schedules avoid the top of the hour).
   schedule:
-    - cron: "41 3 * * *"
+    - cron: "41 3 1 * *"
   workflow_dispatch:
     inputs:
       max_total_time:
